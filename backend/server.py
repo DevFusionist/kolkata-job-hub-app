@@ -42,7 +42,7 @@ class ConnectionManager:
         if user_id in self.active_connections:
             try:
                 await self.active_connections[user_id].send_json(message)
-            except:
+            except Exception:
                 pass
 
 manager = ConnectionManager()

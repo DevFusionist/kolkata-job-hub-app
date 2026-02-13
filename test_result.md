@@ -101,3 +101,197 @@
 #====================================================================================================
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
+
+user_problem_statement: "Build a job portal for Kolkata market targeting micro and small businesses. Features: Phone/OTP auth, Job posting (2 free + paid), Job search with filters, Applications, Chat messaging, Razorpay payment integration."
+
+backend:
+  - task: "Phone OTP Authentication (Mock)"
+    implemented: true
+    working: "NA"
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Mock OTP authentication endpoints created. Accepts any 6-digit OTP for testing."
+
+  - task: "User Management APIs"
+    implemented: true
+    working: "NA"
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Created endpoints for user creation, retrieval, and updates. Supports employer and seeker roles."
+
+  - task: "Job Posting APIs"
+    implemented: true
+    working: "NA"
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Job CRUD endpoints with free job tracking (2 free posts per employer), filters for category, location, type, experience, education, languages, skills."
+
+  - task: "Application Management APIs"
+    implemented: true
+    working: "NA"
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Application submission, retrieval by job/seeker, status updates (pending/shortlisted/rejected)."
+
+  - task: "Messaging APIs"
+    implemented: true
+    working: "NA"
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Message creation, retrieval, conversations list with WebSocket support for real-time chat."
+
+  - task: "Payment APIs (Razorpay Demo)"
+    implemented: true
+    working: "NA"
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Razorpay payment order creation and verification with demo keys. Mock implementation for testing."
+
+frontend:
+  - task: "Authentication Flow"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/app/(auth)/"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Login screen with phone/OTP, registration with role selection (employer/seeker), profile setup with languages and skills."
+
+  - task: "Home Screen with Job Listings"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/app/(tabs)/index.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Shows employer's posted jobs or latest jobs for seekers. Search functionality, refresh control."
+
+  - task: "Job Search with Filters"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/app/(tabs)/search.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Advanced search with filters: category, job type, experience, education. Modal filter UI."
+
+  - task: "Post Job Screen"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/app/(tabs)/post-job.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Complete job posting form with all fields, free job tracking, payment integration for additional posts."
+
+  - task: "Applications Screen"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/app/(tabs)/applications.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Shows all applications for job seekers with status indicators (pending/shortlisted/rejected)."
+
+  - task: "Messages/Chat Screen"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/app/(tabs)/messages.tsx and /app/frontend/app/chat.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Conversations list and real-time chat interface with message polling."
+
+  - task: "Job Details Screen"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/app/job-details.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Full job details, apply functionality, view applications (for employers), messaging."
+
+  - task: "Profile Screen"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/app/(tabs)/profile.tsx"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "User profile display with skills, languages, business info, logout functionality."
+
+metadata:
+  created_by: "main_agent"
+  version: "1.0"
+  test_sequence: 0
+  run_ui: false
+
+test_plan:
+  current_focus:
+    - "Phone OTP Authentication (Mock)"
+    - "User Management APIs"
+    - "Job Posting APIs"
+    - "Application Management APIs"
+    - "Messaging APIs"
+    - "Payment APIs (Razorpay Demo)"
+  stuck_tasks: []
+  test_all: true
+  test_priority: "high_first"
+
+agent_communication:
+  - agent: "main"
+    message: "Kolkata Job Portal MVP completed with full backend and frontend. All core features implemented: Auth (phone/OTP mock), Job posting with free limits, Advanced search, Applications, Real-time chat, Razorpay payment demo. Ready for backend testing."

@@ -441,7 +441,7 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str):
     await manager.connect(websocket, user_id)
     try:
         while True:
-            data = await websocket.receive_json()
+            await websocket.receive_json()
             # Handle incoming messages if needed
     except WebSocketDisconnect:
         manager.disconnect(user_id)

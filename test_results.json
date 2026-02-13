@@ -1,0 +1,146 @@
+{
+  "Send OTP": {
+    "success": true,
+    "message": "OTP sent successfully",
+    "timestamp": "2026-02-13T02:35:06.197085"
+  },
+  "Verify OTP - Valid": {
+    "success": true,
+    "message": "OTP verified successfully",
+    "timestamp": "2026-02-13T02:35:06.241213"
+  },
+  "Verify OTP - Invalid": {
+    "success": false,
+    "message": "Invalid OTP incorrectly accepted",
+    "timestamp": "2026-02-13T02:35:06.277534",
+    "response": {
+      "status_code": 200,
+      "text": "{\"success\":true,\"isNewUser\":true}"
+    }
+  },
+  "Create Employer 1": {
+    "success": true,
+    "message": "Employer Rajesh Kumar created successfully",
+    "timestamp": "2026-02-13T02:35:06.343694"
+  },
+  "Create Employer 2": {
+    "success": true,
+    "message": "Employer Priya Banerjee created successfully",
+    "timestamp": "2026-02-13T02:35:06.419990"
+  },
+  "Create Seeker 1": {
+    "success": true,
+    "message": "Seeker Arjun Chatterjee created successfully",
+    "timestamp": "2026-02-13T02:35:06.454876"
+  },
+  "Create Seeker 2": {
+    "success": true,
+    "message": "Seeker Sneha Das created successfully",
+    "timestamp": "2026-02-13T02:35:06.487071"
+  },
+  "Get User Details": {
+    "success": true,
+    "message": "User details retrieved correctly",
+    "timestamp": "2026-02-13T02:35:06.529635"
+  },
+  "Create Job 1 (Free)": {
+    "success": true,
+    "message": "Job 'Sales Executive' created successfully",
+    "timestamp": "2026-02-13T02:35:06.623537"
+  },
+  "Create Job 2 (Free)": {
+    "success": true,
+    "message": "Job 'Shop Assistant' created successfully",
+    "timestamp": "2026-02-13T02:35:06.660688"
+  },
+  "Create Job 3 (Payment Required)": {
+    "success": true,
+    "message": "Payment requirement correctly enforced",
+    "timestamp": "2026-02-13T02:35:06.698431"
+  },
+  "Get All Jobs": {
+    "success": true,
+    "message": "Retrieved 2 jobs",
+    "timestamp": "2026-02-13T02:35:06.740518"
+  },
+  "Search by Category": {
+    "success": true,
+    "message": "Found 1 sales jobs",
+    "timestamp": "2026-02-13T02:35:06.779375"
+  },
+  "Search by Location": {
+    "success": true,
+    "message": "Found 1 jobs in Salt Lake area",
+    "timestamp": "2026-02-13T02:35:06.817204"
+  },
+  "Search by Job Type": {
+    "success": true,
+    "message": "Found 2 full-time jobs",
+    "timestamp": "2026-02-13T02:35:06.860280"
+  },
+  "Search by Language": {
+    "success": true,
+    "message": "Found 2 jobs requiring Bengali",
+    "timestamp": "2026-02-13T02:35:06.939266"
+  },
+  "Search by Skill": {
+    "success": true,
+    "message": "Found 1 jobs requiring sales skills",
+    "timestamp": "2026-02-13T02:35:07.013915"
+  },
+  "Apply to Job": {
+    "success": true,
+    "message": "Application submitted successfully",
+    "timestamp": "2026-02-13T02:35:07.059224"
+  },
+  "Duplicate Application Prevention": {
+    "success": true,
+    "message": "Duplicate application correctly rejected",
+    "timestamp": "2026-02-13T02:35:07.092795"
+  },
+  "Get Job Applications": {
+    "success": true,
+    "message": "Retrieved 1 applications for job",
+    "timestamp": "2026-02-13T02:35:07.129454"
+  },
+  "Get Seeker Applications": {
+    "success": true,
+    "message": "Retrieved 1 applications for seeker",
+    "timestamp": "2026-02-13T02:35:07.163915"
+  },
+  "Update Application Status": {
+    "success": true,
+    "message": "Application status updated to shortlisted",
+    "timestamp": "2026-02-13T02:35:07.195874"
+  },
+  "Send Message (Employer to Seeker)": {
+    "success": true,
+    "message": "Message sent successfully",
+    "timestamp": "2026-02-13T02:35:07.249418"
+  },
+  "Send Message (Seeker to Employer)": {
+    "success": true,
+    "message": "Reply sent successfully",
+    "timestamp": "2026-02-13T02:35:07.282868"
+  },
+  "Get Messages": {
+    "success": true,
+    "message": "Retrieved 2 messages between users",
+    "timestamp": "2026-02-13T02:35:07.324349"
+  },
+  "Get Conversations": {
+    "success": true,
+    "message": "Retrieved 1 conversations",
+    "timestamp": "2026-02-13T02:35:07.365221"
+  },
+  "Create Payment Order": {
+    "success": true,
+    "message": "Payment order created: order_demo_1770950107.402488",
+    "timestamp": "2026-02-13T02:35:07.404898"
+  },
+  "Verify Payment": {
+    "success": true,
+    "message": "Payment verified successfully (demo)",
+    "timestamp": "2026-02-13T02:35:07.463790"
+  }
+}

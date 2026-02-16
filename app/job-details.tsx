@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   StyleSheet,
@@ -19,14 +19,14 @@ import {
 } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import axios from 'axios';
+import api from './_lib/api';
 import { useAuth } from './_contexts/AuthContext';
-import { COLORS } from './_theme';
+import { useLanguage } from './_contexts/LanguageContext';
+import { useTheme } from './_contexts/ThemeContext';
 import { GlassCard } from './_components/GlassCard';
+import type { ThemeColors } from './_theme';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { format } from 'date-fns';
-
-const API_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
 
 interface Job {
   id: string;
@@ -51,6 +51,7 @@ interface Job {
 
 interface Application {
   id: string;
+  seekerId: string;
   seekerName: string;
   seekerPhone: string;
   seekerSkills: string[];
@@ -75,6 +76,9 @@ export default function JobDetailsScreen() {
 
   const isEmployer = user?.role === 'employer';
   const isMyJob = job?.employerId === user?.id;
+  const { colors } = useTheme();
+  const { t } = useLanguage();
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   useEffect(() => {
     fetchJobDetails();
@@ -85,11 +89,11 @@ export default function JobDetailsScreen() {
 
   const fetchJobDetails = async () => {
     try {
-      const response = await axios.get(`${API_URL}/api/jobs/${jobId}`);
+      const response = await api.get(`/jobs/${jobId}`);
       setJob(response.data);
     } catch (error) {
       console.error('Error fetching job:', error);
-      Alert.alert('Error', 'Failed to load job details');
+      Alert.alert(t('common.error'), t('jobDetails.errorLoad'));
     } finally {
       setLoading(false);
     }
@@ -97,8 +101,8 @@ export default function JobDetailsScreen() {
 
   const checkIfApplied = async () => {
     try {
-      const response = await axios.get(
-        `${API_URL}/api/applications/seeker/${user?.id}`
+      const response = await api.get(
+        `/applications/seeker/${user?.id}`
       );
       const applied = response.data.some((app: any) => app.jobId === jobId);
       setHasApplied(applied);
@@ -109,27 +113,27 @@ export default function JobDetailsScreen() {
 
   const handleApply = async () => {
     if (hasApplied) {
-      Alert.alert('Already Applied', 'You have already applied to this job');
+      Alert.alert(t('jobDetails.applied'), t('jobDetails.alreadyApplied'));
       return;
     }
 
     setApplying(true);
     try {
-      await axios.post(
-        `${API_URL}/api/applications?seeker_id=${user?.id}`,
+      await api.post(
+        `/applications?seeker_id=${user?.id}`,
         {
           jobId,
           coverLetter: coverLetter || undefined,
         }
       );
 
-      Alert.alert('Success', 'Application submitted successfully!');
+      Alert.alert(t('common.success'), t('jobDetails.applicationSuccess'));
       setHasApplied(true);
       setApplyModalVisible(false);
       setCoverLetter('');
     } catch (error: any) {
       console.error('Error applying:', error);
-      Alert.alert('Error', error.response?.data?.detail || 'Failed to apply');
+      Alert.alert(t('common.error'), error.response?.data?.detail || t('jobDetails.errorApply'));
     } finally {
       setApplying(false);
     }
@@ -137,14 +141,14 @@ export default function JobDetailsScreen() {
 
   const fetchApplications = async () => {
     try {
-      const response = await axios.get(
-        `${API_URL}/api/applications/job/${jobId}`
+      const response = await api.get(
+        `/applications/job/${jobId}`
       );
       setApplications(response.data);
       setApplicationsModalVisible(true);
     } catch (error) {
       console.error('Error fetching applications:', error);
-      Alert.alert('Error', 'Failed to load applications');
+      Alert.alert(t('common.error'), t('jobDetails.errorLoadApplications'));
     }
   };
 
@@ -153,13 +157,13 @@ export default function JobDetailsScreen() {
     status: string
   ) => {
     try {
-      await axios.put(
-        `${API_URL}/api/applications/${applicationId}/status?status=${status}`
+      await api.put(
+        `/applications/${applicationId}/status?status=${status}`
       );
-      Alert.alert('Success', `Application ${status}`);
+      Alert.alert(t('common.success'), t('jobDetails.statusUpdated'));
       fetchApplications();
     } catch (error) {
-      Alert.alert('Error', 'Failed to update application status');
+      Alert.alert(t('common.error'), t('jobDetails.errorUpdateStatus'));
     }
   };
 
@@ -178,7 +182,7 @@ export default function JobDetailsScreen() {
   if (loading) {
     return (
       <View style={[styles.centerContainer, styles.container]}>
-        <ActivityIndicator size="large" color={COLORS.terracotta} />
+        <ActivityIndicator size="large" color={colors.terracotta} />
       </View>
     );
   }
@@ -186,13 +190,13 @@ export default function JobDetailsScreen() {
   if (!job) {
     return (
       <View style={[styles.centerContainer, styles.container]}>
-        <Text>Job not found</Text>
+        <Text>{t('jobDetails.jobNotFound')}</Text>
       </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
       <ImageBackground
         source={require('../assets/images/kolkata_street_nostalgia.png')}
         style={styles.backgroundImage}
@@ -202,12 +206,12 @@ export default function JobDetailsScreen() {
 <MaterialCommunityIcons
           name="arrow-left"
           size={24}
-          color={COLORS.terracotta}
+          color={colors.terracotta}
           onPress={() => router.back()}
           style={styles.backButton}
         />
         <Text variant="titleLarge" style={styles.headerTitle}>
-          Job Details
+          {t('jobDetails.title')}
         </Text>
         </View>
 
@@ -221,21 +225,21 @@ export default function JobDetailsScreen() {
             </View>
 
             <View style={styles.infoRow}>
-              <MaterialCommunityIcons name="office-building" size={20} color={COLORS.terracotta} />
+              <MaterialCommunityIcons name="office-building" size={20} color={colors.terracotta} />
               <Text variant="bodyLarge" style={styles.infoText}>
                 {job.businessName || job.employerName}
               </Text>
             </View>
 
             <View style={styles.infoRow}>
-              <MaterialCommunityIcons name="map-marker" size={20} color={COLORS.terracotta} />
+              <MaterialCommunityIcons name="map-marker" size={20} color={colors.terracotta} />
               <Text variant="bodyLarge" style={styles.infoText}>
                 {job.location}
               </Text>
             </View>
 
             <View style={styles.infoRow}>
-              <MaterialCommunityIcons name="currency-inr" size={20} color={COLORS.terracotta} />
+              <MaterialCommunityIcons name="currency-inr" size={20} color={colors.terracotta} />
               <Text variant="bodyLarge" style={styles.infoText}>
                 {job.salary}
               </Text>
@@ -254,13 +258,13 @@ export default function JobDetailsScreen() {
             </View>
 
             <Text variant="bodySmall" style={styles.dateText}>
-              Posted on {format(new Date(job.postedDate), 'MMM dd, yyyy')}
+              {t('jobDetails.postedOn')} {format(new Date(job.postedDate), 'MMM dd, yyyy')}
             </Text>
         </GlassCard>
 
         <GlassCard style={styles.card}>
             <Text variant="titleLarge" style={styles.sectionTitle}>
-              Job Description
+              {t('jobDetails.description')}
             </Text>
             <Text variant="bodyMedium" style={styles.description}>
               {job.description}
@@ -269,11 +273,11 @@ export default function JobDetailsScreen() {
 
         <GlassCard style={styles.card}>
             <Text variant="titleLarge" style={styles.sectionTitle}>
-              Requirements
+              {t('jobDetails.requirements')}
             </Text>
 
             <Text variant="titleMedium" style={styles.requirementTitle}>
-              Languages
+              {t('jobDetails.languages')}
             </Text>
             <View style={styles.chipContainer}>
               {job.languages.map((lang) => (
@@ -284,7 +288,7 @@ export default function JobDetailsScreen() {
             </View>
 
             <Text variant="titleMedium" style={styles.requirementTitle}>
-              Skills
+              {t('jobDetails.skills')}
             </Text>
             <View style={styles.chipContainer}>
               {job.skills.map((skill) => (
@@ -298,17 +302,17 @@ export default function JobDetailsScreen() {
         {isMyJob && (
           <GlassCard style={styles.card}>
               <Text variant="titleLarge" style={styles.sectionTitle}>
-                Applications
+                {t('jobDetails.applications')}
               </Text>
               <Text variant="bodyMedium" style={styles.applicationsText}>
-                {job.applicationsCount} candidates have applied
+                {job.applicationsCount} {t('jobDetails.candidatesApplied')}
               </Text>
               <Button
                 mode="contained"
                 onPress={fetchApplications}
                 style={styles.actionButton}
               >
-                View Applications
+                {t('jobDetails.viewApplications')}
               </Button>
           </GlassCard>
         )}
@@ -322,7 +326,7 @@ export default function JobDetailsScreen() {
             style={styles.footerButton}
             icon="message"
           >
-            Message
+            {t('jobDetails.message')}
           </Button>
           <Button
             mode="contained"
@@ -330,7 +334,7 @@ export default function JobDetailsScreen() {
             style={styles.footerButton}
             disabled={hasApplied || job.status !== 'active'}
           >
-            {hasApplied ? 'Applied' : 'Apply Now'}
+            {hasApplied ? t('jobDetails.applied') : t('jobDetails.apply')}
           </Button>
         </View>
       )}
@@ -344,16 +348,16 @@ export default function JobDetailsScreen() {
           contentContainerStyle={styles.modal}
         >
           <Text variant="headlineSmall" style={styles.modalTitle}>
-            Apply for {job.title}
+            {t('jobDetails.applyFor')} {job.title}
           </Text>
           <TextInput
-            label="Cover Letter (Optional)"
+            label={t('jobDetails.coverLetter')}
             value={coverLetter}
             onChangeText={setCoverLetter}
             multiline
             numberOfLines={6}
             style={styles.textArea}
-            placeholder="Tell the employer why you're a good fit..."
+            placeholder={t('jobDetails.coverLetterPlaceholder')}
           />
           <View style={styles.modalButtons}>
             <Button
@@ -361,7 +365,7 @@ export default function JobDetailsScreen() {
               onPress={() => setApplyModalVisible(false)}
               style={styles.modalButton}
             >
-              Cancel
+              {t('jobDetails.cancel')}
             </Button>
             <Button
               mode="contained"
@@ -369,7 +373,7 @@ export default function JobDetailsScreen() {
               loading={applying}
               style={styles.modalButton}
             >
-              Submit Application
+              {t('jobDetails.submitApplication')}
             </Button>
           </View>
         </Modal>
@@ -380,7 +384,7 @@ export default function JobDetailsScreen() {
           contentContainerStyle={styles.modal}
         >
           <Text variant="headlineSmall" style={styles.modalTitle}>
-            Applications ({applications.length})
+            {t('jobDetails.applications')} ({applications.length})
           </Text>
           <ScrollView style={styles.applicationsScroll}>
             {applications.map((app) => (
@@ -405,10 +409,10 @@ export default function JobDetailsScreen() {
                   <View style={styles.applicationActions}>
                     <Button
                       mode="outlined"
-                      onPress={() => handleContactSeeker(app.id, app.seekerName)}
+                      onPress={() => handleContactSeeker(app.seekerId, app.seekerName)}
                       compact
                     >
-                      Message
+                      {t('jobDetails.message')}
                     </Button>
                     {app.status === 'pending' && (
                       <>
@@ -419,7 +423,7 @@ export default function JobDetailsScreen() {
                           }
                           compact
                         >
-                          Shortlist
+                          {t('jobDetails.shortlist')}
                         </Button>
                         <Button
                           mode="outlined"
@@ -427,9 +431,9 @@ export default function JobDetailsScreen() {
                             updateApplicationStatus(app.id, 'rejected')
                           }
                           compact
-                          textColor={COLORS.bengaliRed}
+                          textColor={colors.bengaliRed}
                         >
-                          Reject
+                          {t('jobDetails.reject')}
                         </Button>
                       </>
                     )}
@@ -446,161 +450,163 @@ export default function JobDetailsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.cream,
-  },
-  backgroundImage: {
-    flex: 1,
-    width: '100%',
-  },
-  centerContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: COLORS.cream,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 24,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
-  },
-  backButton: {
-    marginRight: 16,
-  },
-  headerTitle: {
-    fontWeight: 'bold',
-    color: COLORS.terracotta,
-    fontFamily: Platform.OS === 'ios' ? 'Kohinoor Bangla' : 'serif',
-  },
-  content: {
-    flex: 1,
-    padding: 16,
-    paddingBottom: 40,
-  },
-  card: {
-    marginBottom: 16,
-    elevation: 2,
-  },
-  titleRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 16,
-  },
-  title: {
-    flex: 1,
-    fontWeight: 'bold',
-    marginRight: 8,
-    color: COLORS.ink,
-  },
-  infoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  infoText: {
-    marginLeft: 8,
-    color: COLORS.ink,
-  },
-  chipsRow: {
-    flexDirection: 'row',
-    gap: 8,
-    marginTop: 12,
-  },
-  dateText: {
-    marginTop: 12,
-    color: COLORS.muted,
-    fontStyle: 'italic',
-  },
-  sectionTitle: {
-    fontWeight: 'bold',
-    marginBottom: 12,
-    color: COLORS.terracotta,
-  },
-  description: {
-    lineHeight: 24,
-    color: COLORS.ink,
-  },
-  requirementTitle: {
-    marginTop: 12,
-    marginBottom: 8,
-    color: COLORS.terracotta,
-  },
-  chipContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  chip: {
-    marginRight: 4,
-    marginBottom: 4,
-  },
-  applicationsText: {
-    marginBottom: 12,
-    color: COLORS.ink,
-  },
-  actionButton: {
-    marginTop: 8,
-    backgroundColor: COLORS.terracotta,
-    borderRadius: 2,
-  },
-  footer: {
-    flexDirection: 'row',
-    padding: 16,
-    backgroundColor: COLORS.white,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.border,
-    gap: 8,
-  },
-  footerButton: {
-    flex: 1,
-  },
-  modal: {
-    backgroundColor: COLORS.white,
-    padding: 20,
-    margin: 20,
-    borderRadius: 8,
-    maxHeight: '80%',
-  },
-  modalTitle: {
-    marginBottom: 16,
-    fontWeight: 'bold',
-    color: COLORS.ink,
-  },
-  textArea: {
-    marginBottom: 16,
-    backgroundColor: COLORS.cream,
-  },
-  modalButtons: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: 8,
-  },
-  modalButton: {
-    flex: 1,
-  },
-  applicationsScroll: {
-    maxHeight: 400,
-  },
-  applicationCard: {
-    marginBottom: 12,
-  },
-  appliedDate: {
-    marginTop: 8,
-    color: COLORS.muted,
-  },
-  coverLetter: {
-    marginTop: 8,
-    fontStyle: 'italic',
-  },
-  applicationActions: {
-    flexDirection: 'row',
-    gap: 8,
-    marginTop: 12,
-    flexWrap: 'wrap',
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    backgroundImage: {
+      flex: 1,
+      width: '100%',
+    },
+    centerContainer: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      backgroundColor: colors.background,
+    },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      padding: 24,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    backButton: {
+      marginRight: 16,
+    },
+    headerTitle: {
+      fontWeight: 'bold',
+      color: colors.terracotta,
+      fontFamily: Platform.OS === 'ios' ? 'Kohinoor Bangla' : 'serif',
+    },
+    content: {
+      flex: 1,
+      padding: 16,
+      paddingBottom: 40,
+    },
+    card: {
+      marginBottom: 16,
+      elevation: 2,
+    },
+    titleRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'flex-start',
+      marginBottom: 16,
+    },
+    title: {
+      flex: 1,
+      fontWeight: 'bold',
+      marginRight: 8,
+      color: colors.text,
+    },
+    infoRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: 8,
+    },
+    infoText: {
+      marginLeft: 8,
+      color: colors.text,
+    },
+    chipsRow: {
+      flexDirection: 'row',
+      gap: 8,
+      marginTop: 12,
+    },
+    dateText: {
+      marginTop: 12,
+      color: colors.textSecondary,
+      fontStyle: 'italic',
+    },
+    sectionTitle: {
+      fontWeight: 'bold',
+      marginBottom: 12,
+      color: colors.terracotta,
+    },
+    description: {
+      lineHeight: 24,
+      color: colors.text,
+    },
+    requirementTitle: {
+      marginTop: 12,
+      marginBottom: 8,
+      color: colors.terracotta,
+    },
+    chipContainer: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 8,
+    },
+    chip: {
+      marginRight: 4,
+      marginBottom: 4,
+    },
+    applicationsText: {
+      marginBottom: 12,
+      color: colors.text,
+    },
+    actionButton: {
+      marginTop: 8,
+      backgroundColor: colors.terracotta,
+      borderRadius: 2,
+    },
+    footer: {
+      flexDirection: 'row',
+      padding: 16,
+      backgroundColor: colors.surface,
+      borderTopWidth: 1,
+      borderTopColor: colors.border,
+      gap: 8,
+    },
+    footerButton: {
+      flex: 1,
+    },
+    modal: {
+      backgroundColor: colors.surface,
+      padding: 20,
+      margin: 20,
+      borderRadius: 8,
+      maxHeight: '80%',
+    },
+    modalTitle: {
+      marginBottom: 16,
+      fontWeight: 'bold',
+      color: colors.text,
+    },
+    textArea: {
+      marginBottom: 16,
+      backgroundColor: colors.cream,
+    },
+    modalButtons: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      gap: 8,
+    },
+    modalButton: {
+      flex: 1,
+    },
+    applicationsScroll: {
+      maxHeight: 400,
+    },
+    applicationCard: {
+      marginBottom: 12,
+    },
+    appliedDate: {
+      marginTop: 8,
+      color: colors.textSecondary,
+    },
+    coverLetter: {
+      marginTop: 8,
+      fontStyle: 'italic',
+    },
+    applicationActions: {
+      flexDirection: 'row',
+      gap: 8,
+      marginTop: 12,
+      flexWrap: 'wrap',
+    },
+  });
+}

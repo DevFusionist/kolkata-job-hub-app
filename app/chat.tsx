@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   View,
   StyleSheet,
@@ -14,16 +14,15 @@ import {
 } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import axios from 'axios';
+import api from './_lib/api';
 import { useAuth } from './_contexts/AuthContext';
 import { useSocket, type IncomingMessage } from './_contexts/SocketContext';
-import { COLORS } from './_theme';
+import { useTheme } from './_contexts/ThemeContext';
 import { GlassCard } from './_components/GlassCard';
+import type { ThemeColors } from './_theme';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { format } from 'date-fns';
 import { useLanguage } from './_contexts/LanguageContext';
-
-const API_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
 
 interface Message {
   id: string;
@@ -46,6 +45,8 @@ export default function ChatScreen() {
   const flatListRef = useRef<FlatList>(null);
   const { t } = useLanguage();
   const { addMessageListener } = useSocket();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   useEffect(() => {
     fetchMessages();
@@ -71,8 +72,8 @@ export default function ChatScreen() {
 
   const fetchMessages = async () => {
     try {
-      const response = await axios.get(
-        `${API_URL}/api/messages/${user?.id}?other_user_id=${otherUserId}`
+      const response = await api.get(
+        `/messages/${user?.id}?other_user_id=${otherUserId}`
       );
       setMessages(response.data);
     } catch (error) {
@@ -87,8 +88,8 @@ export default function ChatScreen() {
     const text = newMessage.trim();
     setNewMessage('');
     try {
-      const { data } = await axios.post(
-        `${API_URL}/api/messages?sender_id=${user?.id}`,
+      const { data } = await api.post(
+        `/messages?sender_id=${user?.id}`,
         {
           receiverId: otherUserId,
           jobId: '',
@@ -141,7 +142,7 @@ export default function ChatScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
       <ImageBackground
         source={require('../assets/images/kolkata_street_nostalgia.png')}
         style={styles.backgroundImage}
@@ -151,7 +152,7 @@ export default function ChatScreen() {
           <MaterialCommunityIcons
             name="arrow-left"
             size={24}
-            color={COLORS.terracotta}
+            color={colors.terracotta}
             onPress={() => router.back()}
             style={styles.backButton}
           />
@@ -179,10 +180,10 @@ export default function ChatScreen() {
               <MaterialCommunityIcons
                 name="message-text-outline"
                 size={64}
-                color={COLORS.muted}
+                color={colors.muted}
               />
               <Text variant="bodyMedium" style={styles.emptyText}>
-                No messages yet. Start the conversation!
+                {t('chat.emptyChat')}
               </Text>
             </View>
           }
@@ -202,7 +203,7 @@ export default function ChatScreen() {
             size={24}
             onPress={sendMessage}
             disabled={!newMessage.trim() || sending}
-            iconColor={COLORS.terracotta}
+            iconColor={colors.terracotta}
             style={styles.sendButton}
             accessibilityLabel={t('chat.send')}
           />
@@ -213,11 +214,12 @@ export default function ChatScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.cream,
-  },
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
   backgroundImage: {
     flex: 1,
     width: '100%',
@@ -230,14 +232,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 24,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    borderBottomColor: colors.border,
   },
   backButton: {
     marginRight: 16,
   },
   headerTitle: {
     fontWeight: 'bold',
-    color: COLORS.terracotta,
+    color: colors.terracotta,
     fontFamily: Platform.OS === 'ios' ? 'Kohinoor Bangla' : 'serif',
   },
   messagesList: {
@@ -252,7 +254,7 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     marginTop: 16,
-    color: COLORS.muted,
+    color: colors.textSecondary,
     textAlign: 'center',
   },
   messageContainer: {
@@ -281,23 +283,24 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   timestamp: {
-    color: COLORS.muted,
+    color: colors.textSecondary,
     fontSize: 10,
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'flex-end',
     padding: 8,
-    backgroundColor: 'rgba(253,252,240,0.85)',
+    backgroundColor: colors.surface,
     borderTopWidth: 1,
-    borderTopColor: COLORS.border,
+    borderTopColor: colors.border,
   },
   input: {
     flex: 1,
-    backgroundColor: COLORS.cream,
+    backgroundColor: colors.cream,
     maxHeight: 100,
   },
   sendButton: {
     marginLeft: 8,
   },
-});
+  });
+}

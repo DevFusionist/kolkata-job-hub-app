@@ -36,24 +36,48 @@ const SocketContext = createContext<SocketContextType | undefined>(undefined);
 
 const API_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
 
+const MIN_RECONNECT_MS = 1000;
+const MAX_RECONNECT_MS = 30000;
+
 export function SocketProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   const wsRef = useRef<WebSocket | null>(null);
   const listenersRef = useRef<Set<MessageListener>>(new Set());
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const reconnectDelayRef = useRef(MIN_RECONNECT_MS);
+  const intentionalCloseRef = useRef(false);
   const [isConnected, setIsConnected] = useState(false);
+
+  const cleanup = useCallback(() => {
+    if (reconnectTimeoutRef.current) {
+      clearTimeout(reconnectTimeoutRef.current);
+      reconnectTimeoutRef.current = null;
+    }
+    if (pingIntervalRef.current) {
+      clearInterval(pingIntervalRef.current);
+      pingIntervalRef.current = null;
+    }
+    if (wsRef.current) {
+      intentionalCloseRef.current = true;
+      wsRef.current.close();
+      wsRef.current = null;
+    }
+    setIsConnected(false);
+  }, []);
 
   const connect = useCallback(() => {
     if (!user?.id || !API_URL) return;
-    const wsUrl = `${getWsUrl(API_URL)}/ws/${user.id}`;
     if (wsRef.current?.readyState === WebSocket.OPEN) return;
 
+    intentionalCloseRef.current = false;
+    const wsUrl = `${getWsUrl(API_URL)}/ws/${user.id}`;
     const ws = new WebSocket(wsUrl);
     wsRef.current = ws;
 
     ws.onopen = () => {
       setIsConnected(true);
+      reconnectDelayRef.current = MIN_RECONNECT_MS;
       pingIntervalRef.current = setInterval(() => {
         if (ws.readyState === WebSocket.OPEN) {
           try {
@@ -83,7 +107,13 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
         clearInterval(pingIntervalRef.current);
         pingIntervalRef.current = null;
       }
-      reconnectTimeoutRef.current = setTimeout(connect, 3000);
+
+      // Only reconnect if close wasn't intentional (user didn't log out)
+      if (!intentionalCloseRef.current && user?.id) {
+        const delay = reconnectDelayRef.current;
+        reconnectDelayRef.current = Math.min(delay * 2, MAX_RECONNECT_MS);
+        reconnectTimeoutRef.current = setTimeout(connect, delay);
+      }
     };
 
     ws.onerror = () => {
@@ -93,24 +123,14 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (user?.id) {
+      reconnectDelayRef.current = MIN_RECONNECT_MS;
       connect();
     } else {
-      if (wsRef.current) {
-        wsRef.current.close();
-        wsRef.current = null;
-      }
-      setIsConnected(false);
+      // User logged out - clean up and don't reconnect
+      cleanup();
     }
-    return () => {
-      if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
-      if (pingIntervalRef.current) clearInterval(pingIntervalRef.current);
-      if (wsRef.current) {
-        wsRef.current.close();
-        wsRef.current = null;
-      }
-      setIsConnected(false);
-    };
-  }, [user?.id, connect]);
+    return cleanup;
+  }, [user?.id, connect, cleanup]);
 
   const addMessageListener = useCallback((listener: MessageListener) => {
     listenersRef.current.add(listener);

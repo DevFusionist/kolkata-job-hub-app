@@ -25,7 +25,19 @@
     "errorInvalidPhone": "সঠিক ১০ অঙ্কের ফোন নম্বর দিন",
     "errorInvalidOtp": "সঠিক ৬ অঙ্কের ওটিপি দিন",
     "errorSendOtp": "ওটিপি পাঠানো যায়নি",
-    "errorVerifyOtp": "ওটিপি যাচাই হয়নি"
+    "errorVerifyOtp": "ওটিপি যাচাই হয়নি",
+    "enterMpin": "এমপিন লিখুন",
+    "mpinPlaceholder": "৪-৬ অঙ্কের এমপিন",
+    "forgotMpin": "এমপিন ভুলে গেছেন? ওটিপি পাঠান",
+    "loginWithMpin": "লগইন",
+    "setMpinTitle": "এমপিন সেট করুন",
+    "setMpinConfirm": "এমপিন নিশ্চিত করুন",
+    "createMpinInstruction": "৪-৬ অঙ্কের এমপিন দিন। পরবর্তীতে লগইনের জন্য ব্যবহার করবেন।",
+    "errorInvalidMpin": "এমপিন ৪-৬ অঙ্কের হতে হবে",
+    "errorMpinMismatch": "এমপিন ও নিশ্চিতকরণ এক হতে হবে",
+    "errorMpinNotSet": "প্রথমে এমপিন সেট করুন (ভুলে গেছেন এ ট্যাপ করুন)",
+    "errorUserNotFound": "নিবন্ধিত নন। নিবন্ধনে ওটিপি পাঠান।",
+    "newUserSendOtp": "নতুন ব্যবহারকারী? নিবন্ধনে ওটিপি পাঠান"
   },
   "register": {
     "brandSubtitle": "কলকাতার নিজস্ব প্রতিভা হাব",
@@ -46,7 +58,9 @@
     "errorRegister": "নিবন্ধন হয়নি",
     "langBengali": "বাংলা",
     "langHindi": "হিন্দি",
-    "langEnglish": "ইংরেজি"
+    "langEnglish": "ইংরেজি",
+    "setMpinAfterRegister": "পরবর্তীতে ওটিপি ছাড়া লগইন করতে এমপিন সেট করুন",
+    "setMpin": "এমপিন সেট করুন"
   },
   "tabs": {
     "home": "হোম",
@@ -54,7 +68,30 @@
     "postJob": "চাকরি পোস্ট",
     "applications": "আবেদন",
     "messages": "বার্তা",
-    "profile": "প্রোফাইল"
+    "profile": "প্রোফাইল",
+    "protibha": "প্রতিভা"
+  },
+  "protibha": {
+    "title": "প্রতিভা",
+    "subtitleSeeker": "আপনার AI চাকরি সহকারী",
+    "subtitleEmployer": "আপনার AI নিয়োগ সহকারী",
+    "placeholder": "যেকোনো কিছু জিজ্ঞেস করুন...",
+    "jobsFound": "আপনার জন্য চাকরি",
+    "tapToView": "বিস্তারিত দেখুন",
+    "paymentRequired": "পেমেন্ট প্রয়োজন",
+    "payNow": "এখনই পে করুন",
+    "welcomeTitle": "নমস্কার!",
+    "welcomeSeeker": "আমি প্রতিভা, আপনার AI চাকরি সহকারী। আমি চাকরি খুঁজতে, আবেদন করতে ও প্রোফাইল উন্নত করতে সাহায্য করতে পারি।",
+    "welcomeEmployer": "আমি প্রতিভা, আপনার AI নিয়োগ সহকারী। চাকরি পোস্ট করতে ও সঠিক প্রার্থী খুঁজতে সাহায্য করব।",
+    "chipFindJobs": "আমার কাছে চাকরি খুঁজুন",
+    "chipMySkills": "আমার দক্ষতা অনুযায়ী চাকরি",
+    "chipSalary": "সর্বোচ্চ বেতনের চাকরি",
+    "chipPostJob": "চাকরি পোস্টে সাহায্য করুন",
+    "chipFindCandidates": "প্রার্থী খুঁজুন",
+    "chipTips": "নিয়োগ টিপস",
+    "typing": "প্রতিভা ভাবছে...",
+    "online": "অনলাইন",
+    "poweredBy": "AI দ্বারা চালিত"
   },
   "home": {
     "myJobPostings": "আমার চাকরি পোস্ট",
@@ -90,7 +127,14 @@
     "version": "সংস্করণ ১.০.০",
     "comingSoon": "শীঘ্রই আসছে",
     "editProfileSoon": "প্রোফাইল সম্পাদনা শীঘ্রই যোগ করা হবে",
-    "supportContact": "support@kolkatajobs.com এ যোগাযোগ করুন"
+    "supportContact": "support@kolkatajobs.com এ যোগাযোগ করুন",
+    "improveWithAi": "AI দিয়ে প্রোফাইল উন্নত করুন",
+    "improveWithAiDesc": "আপনার অভিজ্ঞতা বা দক্ষতা পেস্ট করুন; আমরা সেগুলি বের করে প্রোফাইলে যোগ করব।",
+    "analyzing": "বিশ্লেষণ করা হচ্ছে...",
+    "skillsExtracted": "দক্ষতা আপনার প্রোফাইলে যোগ করা হয়েছে",
+    "darkMode": "ডার্ক মোড",
+    "lightMode": "লাইট মোড",
+    "appearance": "চেহারা"
   },
   "postJob": {
     "title": "চাকরি পোস্ট করুন",
@@ -111,17 +155,6 @@
     "successPosted": "চাকরি সফলভাবে পোস্ট হয়েছে",
     "errorPost": "চাকরি পোস্ট হয়নি"
   },
-  "search": {
-    "title": "চাকরি খুঁজুন",
-    "placeholder": "শিরোনাম বা কীওয়ার্ড দিয়ে খুঁজুন...",
-    "filters": "ফিল্টার",
-    "clearFilters": "মুছুন",
-    "search": "খুঁজুন",
-    "noResults": "কোনো চাকরি পাওয়া যায়নি",
-    "tryAdjusting": "খোঁজের শর্ত পরিবর্তন করে দেখুন",
-    "filterJobs": "চাকরি ফিল্টার",
-    "errorSearch": "খোঁজা যায়নি"
-  },
   "applications": {
     "title": "আমার আবেদন",
     "totalApplications": "মোট আবেদন",
@@ -138,18 +171,53 @@
     "noMessages": "কোনো বার্তা নেই"
   },
   "jobDetails": {
+    "title": "চাকরির বিবরণ",
     "apply": "আবেদন করুন",
     "applied": "আবেদন করা হয়েছে",
     "applicants": "আবেদনকারী",
-    "description": "বিবরণ",
+    "description": "চাকরির বিবরণ",
     "requirements": "যোগ্যতা",
+    "languages": "ভাষা",
+    "skills": "দক্ষতা",
     "contact": "যোগাযোগ",
+    "message": "বার্তা",
     "back": "পিছনে",
-    "errorLoad": "চাকরি লোড হয়নি",
-    "errorApply": "আবেদন হয়নি"
+    "errorLoad": "চাকরির বিবরণ লোড হয়নি",
+    "errorApply": "আবেদন হয়নি",
+    "alreadyApplied": "আপনি ইতিমধ্যে এই চাকরিতে আবেদন করেছেন",
+    "applicationSuccess": "আবেদন সফলভাবে জমা হয়েছে!",
+    "applyFor": "আবেদন করুন",
+    "coverLetter": "কভার লেটার (ঐচ্ছিক)",
+    "coverLetterPlaceholder": "নিয়োগকর্তাকে বলুন কেন আপনি উপযুক্ত...",
+    "cancel": "বাতিল",
+    "submitApplication": "আবেদন জমা দিন",
+    "applications": "আবেদন",
+    "candidatesApplied": "জন আবেদন করেছেন",
+    "viewApplications": "আবেদন দেখুন",
+    "shortlist": "শর্টলিস্ট",
+    "reject": "প্রত্যাখ্যান",
+    "statusUpdated": "আবেদনের অবস্থা আপডেট হয়েছে",
+    "errorUpdateStatus": "আবেদনের অবস্থা আপডেট হয়নি",
+    "errorLoadApplications": "আবেদন লোড হয়নি",
+    "postedOn": "পোস্ট করা হয়েছে",
+    "jobNotFound": "চাকরি পাওয়া যায়নি"
   },
   "chat": {
     "placeholder": "বার্তা লিখুন...",
-    "send": "পাঠান"
+    "send": "পাঠান",
+    "emptyChat": "এখনও কোনো বার্তা নেই। আলাপ শুরু করুন!"
+  },
+  "search": {
+    "title": "চাকরি খুঁজুন",
+    "placeholder": "শিরোনাম বা কীওয়ার্ড দিয়ে খুঁজুন...",
+    "filters": "ফিল্টার",
+    "clearFilters": "মুছুন",
+    "clearAll": "সব মুছুন",
+    "applyFilters": "ফিল্টার প্রয়োগ করুন",
+    "search": "খুঁজুন",
+    "noResults": "কোনো চাকরি পাওয়া যায়নি",
+    "tryAdjusting": "খোঁজের শর্ত পরিবর্তন করে দেখুন",
+    "filterJobs": "চাকরি ফিল্টার",
+    "errorSearch": "খোঁজা যায়নি"
   }
 }

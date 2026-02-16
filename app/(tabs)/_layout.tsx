@@ -1,26 +1,30 @@
+import { View, StyleSheet } from 'react-native';
 import { Tabs } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuth } from '../_contexts/AuthContext';
 import { useLanguage } from '../_contexts/LanguageContext';
-import { COLORS } from '../_theme';
+import { useTheme } from '../_contexts/ThemeContext';
+import { FloatingAssistant } from '../_components/FloatingAssistant';
 
 export default function TabsLayout() {
   const { user } = useAuth();
   const { t } = useLanguage();
+  const { colors } = useTheme();
   const isEmployer = user?.role === 'employer';
 
   return (
-    <Tabs
+    <View style={styles.container}>
+      <Tabs
       screenOptions={{
-        tabBarActiveTintColor: COLORS.terracotta,
-        tabBarInactiveTintColor: COLORS.muted,
+        tabBarActiveTintColor: colors.terracotta,
+        tabBarInactiveTintColor: colors.textSecondary,
         headerShown: false,
         tabBarStyle: {
-          backgroundColor: COLORS.cream,
+          backgroundColor: colors.surface,
           borderTopWidth: 1,
-          borderTopColor: COLORS.border,
+          borderTopColor: colors.border,
           elevation: 8,
-          shadowColor: COLORS.terracotta,
+          shadowColor: colors.terracotta,
           shadowOffset: { width: 0, height: -2 },
           shadowOpacity: 0.1,
           shadowRadius: 4,
@@ -38,6 +42,16 @@ export default function TabsLayout() {
           tabBarIcon: ({ color, size }) => (
             <MaterialCommunityIcons name="home" size={size} color={color} />
           ),
+        }}
+      />
+      <Tabs.Screen
+        name="protibha"
+        options={{
+          title: t('tabs.protibha'),
+          tabBarIcon: ({ color, size }) => (
+            <MaterialCommunityIcons name="robot-happy-outline" size={size} color={color} />
+          ),
+          href: null,
         }}
       />
       <Tabs.Screen
@@ -89,5 +103,11 @@ export default function TabsLayout() {
         }}
       />
     </Tabs>
+      <FloatingAssistant />
+    </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: { flex: 1 },
+});

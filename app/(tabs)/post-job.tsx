@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   StyleSheet,
@@ -16,12 +16,11 @@ import {
 } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import axios from 'axios';
+import api from '../_lib/api';
 import { useAuth } from '../_contexts/AuthContext';
-import { COLORS } from '../_theme';
+import { useTheme } from '../_contexts/ThemeContext';
 import { GlassCard } from '../_components/GlassCard';
-
-const API_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
+import type { ThemeColors } from '../_theme';
 
 const CATEGORIES = [
   'Sales',
@@ -53,8 +52,10 @@ const COMMON_SKILLS = [
 
 export default function PostJobScreen() {
   const { user, updateUser } = useAuth();
+  const { colors } = useTheme();
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   // Form fields
   const [title, setTitle] = useState('');
@@ -129,8 +130,8 @@ export default function PostJobScreen() {
         skills: selectedSkills,
       };
 
-      await axios.post(
-        `${API_URL}/api/jobs?employer_id=${user?.id}`,
+      await api.post(
+        `/jobs?employer_id=${user?.id}`,
         jobData
       );
 
@@ -169,8 +170,8 @@ export default function PostJobScreen() {
   const handlePayment = async () => {
     try {
       // Create Razorpay order
-      const orderResponse = await axios.post(
-        `${API_URL}/api/payments/create-order?employer_id=${user?.id}`,
+      const orderResponse = await api.post(
+        `/payments/create-order?employer_id=${user?.id}`,
         { amount: 5000 } // ₹50 in paise
       );
 
@@ -182,8 +183,8 @@ export default function PostJobScreen() {
           {
             text: 'Simulate Success',
             onPress: async () => {
-              await axios.post(
-                `${API_URL}/api/payments/verify?employer_id=${user?.id}`,
+              await api.post(
+                `/payments/verify?employer_id=${user?.id}`,
                 {
                   razorpayOrderId: orderResponse.data.id,
                   razorpayPaymentId: 'demo_payment_id',
@@ -211,7 +212,7 @@ export default function PostJobScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
       <ImageBackground
         source={require('../../assets/images/kolkata_street_nostalgia.png')}
         style={styles.backgroundImage}
@@ -378,67 +379,69 @@ export default function PostJobScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.cream,
-  },
-  backgroundImage: {
-    flex: 1,
-    width: '100%',
-  },
-  header: {
-    padding: 24,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
-  },
-  headerTitle: {
-    fontWeight: 'bold',
-    color: COLORS.terracotta,
-    fontFamily: Platform.OS === 'ios' ? 'Kohinoor Bangla' : 'serif',
-  },
-  headerSubtitle: {
-    marginTop: 4,
-    color: COLORS.ink,
-    fontSize: 16,
-    opacity: 0.8,
-  },
-  flex: {
-    flex: 1,
-  },
-  content: {
-    flex: 1,
-    padding: 16,
-    paddingBottom: 40,
-  },
-  card: {
-    elevation: 2,
-    marginBottom: 16,
-  },
-  sectionTitle: {
-    marginTop: 16,
-    marginBottom: 8,
-    color: COLORS.terracotta,
-    fontWeight: '600',
-  },
-  input: {
-    marginBottom: 16,
-    backgroundColor: 'transparent',
-  },
-  chipContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginBottom: 16,
-  },
-  chip: {
-    marginRight: 4,
-    marginBottom: 4,
-  },
-  button: {
-    marginTop: 24,
-    paddingVertical: 6,
-    backgroundColor: COLORS.terracotta,
-    borderRadius: 2,
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    backgroundImage: {
+      flex: 1,
+      width: '100%',
+    },
+    header: {
+      padding: 24,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    headerTitle: {
+      fontWeight: 'bold',
+      color: colors.terracotta,
+      fontFamily: Platform.OS === 'ios' ? 'Kohinoor Bangla' : 'serif',
+    },
+    headerSubtitle: {
+      marginTop: 4,
+      color: colors.text,
+      fontSize: 16,
+      opacity: 0.8,
+    },
+    flex: {
+      flex: 1,
+    },
+    content: {
+      flex: 1,
+      padding: 16,
+      paddingBottom: 40,
+    },
+    card: {
+      elevation: 2,
+      marginBottom: 16,
+    },
+    sectionTitle: {
+      marginTop: 16,
+      marginBottom: 8,
+      color: colors.terracotta,
+      fontWeight: '600',
+    },
+    input: {
+      marginBottom: 16,
+      backgroundColor: 'transparent',
+    },
+    chipContainer: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 8,
+      marginBottom: 16,
+    },
+    chip: {
+      marginRight: 4,
+      marginBottom: 4,
+    },
+    button: {
+      marginTop: 24,
+      paddingVertical: 6,
+      backgroundColor: colors.terracotta,
+      borderRadius: 2,
+    },
+  });
+}

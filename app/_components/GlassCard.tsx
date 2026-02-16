@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, StyleSheet, Platform, ViewStyle, StyleProp } from 'react-native';
 import { BlurView } from 'expo-blur';
-import { COLORS } from '../_theme';
+import { useTheme } from '../_contexts/ThemeContext';
 
 type GlassCardProps = {
   children: React.ReactNode;
@@ -12,16 +12,23 @@ type GlassCardProps = {
 };
 
 export function GlassCard({ children, style, contentStyle, accent = true }: GlassCardProps) {
-  const cardStyle = [styles.card, accent && styles.cardAccent, style];
+  const { colors, isDark } = useTheme();
+  const cardStyle = [
+    styles.card,
+    { borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.28)' },
+    accent && { borderLeftWidth: 4, borderLeftColor: colors.gold },
+    style,
+  ];
+  const fallbackBg = isDark ? 'rgba(37,47,59,0.85)' : 'rgba(255,255,255,0.18)';
 
   return (
     <View style={cardStyle}>
       {Platform.OS === 'web' ? (
-        <View style={[StyleSheet.absoluteFill, styles.fallback]} />
+        <View style={[StyleSheet.absoluteFill, styles.fallback, { backgroundColor: fallbackBg }]} />
       ) : (
         <BlurView
           intensity={Platform.OS === 'ios' ? 40 : 35}
-          tint="light"
+          tint={isDark ? 'dark' : 'light'}
           style={StyleSheet.absoluteFill}
         />
       )}
@@ -35,18 +42,8 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.28)',
-    ...(Platform.OS === 'web' && {
-      backgroundColor: 'rgba(255,255,255,0.18)',
-    }),
   },
-  cardAccent: {
-    borderLeftWidth: 4,
-    borderLeftColor: COLORS.gold,
-  },
-  fallback: {
-    backgroundColor: 'rgba(255,255,255,0.15)',
-  },
+  fallback: {},
   content: {
     padding: 16,
   },

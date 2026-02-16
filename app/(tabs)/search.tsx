@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   StyleSheet,
@@ -19,14 +19,13 @@ import {
 } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import axios from 'axios';
+import api from '../_lib/api';
 import { useLanguage } from '../_contexts/LanguageContext';
-import { COLORS } from '../_theme';
+import { useTheme } from '../_contexts/ThemeContext';
 import { GlassCard } from '../_components/GlassCard';
+import type { ThemeColors } from '../_theme';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { format } from 'date-fns';
-
-const API_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
 
 const CATEGORIES = [
   'Sales',
@@ -63,6 +62,7 @@ interface Job {
 export default function SearchScreen() {
   const router = useRouter();
   const { t } = useLanguage();
+  const { colors } = useTheme();
   const [searchQuery, setSearchQuery] = useState('');
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(false);
@@ -88,7 +88,7 @@ export default function SearchScreen() {
       if (selectedExperience) params.experience = selectedExperience;
       if (selectedEducation) params.education = selectedEducation;
 
-      const response = await axios.get(`${API_URL}/api/jobs`, { params });
+      const response = await api.get('/jobs', { params });
       setJobs(response.data);
     } catch (error) {
       console.error('Error searching jobs:', error);
@@ -112,9 +112,10 @@ export default function SearchScreen() {
     selectedExperience,
     selectedEducation,
   ].filter(Boolean).length;
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
       <ImageBackground
         source={require('../../assets/images/kolkata_tram_nostalgia.png')}
         style={styles.backgroundImage}
@@ -134,28 +135,28 @@ export default function SearchScreen() {
             onSubmitEditing={searchJobs}
             style={styles.searchbar}
             inputStyle={styles.searchInput}
-            placeholderTextColor={COLORS.muted}
+            placeholderTextColor={colors.muted}
           />
           <Button
             mode="outlined"
             onPress={() => setFilterVisible(true)}
             style={styles.filterButton}
             icon="filter-variant"
-            textColor={COLORS.terracotta}
+            textColor={colors.terracotta}
           >
-            {t('search.filters')} {activeFiltersCount > 0 && `(${activeFiltersCount})`}
+            {t('search.filters')} {((activeFiltersCount > 0) && `(${activeFiltersCount})`)}
           </Button>
         </View>
 
         {loading ? (
           <View style={styles.centerContainer}>
-            <ActivityIndicator size="large" color={COLORS.terracotta} />
+            <ActivityIndicator size="large" color={colors.terracotta} />
           </View>
         ) : (
           <ScrollView style={styles.content}>
           {jobs.length === 0 ? (
             <View style={styles.emptyContainer}>
-              <MaterialCommunityIcons name="magnify" size={64} color={COLORS.muted} />
+              <MaterialCommunityIcons name="magnify" size={64} color={colors.muted} />
               <Text variant="titleMedium" style={styles.emptyText}>
                 {t('search.noResults')}
               </Text>
@@ -185,21 +186,21 @@ export default function SearchScreen() {
                     </View>
 
                     <View style={styles.jobInfo}>
-                      <MaterialCommunityIcons name="office-building" size={16} color={COLORS.terracotta} />
+                      <MaterialCommunityIcons name="office-building" size={16} color={colors.terracotta} />
                       <Text variant="bodyMedium" style={styles.jobInfoText}>
                         {job.businessName || job.employerName}
                       </Text>
                     </View>
 
                     <View style={styles.jobInfo}>
-                      <MaterialCommunityIcons name="map-marker" size={16} color={COLORS.terracotta} />
+                      <MaterialCommunityIcons name="map-marker" size={16} color={colors.terracotta} />
                       <Text variant="bodyMedium" style={styles.jobInfoText}>
                         {job.location}
                       </Text>
                     </View>
 
                     <View style={styles.jobInfo}>
-                      <MaterialCommunityIcons name="currency-inr" size={16} color={COLORS.terracotta} />
+                      <MaterialCommunityIcons name="currency-inr" size={16} color={colors.terracotta} />
                       <Text variant="bodyMedium" style={styles.jobInfoText}>
                         {job.salary}
                       </Text>
@@ -306,7 +307,7 @@ export default function SearchScreen() {
 
             <View style={styles.modalButtons}>
               <Button mode="outlined" onPress={clearFilters} style={styles.modalButton}>
-                Clear All
+                {t('search.clearAll')}
               </Button>
               <Button
                 mode="contained"
@@ -316,7 +317,7 @@ export default function SearchScreen() {
                 }}
                 style={styles.modalButton}
               >
-                Apply Filters
+                {t('search.applyFilters')}
               </Button>
             </View>
           </ScrollView>
@@ -327,154 +328,156 @@ export default function SearchScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.cream,
-  },
-  backgroundImage: {
-    flex: 1,
-    width: '100%',
-  },
-  centerContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  header: {
-    padding: 24,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
-  },
-  headerTitle: {
-    fontWeight: 'bold',
-    color: COLORS.terracotta,
-    fontFamily: Platform.OS === 'ios' ? 'Kohinoor Bangla' : 'serif',
-  },
-  searchContainer: {
-    padding: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  searchbar: {
-    flex: 1,
-    elevation: 2,
-    borderRadius: 2,
-    backgroundColor: COLORS.white,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-  },
-  searchInput: {
-    fontSize: 14,
-  },
-  filterButton: {
-    marginLeft: 0,
-    borderColor: COLORS.terracotta,
-  },
-  content: {
-    flex: 1,
-    paddingHorizontal: 16,
-  },
-  emptyContainer: {
-    alignItems: 'center',
-    marginTop: 64,
-  },
-  emptyText: {
-    marginTop: 16,
-    color: COLORS.muted,
-    textAlign: 'center',
-  },
-  emptySubtext: {
-    marginTop: 8,
-    color: COLORS.muted,
-    textAlign: 'center',
-  },
-  jobCard: {
-    marginBottom: 16,
-    elevation: 2,
-  },
-  jobHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 12,
-  },
-  jobTitle: {
-    flex: 1,
-    fontWeight: 'bold',
-    marginRight: 8,
-    color: COLORS.ink,
-    fontFamily: Platform.OS === 'ios' ? 'Kohinoor Bangla' : 'serif',
-  },
-  categoryChip: {
-    borderColor: COLORS.terracotta,
-    borderRadius: 4,
-  },
-  categoryText: {
-    color: COLORS.terracotta,
-    fontSize: 12,
-  },
-  jobInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  jobInfoText: {
-    marginLeft: 10,
-    color: COLORS.ink,
-    fontSize: 14,
-  },
-  jobFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 12,
-    paddingTop: 12,
-    borderTopWidth: 0.5,
-    borderTopColor: COLORS.border,
-  },
-  typeChip: {
-    backgroundColor: COLORS.cream,
-    borderRadius: 4,
-  },
-  dateText: {
-    color: COLORS.muted,
-    fontStyle: 'italic',
-  },
-  modal: {
-    backgroundColor: COLORS.white,
-    padding: 20,
-    margin: 20,
-    borderRadius: 8,
-    maxHeight: '80%',
-  },
-  modalTitle: {
-    marginBottom: 16,
-    fontWeight: 'bold',
-    color: COLORS.ink,
-  },
-  filterLabel: {
-    marginTop: 16,
-    marginBottom: 8,
-    color: COLORS.terracotta,
-  },
-  chipContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  chip: {
-    marginRight: 4,
-    marginBottom: 4,
-  },
-  modalButtons: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 24,
-    gap: 8,
-  },
-  modalButton: {
-    flex: 1,
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    backgroundImage: {
+      flex: 1,
+      width: '100%',
+    },
+    centerContainer: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    header: {
+      padding: 24,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    headerTitle: {
+      fontWeight: 'bold',
+      color: colors.terracotta,
+      fontFamily: Platform.OS === 'ios' ? 'Kohinoor Bangla' : 'serif',
+    },
+    searchContainer: {
+      padding: 16,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+    },
+    searchbar: {
+      flex: 1,
+      elevation: 2,
+      borderRadius: 2,
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    searchInput: {
+      fontSize: 14,
+    },
+    filterButton: {
+      marginLeft: 0,
+      borderColor: colors.terracotta,
+    },
+    content: {
+      flex: 1,
+      paddingHorizontal: 16,
+    },
+    emptyContainer: {
+      alignItems: 'center',
+      marginTop: 64,
+    },
+    emptyText: {
+      marginTop: 16,
+      color: colors.textSecondary,
+      textAlign: 'center',
+    },
+    emptySubtext: {
+      marginTop: 8,
+      color: colors.textSecondary,
+      textAlign: 'center',
+    },
+    jobCard: {
+      marginBottom: 16,
+      elevation: 2,
+    },
+    jobHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'flex-start',
+      marginBottom: 12,
+    },
+    jobTitle: {
+      flex: 1,
+      fontWeight: 'bold',
+      marginRight: 8,
+      color: colors.text,
+      fontFamily: Platform.OS === 'ios' ? 'Kohinoor Bangla' : 'serif',
+    },
+    categoryChip: {
+      borderColor: colors.terracotta,
+      borderRadius: 4,
+    },
+    categoryText: {
+      color: colors.terracotta,
+      fontSize: 12,
+    },
+    jobInfo: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: 8,
+    },
+    jobInfoText: {
+      marginLeft: 10,
+      color: colors.text,
+      fontSize: 14,
+    },
+    jobFooter: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginTop: 12,
+      paddingTop: 12,
+      borderTopWidth: 0.5,
+      borderTopColor: colors.border,
+    },
+    typeChip: {
+      backgroundColor: colors.cream,
+      borderRadius: 4,
+    },
+    dateText: {
+      color: colors.textSecondary,
+      fontStyle: 'italic',
+    },
+    modal: {
+      backgroundColor: colors.surface,
+      padding: 20,
+      margin: 20,
+      borderRadius: 8,
+      maxHeight: '80%',
+    },
+    modalTitle: {
+      marginBottom: 16,
+      fontWeight: 'bold',
+      color: colors.text,
+    },
+    filterLabel: {
+      marginTop: 16,
+      marginBottom: 8,
+      color: colors.terracotta,
+    },
+    chipContainer: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 8,
+    },
+    chip: {
+      marginRight: 4,
+      marginBottom: 4,
+    },
+    modalButtons: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      marginTop: 24,
+      gap: 8,
+    },
+    modalButton: {
+      flex: 1,
+    },
+  });
+}

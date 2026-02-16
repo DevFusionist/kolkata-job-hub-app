@@ -16,7 +16,7 @@ interface User {
 interface AuthContextType {
   user: User | null;
   loading: boolean;
-  login: (userData: User) => Promise<void>;
+  login: (userData: User, token?: string) => Promise<void>;
   logout: () => Promise<void>;
   updateUser: (userData: User) => Promise<void>;
 }
@@ -33,9 +33,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const loadUser = async () => {
     try {
-      const userData = await AsyncStorage.getItem('user');
-      if (userData) {
+      const [userData, token] = await Promise.all([
+        AsyncStorage.getItem('user'),
+        AsyncStorage.getItem('authToken'),
+      ]);
+      if (userData && token) {
         setUser(JSON.parse(userData));
+      } else if (userData && !token) {
+        // Legacy session without token - clear it
+        await AsyncStorage.removeItem('user');
       }
     } catch (error) {
       console.error('Error loading user:', error);
@@ -44,9 +50,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const login = async (userData: User) => {
+  const login = async (userData: User, token?: string) => {
     try {
       await AsyncStorage.setItem('user', JSON.stringify(userData));
+      if (token) {
+        await AsyncStorage.setItem('authToken', token);
+      }
       setUser(userData);
     } catch (error) {
       console.error('Error saving user:', error);
@@ -55,7 +64,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = async () => {
     try {
-      await AsyncStorage.removeItem('user');
+      await AsyncStorage.multiRemove(['user', 'authToken']);
       setUser(null);
     } catch (error) {
       console.error('Error logging out:', error);

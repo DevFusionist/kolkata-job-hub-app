@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   StyleSheet,
@@ -11,15 +11,12 @@ import {
 } from 'react-native';
 import { Text, TextInput, Button, RadioButton, Chip } from 'react-native-paper';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import axios from 'axios';
+import api from '../_lib/api';
 import { useAuth } from '../_contexts/AuthContext';
 import { useLanguage } from '../_contexts/LanguageContext';
-import { COLORS } from '../_theme';
+import { useTheme } from '../_contexts/ThemeContext';
 import { GlassCard } from '../_components/GlassCard';
-
-const API_URL =
-  process.env.EXPO_PUBLIC_BACKEND_URL ||
-  'https://kolkata-job-hub-app-backend-production.up.railway.app';
+import type { ThemeColors } from '../_theme';
 
 const LANG_OPTIONS = [
   { key: 'Bengali', en: 'Bengali', bn: 'বাংলা' },
@@ -39,6 +36,7 @@ const COMMON_SKILLS = [
 
 export default function RegisterScreen() {
   const { t, locale, setLocale } = useLanguage();
+  const { colors } = useTheme();
   const params = useLocalSearchParams();
   const phone = params.phone as string;
   const [role, setRole] = useState('seeker');
@@ -48,6 +46,10 @@ export default function RegisterScreen() {
   const [selectedLanguages, setSelectedLanguages] = useState<string[]>([]);
   const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
+  const [showSetMpin, setShowSetMpin] = useState(false);
+  const [userToLogin, setUserToLogin] = useState<any>(null);
+  const [mpin, setMpin] = useState('');
+  const [mpinConfirm, setMpinConfirm] = useState('');
   const { login } = useAuth();
   const router = useRouter();
 
@@ -92,9 +94,9 @@ export default function RegisterScreen() {
         languages: selectedLanguages,
         skills: role === 'seeker' ? selectedSkills : [],
       };
-      const response = await axios.post(`${API_URL.replace(/\/$/, '')}/api/users`, userData);
-      await login(response.data);
-      router.replace('/(tabs)');
+      const response = await api.post('/users', userData);
+      setUserToLogin(response.data);
+      setShowSetMpin(true);
     } catch (error: any) {
       Alert.alert(t('common.error'), error.response?.data?.detail || t('register.errorRegister'));
     } finally {
@@ -102,12 +104,37 @@ export default function RegisterScreen() {
     }
   };
 
+  const handleSetMpin = async () => {
+    if (!mpin || mpin.length < 4 || mpin.length > 6) {
+      Alert.alert(t('common.error'), t('login.errorInvalidMpin'));
+      return;
+    }
+    if (mpin !== mpinConfirm) {
+      Alert.alert(t('common.error'), t('login.errorMpinMismatch'));
+      return;
+    }
+    setLoading(true);
+    try {
+      await api.post('/auth/set-mpin', { phone, mpin });
+      if (userToLogin) {
+        const { token, ...userData } = userToLogin;
+        await login(userData, token);
+        router.replace('/(tabs)');
+      }
+    } catch (error: any) {
+      Alert.alert(t('common.error'), error.response?.data?.detail || 'Failed to set MPIN');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const langLabel = (opt: (typeof LANG_OPTIONS)[0]) => (locale === 'bn' ? opt.bn : opt.en);
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   return (
     <ImageBackground
       source={require('../../assets/images/kolkata_street_nostalgia.png')}
-      style={styles.backgroundImage}
+      style={[styles.backgroundImage, { backgroundColor: colors.background }]}
       imageStyle={{ opacity: 0.2 }}
     >
       <KeyboardAvoidingView
@@ -143,6 +170,49 @@ export default function RegisterScreen() {
           <View style={styles.underline} />
         </View>
 
+        {showSetMpin ? (
+          <GlassCard style={styles.vintageCard}>
+            <Text variant="headlineSmall" style={styles.formTitle}>
+              {t('login.setMpinTitle')}
+            </Text>
+            <Text style={styles.setMpinHint}>{t('register.setMpinAfterRegister')}</Text>
+            <TextInput
+              label={t('login.enterMpin')}
+              value={mpin}
+              onChangeText={setMpin}
+              placeholder={t('login.mpinPlaceholder')}
+              keyboardType="number-pad"
+              maxLength={6}
+              secureTextEntry
+              mode="flat"
+              activeUnderlineColor={colors.terracotta}
+              style={styles.input}
+            />
+            <TextInput
+              label={t('login.setMpinConfirm')}
+              value={mpinConfirm}
+              onChangeText={setMpinConfirm}
+              placeholder={t('login.mpinPlaceholder')}
+              keyboardType="number-pad"
+              maxLength={6}
+              secureTextEntry
+              mode="flat"
+              activeUnderlineColor={colors.terracotta}
+              style={styles.input}
+            />
+            <Button
+              mode="contained"
+              onPress={handleSetMpin}
+              loading={loading}
+              disabled={loading}
+              contentStyle={{ height: 50 }}
+              style={styles.regButton}
+              labelStyle={styles.buttonLabel}
+            >
+              {t('register.setMpin')}
+            </Button>
+          </GlassCard>
+        ) : (
         <GlassCard style={styles.vintageCard}>
             <Text variant="headlineSmall" style={styles.formTitle}>
               {t('register.formTitle')}
@@ -152,11 +222,11 @@ export default function RegisterScreen() {
             <RadioButton.Group onValueChange={setRole} value={role}>
               <View style={styles.radioRow}>
                 <View style={styles.radioOption}>
-                  <RadioButton value="seeker" color={COLORS.terracotta} />
+                  <RadioButton value="seeker" color={colors.terracotta} />
                   <Text>{t('register.jobSeeker')}</Text>
                 </View>
                 <View style={styles.radioOption}>
-                  <RadioButton value="employer" color={COLORS.terracotta} />
+                  <RadioButton value="employer" color={colors.terracotta} />
                   <Text>{t('register.employer')}</Text>
                 </View>
               </View>
@@ -165,7 +235,7 @@ export default function RegisterScreen() {
             <TextInput
               label={t('register.fullName')}
               mode="flat"
-              activeUnderlineColor={COLORS.terracotta}
+              activeUnderlineColor={colors.terracotta}
               value={name}
               onChangeText={setName}
               style={styles.input}
@@ -175,7 +245,7 @@ export default function RegisterScreen() {
               <TextInput
                 label={t('register.businessName')}
                 mode="flat"
-                activeUnderlineColor={COLORS.terracotta}
+                activeUnderlineColor={colors.terracotta}
                 value={businessName}
                 onChangeText={setBusinessName}
                 style={styles.input}
@@ -186,7 +256,7 @@ export default function RegisterScreen() {
               label={t('register.locality')}
               placeholder={t('register.localityPlaceholder')}
               mode="flat"
-              activeUnderlineColor={COLORS.terracotta}
+              activeUnderlineColor={colors.terracotta}
               value={location}
               onChangeText={setLocation}
               style={styles.input}
@@ -202,7 +272,7 @@ export default function RegisterScreen() {
                   selectedColor="#fff"
                   style={[
                     styles.chip,
-                    selectedLanguages.includes(opt.key) && { backgroundColor: COLORS.terracotta },
+                    selectedLanguages.includes(opt.key) && { backgroundColor: colors.terracotta },
                   ]}
                 >
                   {langLabel(opt)}
@@ -219,7 +289,7 @@ export default function RegisterScreen() {
                       key={skill}
                       selected={selectedSkills.includes(skill)}
                       onPress={() => toggleSkill(skill)}
-                      selectedColor={COLORS.terracotta}
+                      selectedColor={colors.terracotta}
                       style={styles.skillChip}
                     >
                       {skill}
@@ -241,121 +311,130 @@ export default function RegisterScreen() {
               {t('register.startJourney')}
             </Button>
         </GlassCard>
+        )}
       </ScrollView>
     </KeyboardAvoidingView>
     </ImageBackground>
   );
 }
 
-const styles = StyleSheet.create({
-  backgroundImage: {
-    flex: 1,
-    backgroundColor: COLORS.cream,
-  },
-  container: {
-    flex: 1,
-  },
-  langRow: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    paddingHorizontal: 20,
-    paddingTop: Platform.OS === 'ios' ? 56 : 24,
-    paddingBottom: 8,
-    gap: 8,
-  },
-  langBtn: {
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: COLORS.terracotta,
-  },
-  langBtnActive: {
-    backgroundColor: COLORS.terracotta,
-  },
-  langBtnText: {
-    fontSize: 14,
-    color: COLORS.terracotta,
-    fontWeight: '600',
-  },
-  langBtnTextActive: {
-    color: COLORS.cream,
-  },
-  scrollContent: {
-    padding: 20,
-    paddingBottom: 40,
-  },
-  headerContainer: {
-    alignItems: 'center',
-    marginBottom: 30,
-  },
-  brandTitle: {
-    fontSize: 48,
-    fontFamily: Platform.OS === 'ios' ? 'Kohinoor Bangla' : 'serif',
-    color: COLORS.terracotta,
-    fontWeight: 'bold',
-  },
-  subTitle: {
-    fontSize: 14,
-    color: COLORS.muted,
-    letterSpacing: 1.5,
-    textTransform: 'uppercase',
-  },
-  underline: {
-    width: 60,
-    height: 3,
-    backgroundColor: COLORS.gold,
-    marginTop: 8,
-  },
-  vintageCard: {
-    elevation: 2,
-  },
-  formTitle: {
-    textAlign: 'center',
-    marginBottom: 20,
-    color: COLORS.ink,
-    fontWeight: '600',
-  },
-  sectionLabel: {
-    marginTop: 16,
-    marginBottom: 8,
-    fontWeight: 'bold',
-    color: COLORS.terracotta,
-  },
-  radioRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginBottom: 10,
-  },
-  radioOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  input: {
-    marginBottom: 16,
-    backgroundColor: 'transparent',
-  },
-  chipContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginBottom: 10,
-  },
-  chip: {
-    backgroundColor: '#F0E68C',
-  },
-  skillChip: {
-    borderColor: COLORS.terracotta,
-    borderWidth: 1,
-  },
-  regButton: {
-    marginTop: 30,
-    backgroundColor: COLORS.terracotta,
-    borderRadius: 4,
-  },
-  buttonLabel: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    letterSpacing: 1,
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    backgroundImage: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    container: {
+      flex: 1,
+    },
+    langRow: {
+      flexDirection: 'row',
+      justifyContent: 'flex-end',
+      paddingHorizontal: 20,
+      paddingTop: Platform.OS === 'ios' ? 56 : 24,
+      paddingBottom: 8,
+      gap: 8,
+    },
+    langBtn: {
+      paddingVertical: 8,
+      paddingHorizontal: 16,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: colors.terracotta,
+    },
+    langBtnActive: {
+      backgroundColor: colors.terracotta,
+    },
+    langBtnText: {
+      fontSize: 14,
+      color: colors.terracotta,
+      fontWeight: '600',
+    },
+    langBtnTextActive: {
+      color: colors.cream,
+    },
+    scrollContent: {
+      padding: 20,
+      paddingBottom: 40,
+    },
+    headerContainer: {
+      alignItems: 'center',
+      marginBottom: 30,
+    },
+    brandTitle: {
+      fontSize: 48,
+      fontFamily: Platform.OS === 'ios' ? 'Kohinoor Bangla' : 'serif',
+      color: colors.terracotta,
+      fontWeight: 'bold',
+    },
+    subTitle: {
+      fontSize: 14,
+      color: colors.textSecondary,
+      letterSpacing: 1.5,
+      textTransform: 'uppercase',
+    },
+    underline: {
+      width: 60,
+      height: 3,
+      backgroundColor: colors.gold,
+      marginTop: 8,
+    },
+    vintageCard: {
+      elevation: 2,
+    },
+    formTitle: {
+      textAlign: 'center',
+      marginBottom: 20,
+      color: colors.text,
+      fontWeight: '600',
+    },
+    sectionLabel: {
+      marginTop: 16,
+      marginBottom: 8,
+      fontWeight: 'bold',
+      color: colors.terracotta,
+    },
+    radioRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-around',
+      marginBottom: 10,
+    },
+    radioOption: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    input: {
+      marginBottom: 16,
+      backgroundColor: 'transparent',
+    },
+    chipContainer: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 8,
+      marginBottom: 10,
+    },
+    chip: {
+      backgroundColor: colors.cream,
+    },
+    skillChip: {
+      borderColor: colors.terracotta,
+      borderWidth: 1,
+    },
+    regButton: {
+      marginTop: 30,
+      backgroundColor: colors.terracotta,
+      borderRadius: 4,
+    },
+    setMpinHint: {
+      textAlign: 'center',
+      color: colors.textSecondary,
+      marginBottom: 20,
+      fontSize: 14,
+    },
+    buttonLabel: {
+      fontSize: 16,
+      fontWeight: 'bold',
+      letterSpacing: 1,
+    },
+  });
+}

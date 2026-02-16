@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   StyleSheet,
@@ -13,20 +13,29 @@ import {
   List,
   Divider,
   Chip,
+  TextInput,
+  ActivityIndicator,
+  Switch,
 } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import api from '../_lib/api';
 import { useAuth } from '../_contexts/AuthContext';
 import { useLanguage } from '../_contexts/LanguageContext';
-import { COLORS } from '../_theme';
+import { useTheme } from '../_contexts/ThemeContext';
 import { GlassCard } from '../_components/GlassCard';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import type { ThemeColors } from '../_theme';
 
 export default function ProfileScreen() {
-  const { user, logout } = useAuth();
+  const { user, logout, updateUser } = useAuth();
+  const { colors, isDark, setThemeMode } = useTheme();
+  const [portfolioRawText, setPortfolioRawText] = useState('');
+  const [analyzing, setAnalyzing] = useState(false);
   const { t } = useLanguage();
   const router = useRouter();
   const isEmployer = user?.role === 'employer';
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   const handleLogout = () => {
     Alert.alert(t('profile.logout'), t('profile.logoutConfirm'), [
@@ -43,7 +52,7 @@ export default function ProfileScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
       <ImageBackground
         source={require('../../assets/images/kolkata_street_nostalgia.png')}
         style={styles.backgroundImage}
@@ -61,7 +70,7 @@ export default function ProfileScreen() {
               <MaterialCommunityIcons
                 name={isEmployer ? 'briefcase' : 'account'}
                 size={64}
-                color={COLORS.terracotta}
+                color={colors.terracotta}
               />
               <Text variant="headlineSmall" style={styles.name}>
                 {user?.name}
@@ -116,7 +125,7 @@ export default function ProfileScreen() {
               </View>
             </View>
 
-            {!isEmployer && user?.skills && user.skills.length > 0 && (
+            {!isEmployer && user?.skills && (user.skills.length > 0) && (
               <View style={styles.section}>
                 <Text variant="titleMedium" style={styles.sectionTitle}>
                   {t('profile.skills')}
@@ -132,7 +141,66 @@ export default function ProfileScreen() {
             )}
         </GlassCard>
 
+        {!isEmployer && (
+          <GlassCard style={styles.card}>
+            <Text variant="titleMedium" style={styles.sectionTitle}>
+              {t('profile.improveWithAi')}
+            </Text>
+            <Text variant="bodySmall" style={styles.portfolioHint}>
+              {t('profile.improveWithAiDesc')}
+            </Text>
+            <TextInput
+              value={portfolioRawText}
+              onChangeText={setPortfolioRawText}
+              placeholder="e.g. 2 years delivery experience, know Salt Lake area, Hindi and Bengali..."
+              multiline
+              numberOfLines={4}
+              style={styles.portfolioInput}
+              editable={!analyzing}
+            />
+            <Button
+              mode="contained"
+              onPress={async () => {
+                if (!portfolioRawText.trim() || !user?.id) return;
+                setAnalyzing(true);
+                try {
+                  const { data } = await api.post(
+                    '/ai/analyze-portfolio',
+                    { seeker_id: user.id, rawText: portfolioRawText.trim(), projects: [], links: [] }
+                  );
+                  const newSkills = data.skills || [];
+                  const merged = [...new Set([...(user.skills || []), ...newSkills])].slice(0, 30);
+                  await updateUser({ ...user, skills: merged });
+                  setPortfolioRawText('');
+                  Alert.alert(t('common.success'), t('profile.skillsExtracted'));
+                } catch (err: any) {
+                  Alert.alert(t('common.error'), err.response?.data?.detail || err.message || 'Analysis failed');
+                } finally {
+                  setAnalyzing(false);
+                }
+              }}
+              loading={analyzing}
+              disabled={!portfolioRawText.trim() || analyzing}
+              style={styles.analyzeButton}
+            >
+              {analyzing ? t('profile.analyzing') : t('profile.improveWithAi')}
+            </Button>
+          </GlassCard>
+        )}
+
         <GlassCard style={styles.card}>
+            <List.Item
+              title={t('profile.appearance')}
+              description={isDark ? t('profile.darkMode') : t('profile.lightMode')}
+              left={(props) => <List.Icon {...props} icon="theme-light-dark" />}
+              right={() => (
+                <Switch
+                  value={isDark}
+                  onValueChange={(v) => setThemeMode(v ? 'dark' : 'light')}
+                  color={colors.terracotta}
+                />
+              )}
+            />
             <List.Item
               title={t('profile.editProfile')}
               left={(props) => <List.Icon {...props} icon="pencil" />}
@@ -175,7 +243,7 @@ export default function ProfileScreen() {
           onPress={handleLogout}
           style={styles.logoutButton}
           icon="logout"
-          textColor={COLORS.bengaliRed}
+          textColor={colors.bengaliRed}
         >
           {t('profile.logout')}
         </Button>
@@ -185,67 +253,81 @@ export default function ProfileScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.cream,
-  },
-  backgroundImage: {
-    flex: 1,
-    width: '100%',
-  },
-  header: {
-    padding: 24,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
-  },
-  headerTitle: {
-    fontWeight: 'bold',
-    color: COLORS.terracotta,
-    fontFamily: Platform.OS === 'ios' ? 'Kohinoor Bangla' : 'serif',
-  },
-  content: {
-    flex: 1,
-    padding: 16,
-    paddingBottom: 40,
-  },
-  card: {
-    marginBottom: 16,
-    elevation: 2,
-  },
-  profileHeader: {
-    alignItems: 'center',
-    paddingVertical: 16,
-  },
-  name: {
-    marginTop: 16,
-    fontWeight: 'bold',
-    color: COLORS.ink,
-  },
-  roleChip: {
-    marginTop: 8,
-  },
-  divider: {
-    marginVertical: 16,
-  },
-  section: {
-    marginTop: 16,
-  },
-  sectionTitle: {
-    marginBottom: 8,
-    color: COLORS.ink,
-  },
-  chipContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  chip: {
-    marginRight: 4,
-    marginBottom: 4,
-  },
-  logoutButton: {
-    marginVertical: 16,
-    borderColor: COLORS.bengaliRed,
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    backgroundImage: {
+      flex: 1,
+      width: '100%',
+    },
+    header: {
+      padding: 24,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    headerTitle: {
+      fontWeight: 'bold',
+      color: colors.terracotta,
+      fontFamily: Platform.OS === 'ios' ? 'Kohinoor Bangla' : 'serif',
+    },
+    content: {
+      flex: 1,
+      padding: 16,
+      paddingBottom: 40,
+    },
+    card: {
+      marginBottom: 16,
+      elevation: 2,
+    },
+    profileHeader: {
+      alignItems: 'center',
+      paddingVertical: 16,
+    },
+    name: {
+      marginTop: 16,
+      fontWeight: 'bold',
+      color: colors.text,
+    },
+    roleChip: {
+      marginTop: 8,
+    },
+    divider: {
+      marginVertical: 16,
+    },
+    section: {
+      marginTop: 16,
+    },
+    sectionTitle: {
+      marginBottom: 8,
+      color: colors.text,
+    },
+    chipContainer: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 8,
+    },
+    chip: {
+      marginRight: 4,
+      marginBottom: 4,
+    },
+    logoutButton: {
+      marginVertical: 16,
+      borderColor: colors.bengaliRed,
+    },
+    portfolioHint: {
+      color: colors.textSecondary,
+      marginBottom: 12,
+    },
+    portfolioInput: {
+      marginBottom: 12,
+      backgroundColor: colors.surface,
+    },
+    analyzeButton: {
+      backgroundColor: colors.terracotta,
+      borderRadius: 2,
+    },
+  });
+}

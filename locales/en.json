@@ -25,7 +25,19 @@
     "errorInvalidPhone": "Please enter a valid 10-digit phone number",
     "errorInvalidOtp": "Please enter a valid 6-digit OTP",
     "errorSendOtp": "Failed to send OTP",
-    "errorVerifyOtp": "Failed to verify OTP"
+    "errorVerifyOtp": "Failed to verify OTP",
+    "enterMpin": "Enter MPIN",
+    "mpinPlaceholder": "4-6 digit MPIN",
+    "forgotMpin": "Forgot MPIN? Send OTP",
+    "loginWithMpin": "Login",
+    "setMpinTitle": "Set your MPIN",
+    "setMpinConfirm": "Confirm MPIN",
+    "createMpinInstruction": "Create a 4-6 digit MPIN. You'll use it to login next time.",
+    "errorInvalidMpin": "MPIN must be 4-6 digits",
+    "errorMpinMismatch": "MPIN and confirm must match",
+    "errorMpinNotSet": "Set MPIN first via Forgot MPIN",
+    "errorUserNotFound": "Not registered. Send OTP to register.",
+    "newUserSendOtp": "New user? Send OTP to register"
   },
   "register": {
     "brandSubtitle": "Kolkata's Own Talent Hub",
@@ -46,7 +58,9 @@
     "errorRegister": "Failed to register",
     "langBengali": "Bengali",
     "langHindi": "Hindi",
-    "langEnglish": "English"
+    "langEnglish": "English",
+    "setMpinAfterRegister": "Set MPIN to login next time without OTP",
+    "setMpin": "Set MPIN"
   },
   "tabs": {
     "home": "Home",
@@ -54,7 +68,30 @@
     "postJob": "Post Job",
     "applications": "Applications",
     "messages": "Messages",
-    "profile": "Profile"
+    "profile": "Profile",
+    "protibha": "Protibha"
+  },
+  "protibha": {
+    "title": "Protibha",
+    "subtitleSeeker": "Your AI job assistant",
+    "subtitleEmployer": "Your AI hiring assistant",
+    "placeholder": "Ask me anything...",
+    "jobsFound": "Jobs for you",
+    "tapToView": "Tap to view details",
+    "paymentRequired": "Payment Required",
+    "payNow": "Pay Now",
+    "welcomeTitle": "Nomoshkar!",
+    "welcomeSeeker": "I'm Protibha, your AI job assistant. I can help you find jobs, apply, and improve your profile.",
+    "welcomeEmployer": "I'm Protibha, your AI hiring assistant. I can help you post jobs and find the right candidates.",
+    "chipFindJobs": "Find jobs near me",
+    "chipMySkills": "Jobs matching my skills",
+    "chipSalary": "Highest paying jobs",
+    "chipPostJob": "Help me post a job",
+    "chipFindCandidates": "Find candidates",
+    "chipTips": "Hiring tips",
+    "typing": "Protibha is thinking...",
+    "online": "Online",
+    "poweredBy": "Powered by AI"
   },
   "home": {
     "myJobPostings": "My Job Postings",
@@ -90,7 +127,14 @@
     "version": "Version 1.0.0",
     "comingSoon": "Coming Soon",
     "editProfileSoon": "Edit profile feature will be added soon",
-    "supportContact": "Contact us at support@kolkatajobs.com"
+    "supportContact": "Contact us at support@kolkatajobs.com",
+    "improveWithAi": "Improve profile with AI",
+    "improveWithAiDesc": "Paste your experience or skills; we'll extract and add them to your profile.",
+    "analyzing": "Analyzing...",
+    "skillsExtracted": "Skills added to your profile",
+    "darkMode": "Dark mode",
+    "lightMode": "Light mode",
+    "appearance": "Appearance"
   },
   "postJob": {
     "title": "Post a Job",
@@ -111,17 +155,6 @@
     "successPosted": "Job posted successfully",
     "errorPost": "Failed to post job"
   },
-  "search": {
-    "title": "Search Jobs",
-    "placeholder": "Search by title or keyword...",
-    "filters": "Filters",
-    "clearFilters": "Clear",
-    "search": "Search",
-    "noResults": "No jobs found",
-    "tryAdjusting": "Try adjusting your search criteria",
-    "filterJobs": "Filter Jobs",
-    "errorSearch": "Failed to search jobs"
-  },
   "applications": {
     "title": "My Applications",
     "totalApplications": "total applications",
@@ -138,18 +171,53 @@
     "noMessages": "No messages"
   },
   "jobDetails": {
-    "apply": "Apply",
+    "title": "Job Details",
+    "apply": "Apply Now",
     "applied": "Applied",
     "applicants": "Applicants",
-    "description": "Description",
+    "description": "Job Description",
     "requirements": "Requirements",
+    "languages": "Languages",
+    "skills": "Skills",
     "contact": "Contact",
+    "message": "Message",
     "back": "Back",
-    "errorLoad": "Failed to load job",
-    "errorApply": "Failed to apply"
+    "errorLoad": "Failed to load job details",
+    "errorApply": "Failed to apply",
+    "alreadyApplied": "You have already applied to this job",
+    "applicationSuccess": "Application submitted successfully!",
+    "applyFor": "Apply for",
+    "coverLetter": "Cover Letter (Optional)",
+    "coverLetterPlaceholder": "Tell the employer why you're a good fit...",
+    "cancel": "Cancel",
+    "submitApplication": "Submit Application",
+    "applications": "Applications",
+    "candidatesApplied": "candidates have applied",
+    "viewApplications": "View Applications",
+    "shortlist": "Shortlist",
+    "reject": "Reject",
+    "statusUpdated": "Application status updated",
+    "errorUpdateStatus": "Failed to update application status",
+    "errorLoadApplications": "Failed to load applications",
+    "postedOn": "Posted on",
+    "jobNotFound": "Job not found"
   },
   "chat": {
     "placeholder": "Type a message...",
-    "send": "Send"
+    "send": "Send",
+    "emptyChat": "No messages yet. Start the conversation!"
+  },
+  "search": {
+    "title": "Search Jobs",
+    "placeholder": "Search by title or keyword...",
+    "filters": "Filters",
+    "clearFilters": "Clear",
+    "clearAll": "Clear All",
+    "applyFilters": "Apply Filters",
+    "search": "Search",
+    "noResults": "No jobs found",
+    "tryAdjusting": "Try adjusting your search criteria",
+    "filterJobs": "Filter Jobs",
+    "errorSearch": "Failed to search jobs"
   }
 }

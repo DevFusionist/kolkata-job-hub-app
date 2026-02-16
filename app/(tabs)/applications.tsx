@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   StyleSheet,
@@ -16,15 +16,14 @@ import {
 } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import axios from 'axios';
+import api from '../_lib/api';
 import { useAuth } from '../_contexts/AuthContext';
 import { useLanguage } from '../_contexts/LanguageContext';
-import { COLORS } from '../_theme';
+import { useTheme } from '../_contexts/ThemeContext';
 import { GlassCard } from '../_components/GlassCard';
+import type { ThemeColors } from '../_theme';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { format } from 'date-fns';
-
-const API_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
 
 interface Application {
   id: string;
@@ -47,8 +46,10 @@ interface Job {
 export default function ApplicationsScreen() {
   const { user } = useAuth();
   const { t } = useLanguage();
+  const { colors } = useTheme();
   const router = useRouter();
   const [applications, setApplications] = useState<Application[]>([]);
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [jobs, setJobs] = useState<{ [key: string]: Job }>({});
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -59,8 +60,8 @@ export default function ApplicationsScreen() {
 
   const fetchApplications = async () => {
     try {
-      const response = await axios.get(
-        `${API_URL}/api/applications/seeker/${user?.id}`
+      const response = await api.get(
+        `/applications/seeker/${user?.id}`
       );
       setApplications(response.data);
 
@@ -68,8 +69,8 @@ export default function ApplicationsScreen() {
       const jobDetails: { [key: string]: Job } = {};
       for (const app of response.data) {
         try {
-          const jobResponse = await axios.get(
-            `${API_URL}/api/jobs/${app.jobId}`
+          const jobResponse = await api.get(
+            `/jobs/${app.jobId}`
           );
           jobDetails[app.jobId] = jobResponse.data;
         } catch (error) {
@@ -94,26 +95,26 @@ export default function ApplicationsScreen() {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'pending':
-        return COLORS.gold;
+        return colors.gold;
       case 'shortlisted':
-        return COLORS.terracotta;
+        return colors.terracotta;
       case 'rejected':
-        return COLORS.bengaliRed;
+        return colors.bengaliRed;
       default:
-        return COLORS.muted;
+        return colors.muted;
     }
   };
 
   if (loading) {
     return (
       <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color={COLORS.terracotta} />
+        <ActivityIndicator size="large" color={colors.terracotta} />
       </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
       <ImageBackground
         source={require('../../assets/images/kolkata_tram_nostalgia.png')}
         style={styles.backgroundImage}
@@ -131,7 +132,7 @@ export default function ApplicationsScreen() {
         <ScrollView
           style={styles.content}
           refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[COLORS.terracotta]} />
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.terracotta]} />
           }
         >
         {applications.length === 0 ? (
@@ -139,7 +140,7 @@ export default function ApplicationsScreen() {
             <MaterialCommunityIcons
               name="file-document-outline"
               size={64}
-              color={COLORS.muted}
+              color={colors.muted}
             />
             <Text variant="titleMedium" style={styles.emptyText}>
               {t('applications.empty')}
@@ -179,7 +180,7 @@ export default function ApplicationsScreen() {
                       <MaterialCommunityIcons
                         name="office-building"
                         size={16}
-                        color={COLORS.terracotta}
+                        color={colors.terracotta}
                       />
                       <Text variant="bodyMedium" style={styles.jobInfoText}>
                         {job.businessName || job.employerName}
@@ -190,7 +191,7 @@ export default function ApplicationsScreen() {
                       <MaterialCommunityIcons
                         name="map-marker"
                         size={16}
-                        color={COLORS.terracotta}
+                        color={colors.terracotta}
                       />
                       <Text variant="bodyMedium" style={styles.jobInfoText}>
                         {job.location}
@@ -201,7 +202,7 @@ export default function ApplicationsScreen() {
                       <MaterialCommunityIcons
                         name="currency-inr"
                         size={16}
-                        color={COLORS.terracotta}
+                        color={colors.terracotta}
                       />
                       <Text variant="bodyMedium" style={styles.jobInfoText}>
                         {job.salary}
@@ -225,89 +226,91 @@ export default function ApplicationsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.cream,
-  },
-  backgroundImage: {
-    flex: 1,
-    width: '100%',
-  },
-  centerContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  header: {
-    padding: 24,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
-  },
-  headerTitle: {
-    fontWeight: 'bold',
-    color: COLORS.terracotta,
-    fontFamily: Platform.OS === 'ios' ? 'Kohinoor Bangla' : 'serif',
-  },
-  headerSubtitle: {
-    marginTop: 4,
-    color: COLORS.ink,
-    fontSize: 16,
-    opacity: 0.8,
-  },
-  content: {
-    flex: 1,
-    paddingHorizontal: 16,
-  },
-  emptyContainer: {
-    alignItems: 'center',
-    marginTop: 64,
-  },
-  emptyText: {
-    marginTop: 16,
-    color: COLORS.muted,
-    textAlign: 'center',
-  },
-  emptySubtext: {
-    marginTop: 8,
-    color: COLORS.muted,
-    textAlign: 'center',
-  },
-  applicationCard: {
-    marginBottom: 16,
-    elevation: 2,
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 12,
-  },
-  jobTitle: {
-    flex: 1,
-    fontWeight: 'bold',
-    marginRight: 8,
-    color: COLORS.ink,
-    fontFamily: Platform.OS === 'ios' ? 'Kohinoor Bangla' : 'serif',
-  },
-  jobInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  jobInfoText: {
-    marginLeft: 10,
-    color: COLORS.ink,
-    fontSize: 14,
-  },
-  footer: {
-    marginTop: 12,
-    paddingTop: 12,
-    borderTopWidth: 0.5,
-    borderTopColor: COLORS.border,
-  },
-  dateText: {
-    color: COLORS.muted,
-    fontStyle: 'italic',
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    backgroundImage: {
+      flex: 1,
+      width: '100%',
+    },
+    centerContainer: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    header: {
+      padding: 24,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    headerTitle: {
+      fontWeight: 'bold',
+      color: colors.terracotta,
+      fontFamily: Platform.OS === 'ios' ? 'Kohinoor Bangla' : 'serif',
+    },
+    headerSubtitle: {
+      marginTop: 4,
+      color: colors.text,
+      fontSize: 16,
+      opacity: 0.8,
+    },
+    content: {
+      flex: 1,
+      paddingHorizontal: 16,
+    },
+    emptyContainer: {
+      alignItems: 'center',
+      marginTop: 64,
+    },
+    emptyText: {
+      marginTop: 16,
+      color: colors.textSecondary,
+      textAlign: 'center',
+    },
+    emptySubtext: {
+      marginTop: 8,
+      color: colors.textSecondary,
+      textAlign: 'center',
+    },
+    applicationCard: {
+      marginBottom: 16,
+      elevation: 2,
+    },
+    cardHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'flex-start',
+      marginBottom: 12,
+    },
+    jobTitle: {
+      flex: 1,
+      fontWeight: 'bold',
+      marginRight: 8,
+      color: colors.text,
+      fontFamily: Platform.OS === 'ios' ? 'Kohinoor Bangla' : 'serif',
+    },
+    jobInfo: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: 8,
+    },
+    jobInfoText: {
+      marginLeft: 10,
+      color: colors.text,
+      fontSize: 14,
+    },
+    footer: {
+      marginTop: 12,
+      paddingTop: 12,
+      borderTopWidth: 0.5,
+      borderTopColor: colors.border,
+    },
+    dateText: {
+      color: colors.textSecondary,
+      fontStyle: 'italic',
+    },
+  });
+}

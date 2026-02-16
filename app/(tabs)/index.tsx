@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   StyleSheet,
@@ -18,15 +18,14 @@ import {
 } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import axios from 'axios';
+import api from '../_lib/api';
 import { useAuth } from '../_contexts/AuthContext';
 import { useLanguage } from '../_contexts/LanguageContext';
-import { COLORS } from '../_theme';
+import { useTheme } from '../_contexts/ThemeContext';
 import { GlassCard } from '../_components/GlassCard';
+import type { ThemeColors } from '../_theme';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { format } from 'date-fns';
-
-const API_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
 
 interface Job {
   id: string;
@@ -45,8 +44,10 @@ interface Job {
 export default function HomeScreen() {
   const { user } = useAuth();
   const { t } = useLanguage();
+  const { colors } = useTheme();
   const router = useRouter();
   const [jobs, setJobs] = useState<Job[]>([]);
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -59,9 +60,9 @@ export default function HomeScreen() {
   const fetchJobs = async () => {
     try {
       const endpoint = isEmployer
-        ? `${API_URL}/api/jobs/employer/${user?.id}`
-        : `${API_URL}/api/jobs`;
-      const response = await axios.get(endpoint);
+        ? `/jobs/employer/${user?.id}`
+        : `/jobs`;
+      const response = await api.get(endpoint);
       setJobs(response.data);
     } catch (error) {
       console.error('Error fetching jobs:', error);
@@ -86,13 +87,13 @@ export default function HomeScreen() {
   if (loading) {
     return (
       <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color={COLORS.terracotta} />
+        <ActivityIndicator size="large" color={colors.terracotta} />
       </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
       <ImageBackground
         source={require('../../assets/images/kolkata_tram_nostalgia.png')}
         style={styles.backgroundImage}
@@ -116,19 +117,19 @@ export default function HomeScreen() {
             value={searchQuery}
             style={styles.searchbar}
             inputStyle={styles.searchInput}
-            placeholderTextColor={COLORS.muted}
+            placeholderTextColor={colors.muted}
           />
         </View>
 
         <ScrollView
           style={styles.content}
           refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[COLORS.terracotta]} />
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.terracotta]} />
           }
         >
         {filteredJobs.length === 0 ? (
           <View style={styles.emptyContainer}>
-            <MaterialCommunityIcons name="briefcase-outline" size={64} color={COLORS.muted} />
+            <MaterialCommunityIcons name="briefcase-outline" size={64} color={colors.muted} />
             <Text variant="titleMedium" style={styles.emptyText}>
               {isEmployer ? t('home.noJobsPosted') : t('home.noJobsAvailable')}
             </Text>
@@ -164,21 +165,21 @@ export default function HomeScreen() {
                   </View>
 
                   <View style={styles.jobInfo}>
-                    <MaterialCommunityIcons name="office-building" size={16} color={COLORS.terracotta} />
+                    <MaterialCommunityIcons name="office-building" size={16} color={colors.terracotta} />
                     <Text variant="bodyMedium" style={styles.jobInfoText}>
                       {job.businessName || job.employerName}
                     </Text>
                   </View>
 
                   <View style={styles.jobInfo}>
-                    <MaterialCommunityIcons name="map-marker" size={16} color={COLORS.terracotta} />
+                    <MaterialCommunityIcons name="map-marker" size={16} color={colors.terracotta} />
                     <Text variant="bodyMedium" style={styles.jobInfoText}>
                       {job.location}
                     </Text>
                   </View>
 
                   <View style={styles.jobInfo}>
-                    <MaterialCommunityIcons name="currency-inr" size={16} color={COLORS.terracotta} />
+                    <MaterialCommunityIcons name="currency-inr" size={16} color={colors.terracotta} />
                     <Text variant="bodyMedium" style={styles.jobInfoText}>
                       {job.salary}
                     </Text>
@@ -211,130 +212,132 @@ export default function HomeScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.cream,
-  },
-  backgroundImage: {
-    flex: 1,
-    width: '100%',
-  },
-  centerContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  header: {
-    padding: 24,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
-  },
-  headerTitle: {
-    fontWeight: 'bold',
-    color: COLORS.terracotta,
-    fontFamily: Platform.OS === 'ios' ? 'Kohinoor Bangla' : 'serif',
-  },
-  headerSubtitle: {
-    marginTop: 4,
-    color: COLORS.ink,
-    fontSize: 16,
-    opacity: 0.8,
-  },
-  searchContainer: {
-    padding: 16,
-  },
-  searchbar: {
-    elevation: 2,
-    borderRadius: 2,
-    backgroundColor: COLORS.white,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-  },
-  searchInput: {
-    fontSize: 14,
-  },
-  content: {
-    flex: 1,
-    paddingHorizontal: 16,
-  },
-  emptyContainer: {
-    alignItems: 'center',
-    marginTop: 64,
-  },
-  emptyText: {
-    marginTop: 16,
-    color: COLORS.muted,
-    textAlign: 'center',
-  },
-  emptyButton: {
-    marginTop: 24,
-    backgroundColor: COLORS.terracotta,
-    borderRadius: 2,
-  },
-  jobCard: {
-    marginBottom: 16,
-    elevation: 2,
-  },
-  jobHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 12,
-  },
-  jobTitle: {
-    flex: 1,
-    fontWeight: 'bold',
-    marginRight: 8,
-    color: COLORS.ink,
-    fontFamily: Platform.OS === 'ios' ? 'Kohinoor Bangla' : 'serif',
-  },
-  categoryChip: {
-    borderColor: COLORS.terracotta,
-    borderRadius: 4,
-  },
-  categoryText: {
-    color: COLORS.terracotta,
-    fontSize: 12,
-  },
-  jobInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  jobInfoText: {
-    marginLeft: 10,
-    color: COLORS.ink,
-    fontSize: 14,
-  },
-  jobFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 12,
-    paddingTop: 12,
-    borderTopWidth: 0.5,
-    borderTopColor: COLORS.border,
-  },
-  typeChip: {
-    backgroundColor: COLORS.cream,
-    borderRadius: 4,
-  },
-  dateText: {
-    color: COLORS.muted,
-    fontStyle: 'italic',
-  },
-  applicationsCount: {
-    marginTop: 10,
-    backgroundColor: COLORS.cream,
-    padding: 6,
-    borderRadius: 4,
-    alignSelf: 'flex-start',
-    borderWidth: 1,
-    borderColor: COLORS.border,
-  },
-  appCountText: {
-    color: COLORS.terracotta,
-    fontWeight: '600',
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    backgroundImage: {
+      flex: 1,
+      width: '100%',
+    },
+    centerContainer: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    header: {
+      padding: 24,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    headerTitle: {
+      fontWeight: 'bold',
+      color: colors.terracotta,
+      fontFamily: Platform.OS === 'ios' ? 'Kohinoor Bangla' : 'serif',
+    },
+    headerSubtitle: {
+      marginTop: 4,
+      color: colors.text,
+      fontSize: 16,
+      opacity: 0.8,
+    },
+    searchContainer: {
+      padding: 16,
+    },
+    searchbar: {
+      elevation: 2,
+      borderRadius: 2,
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    searchInput: {
+      fontSize: 14,
+    },
+    content: {
+      flex: 1,
+      paddingHorizontal: 16,
+    },
+    emptyContainer: {
+      alignItems: 'center',
+      marginTop: 64,
+    },
+    emptyText: {
+      marginTop: 16,
+      color: colors.textSecondary,
+      textAlign: 'center',
+    },
+    emptyButton: {
+      marginTop: 24,
+      backgroundColor: colors.terracotta,
+      borderRadius: 2,
+    },
+    jobCard: {
+      marginBottom: 16,
+      elevation: 2,
+    },
+    jobHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'flex-start',
+      marginBottom: 12,
+    },
+    jobTitle: {
+      flex: 1,
+      fontWeight: 'bold',
+      marginRight: 8,
+      color: colors.text,
+      fontFamily: Platform.OS === 'ios' ? 'Kohinoor Bangla' : 'serif',
+    },
+    categoryChip: {
+      borderColor: colors.terracotta,
+      borderRadius: 4,
+    },
+    categoryText: {
+      color: colors.terracotta,
+      fontSize: 12,
+    },
+    jobInfo: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: 8,
+    },
+    jobInfoText: {
+      marginLeft: 10,
+      color: colors.text,
+      fontSize: 14,
+    },
+    jobFooter: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginTop: 12,
+      paddingTop: 12,
+      borderTopWidth: 0.5,
+      borderTopColor: colors.border,
+    },
+    typeChip: {
+      backgroundColor: colors.cream,
+      borderRadius: 4,
+    },
+    dateText: {
+      color: colors.textSecondary,
+      fontStyle: 'italic',
+    },
+    applicationsCount: {
+      marginTop: 10,
+      backgroundColor: colors.cream,
+      padding: 6,
+      borderRadius: 4,
+      alignSelf: 'flex-start',
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    appCountText: {
+      color: colors.terracotta,
+      fontWeight: '600',
+    },
+  });
+}

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   StyleSheet,
@@ -6,6 +6,7 @@ import {
   FlatList,
   ImageBackground,
   Platform,
+  Alert,
 } from 'react-native';
 import {
   Text,
@@ -15,16 +16,15 @@ import {
 } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import axios from 'axios';
+import api from '../_lib/api';
 import { useAuth } from '../_contexts/AuthContext';
 import { useSocket } from '../_contexts/SocketContext';
 import { useLanguage } from '../_contexts/LanguageContext';
-import { COLORS } from '../_theme';
+import { useTheme } from '../_contexts/ThemeContext';
 import { GlassCard } from '../_components/GlassCard';
+import type { ThemeColors } from '../_theme';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { format } from 'date-fns';
-
-const API_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
 
 interface Conversation {
   userId: string;
@@ -39,9 +39,11 @@ interface Conversation {
 export default function MessagesScreen() {
   const { user } = useAuth();
   const { t } = useLanguage();
+  const { colors } = useTheme();
   const router = useRouter();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { addMessageListener } = useSocket();
 
   useEffect(() => {
@@ -58,12 +60,13 @@ export default function MessagesScreen() {
 
   const fetchConversations = async () => {
     try {
-      const response = await axios.get(
-        `${API_URL}/api/messages/conversations/${user?.id}`
+      const response = await api.get(
+        `/messages/conversations/${user?.id}`
       );
       setConversations(response.data);
     } catch (error) {
       console.error('Error fetching conversations:', error);
+      Alert.alert(t('common.error'), t('messages.noMessages'));
     } finally {
       setLoading(false);
     }
@@ -118,13 +121,13 @@ export default function MessagesScreen() {
   if (loading) {
     return (
       <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color={COLORS.terracotta} />
+        <ActivityIndicator size="large" color={colors.terracotta} />
       </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
       <ImageBackground
         source={require('../../assets/images/kolkata_street_nostalgia.png')}
         style={styles.backgroundImage}
@@ -136,12 +139,16 @@ export default function MessagesScreen() {
           </Text>
         </View>
 
-        {conversations.length === 0 ? (
+        {loading ? (
+          <View style={styles.emptyContainer}>
+            <ActivityIndicator size="large" color={colors.terracotta} />
+          </View>
+        ) : conversations.length === 0 ? (
           <View style={styles.emptyContainer}>
             <MaterialCommunityIcons
               name="message-outline"
               size={64}
-              color={COLORS.muted}
+              color={colors.muted}
             />
             <Text variant="titleMedium" style={styles.emptyText}>
               {t('messages.empty')}
@@ -163,88 +170,90 @@ export default function MessagesScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.cream,
-  },
-  backgroundImage: {
-    flex: 1,
-    width: '100%',
-  },
-  centerContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  header: {
-    padding: 24,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
-  },
-  headerTitle: {
-    fontWeight: 'bold',
-    color: COLORS.terracotta,
-    fontFamily: Platform.OS === 'ios' ? 'Kohinoor Bangla' : 'serif',
-  },
-  content: {
-    padding: 16,
-    paddingBottom: 40,
-  },
-  emptyContainer: {
-    alignItems: 'center',
-    marginTop: 64,
-  },
-  emptyText: {
-    marginTop: 16,
-    color: COLORS.muted,
-    textAlign: 'center',
-  },
-  emptySubtext: {
-    marginTop: 8,
-    color: COLORS.muted,
-    textAlign: 'center',
-  },
-  conversationCard: {
-    marginBottom: 12,
-    elevation: 2,
-  },
-  conversationContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 12,
-  },
-  avatar: {
-    marginRight: 12,
-    backgroundColor: COLORS.terracotta,
-  },
-  conversationDetails: {
-    flex: 1,
-  },
-  conversationHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  userName: {
-    fontWeight: 'bold',
-    color: COLORS.ink,
-  },
-  timestamp: {
-    color: COLORS.muted,
-    fontStyle: 'italic',
-  },
-  messageRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  lastMessage: {
-    flex: 1,
-    color: COLORS.ink,
-    fontSize: 14,
-  },
-  badge: {
-    backgroundColor: COLORS.terracotta,
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    backgroundImage: {
+      flex: 1,
+      width: '100%',
+    },
+    centerContainer: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    header: {
+      padding: 24,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    headerTitle: {
+      fontWeight: 'bold',
+      color: colors.terracotta,
+      fontFamily: Platform.OS === 'ios' ? 'Kohinoor Bangla' : 'serif',
+    },
+    content: {
+      padding: 16,
+      paddingBottom: 40,
+    },
+    emptyContainer: {
+      alignItems: 'center',
+      marginTop: 64,
+    },
+    emptyText: {
+      marginTop: 16,
+      color: colors.textSecondary,
+      textAlign: 'center',
+    },
+    emptySubtext: {
+      marginTop: 8,
+      color: colors.textSecondary,
+      textAlign: 'center',
+    },
+    conversationCard: {
+      marginBottom: 12,
+      elevation: 2,
+    },
+    conversationContent: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      padding: 12,
+    },
+    avatar: {
+      marginRight: 12,
+      backgroundColor: colors.terracotta,
+    },
+    conversationDetails: {
+      flex: 1,
+    },
+    conversationHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 4,
+    },
+    userName: {
+      fontWeight: 'bold',
+      color: colors.text,
+    },
+    timestamp: {
+      color: colors.textSecondary,
+      fontStyle: 'italic',
+    },
+    messageRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    lastMessage: {
+      flex: 1,
+      color: colors.text,
+      fontSize: 14,
+    },
+    badge: {
+      backgroundColor: colors.terracotta,
+    },
+  });
+}

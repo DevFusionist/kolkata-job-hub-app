@@ -5,6 +5,7 @@ import { useAuth } from '../_contexts/AuthContext';
 import { useLanguage } from '../_contexts/LanguageContext';
 import { useTheme } from '../_contexts/ThemeContext';
 import { FloatingAssistant } from '../_components/FloatingAssistant';
+import { OfflineBanner } from '../_components/OfflineBanner';
 
 export default function TabsLayout() {
   const { user } = useAuth();
@@ -104,6 +105,7 @@ export default function TabsLayout() {
       />
     </Tabs>
       <FloatingAssistant />
+      <OfflineBanner />
     </View>
   );
 }

@@ -19,6 +19,7 @@ function LayoutContent() {
                 <Stack.Screen name="index" />
                 <Stack.Screen name="(auth)" />
                 <Stack.Screen name="(tabs)" />
+                <Stack.Screen name="resume-builder" />
               </Stack>
             </SocketProvider>
           </AuthProvider>

@@ -6,6 +6,7 @@ import React, {
   useCallback,
   useState,
 } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from './AuthContext';
 
 const getWsUrl = (apiUrl: string): string => {
@@ -25,11 +26,17 @@ export interface IncomingMessage {
   jobId?: string;
 }
 
+export interface ReadReceiptEvent {
+  readBy: string;
+}
+
 type MessageListener = (message: IncomingMessage) => void;
+type ReadReceiptListener = (event: ReadReceiptEvent) => void;
 
 interface SocketContextType {
   isConnected: boolean;
   addMessageListener: (listener: MessageListener) => () => void;
+  addReadReceiptListener: (listener: ReadReceiptListener) => () => void;
 }
 
 const SocketContext = createContext<SocketContextType | undefined>(undefined);
@@ -43,6 +50,7 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   const wsRef = useRef<WebSocket | null>(null);
   const listenersRef = useRef<Set<MessageListener>>(new Set());
+  const readReceiptListenersRef = useRef<Set<ReadReceiptListener>>(new Set());
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const reconnectDelayRef = useRef(MIN_RECONNECT_MS);
@@ -66,12 +74,14 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
     setIsConnected(false);
   }, []);
 
-  const connect = useCallback(() => {
+  const connect = useCallback(async () => {
     if (!user?.id || !API_URL) return;
     if (wsRef.current?.readyState === WebSocket.OPEN) return;
 
     intentionalCloseRef.current = false;
-    const wsUrl = `${getWsUrl(API_URL)}/ws/${user.id}`;
+    const token = await AsyncStorage.getItem('token');
+    const tokenParam = token ? `?token=${encodeURIComponent(token)}` : '';
+    const wsUrl = `${getWsUrl(API_URL)}/ws/${user.id}${tokenParam}`;
     const ws = new WebSocket(wsUrl);
     wsRef.current = ws;
 
@@ -94,6 +104,9 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
         const data = JSON.parse(event.data as string);
         if (data.type === 'new_message' && data.payload) {
           listenersRef.current.forEach((listener) => listener(data.payload));
+        }
+        if (data.type === 'messages_read' && data.payload) {
+          readReceiptListenersRef.current.forEach((listener) => listener(data.payload));
         }
       } catch {
         // ignore non-JSON or invalid
@@ -139,8 +152,15 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
+  const addReadReceiptListener = useCallback((listener: ReadReceiptListener) => {
+    readReceiptListenersRef.current.add(listener);
+    return () => {
+      readReceiptListenersRef.current.delete(listener);
+    };
+  }, []);
+
   return (
-    <SocketContext.Provider value={{ isConnected, addMessageListener }}>
+    <SocketContext.Provider value={{ isConnected, addMessageListener, addReadReceiptListener }}>
       {children}
     </SocketContext.Provider>
   );

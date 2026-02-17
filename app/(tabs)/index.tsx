@@ -44,18 +44,36 @@ interface Job {
 export default function HomeScreen() {
   const { user } = useAuth();
   const { t } = useLanguage();
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
   const router = useRouter();
   const [jobs, setJobs] = useState<Job[]>([]);
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [recommended, setRecommended] = useState<Job[]>([]);
+  const [recLoading, setRecLoading] = useState(false);
   const isEmployer = user?.role === 'employer';
+  const isSeeker = user?.role === 'seeker';
 
   useEffect(() => {
     fetchJobs();
+    if (isSeeker && user?.id) {
+      fetchRecommended();
+    }
   }, []);
+
+  const fetchRecommended = async () => {
+    try {
+      setRecLoading(true);
+      const { data } = await api.post('/ai/match', { seekerId: user?.id, limit: 5 });
+      setRecommended(data.jobs || []);
+    } catch {
+      // silent - recommendations are best-effort
+    } finally {
+      setRecLoading(false);
+    }
+  };
 
   const fetchJobs = async () => {
     try {
@@ -76,6 +94,9 @@ export default function HomeScreen() {
   const onRefresh = () => {
     setRefreshing(true);
     fetchJobs();
+    if (isSeeker && user?.id) {
+      fetchRecommended();
+    }
   };
 
   const filteredJobs = jobs.filter(
@@ -127,6 +148,65 @@ export default function HomeScreen() {
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.terracotta]} />
           }
         >
+        {/* AI Recommended Jobs for Seekers */}
+        {isSeeker && recommended.length > 0 && (
+          <View style={styles.recommendedSection}>
+            <View style={styles.recommendedHeader}>
+              <MaterialCommunityIcons name="star-four-points" size={20} color={colors.gold} />
+              <Text variant="titleMedium" style={styles.recommendedTitle}>
+                {t('home.recommendedForYou') || 'Recommended for You'}
+              </Text>
+            </View>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.recommendedScroll}
+            >
+              {recommended.map((job) => (
+                <TouchableOpacity
+                  key={`rec-${job.id}`}
+                  onPress={() => router.push(`/job-details?id=${job.id}`)}
+                  activeOpacity={0.7}
+                >
+                  <GlassCard style={styles.recCard}>
+                    <Text variant="titleSmall" numberOfLines={1} style={styles.recJobTitle}>
+                      {job.title}
+                    </Text>
+                    <View style={styles.recMeta}>
+                      <MaterialCommunityIcons name="office-building" size={12} color={colors.terracotta} />
+                      <Text variant="bodySmall" numberOfLines={1} style={styles.recMetaText}>
+                        {job.businessName || job.employerName}
+                      </Text>
+                    </View>
+                    <View style={styles.recMeta}>
+                      <MaterialCommunityIcons name="map-marker" size={12} color={colors.terracotta} />
+                      <Text variant="bodySmall" numberOfLines={1} style={styles.recMetaText}>
+                        {job.location}
+                      </Text>
+                    </View>
+                    <View style={styles.recMeta}>
+                      <MaterialCommunityIcons name="currency-inr" size={12} color={colors.gold} />
+                      <Text variant="bodySmall" numberOfLines={1} style={styles.recSalary}>
+                        {job.salary}
+                      </Text>
+                    </View>
+                    <Chip compact style={styles.recChip} textStyle={styles.recChipText}>
+                      {job.category}
+                    </Chip>
+                  </GlassCard>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        )}
+
+        {/* Section header for main list */}
+        {isSeeker && recommended.length > 0 && filteredJobs.length > 0 && (
+          <Text variant="titleMedium" style={styles.sectionDivider}>
+            {t('home.allJobs') || 'All Jobs'}
+          </Text>
+        )}
+
         {filteredJobs.length === 0 ? (
           <View style={styles.emptyContainer}>
             <MaterialCommunityIcons name="briefcase-outline" size={64} color={colors.muted} />
@@ -186,7 +266,7 @@ export default function HomeScreen() {
                   </View>
 
                   <View style={styles.jobFooter}>
-                    <Chip icon="clock-outline" compact style={styles.typeChip}>
+                    <Chip icon="clock-outline" compact style={styles.typeChip} textStyle={{ color: colors.text }}>
                       {job.jobType}
                     </Chip>
                     <Text variant="bodySmall" style={styles.dateText}>
@@ -212,7 +292,7 @@ export default function HomeScreen() {
   );
 }
 
-function createStyles(colors: ThemeColors) {
+function createStyles(colors: ThemeColors, isDark: boolean) {
   return StyleSheet.create({
     container: {
       flex: 1,
@@ -319,7 +399,7 @@ function createStyles(colors: ThemeColors) {
       borderTopColor: colors.border,
     },
     typeChip: {
-      backgroundColor: colors.cream,
+      backgroundColor: isDark ? colors.surface : '#EDE9DA',
       borderRadius: 4,
     },
     dateText: {
@@ -338,6 +418,68 @@ function createStyles(colors: ThemeColors) {
     appCountText: {
       color: colors.terracotta,
       fontWeight: '600',
+    },
+
+    /* Recommended section */
+    recommendedSection: {
+      marginBottom: 20,
+    },
+    recommendedHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      marginBottom: 12,
+    },
+    recommendedTitle: {
+      fontWeight: '700',
+      color: colors.text,
+      fontFamily: Platform.OS === 'ios' ? 'Kohinoor Bangla' : 'serif',
+    },
+    recommendedScroll: {
+      paddingRight: 16,
+      gap: 12,
+    },
+    recCard: {
+      width: 200,
+      elevation: 2,
+    },
+    recJobTitle: {
+      fontWeight: '700',
+      color: colors.text,
+      marginBottom: 6,
+    },
+    recMeta: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      marginBottom: 3,
+    },
+    recMetaText: {
+      color: colors.textSecondary,
+      fontSize: 12,
+      flex: 1,
+    },
+    recSalary: {
+      color: colors.gold,
+      fontWeight: '600',
+      fontSize: 12,
+      flex: 1,
+    },
+    recChip: {
+      alignSelf: 'flex-start',
+      marginTop: 6,
+      backgroundColor: isDark ? colors.surface : '#EDE9DA',
+      borderRadius: 4,
+    },
+    recChipText: {
+      color: colors.terracotta,
+      fontSize: 10,
+    },
+    sectionDivider: {
+      fontWeight: '700',
+      color: colors.text,
+      marginBottom: 12,
+      fontFamily: Platform.OS === 'ios' ? 'Kohinoor Bangla' : 'serif',
     },
   });
 }

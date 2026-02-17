@@ -167,6 +167,7 @@ export default function LoginScreen() {
         maxLength={10}
         mode="flat"
         activeUnderlineColor={colors.terracotta}
+        textColor={colors.text}
         style={styles.input}
         left={<TextInput.Affix text="+91 " textStyle={styles.affix} />}
       />
@@ -212,6 +213,7 @@ export default function LoginScreen() {
         secureTextEntry
         mode="flat"
         activeUnderlineColor={colors.terracotta}
+        textColor={colors.text}
         style={styles.input}
       />
       <Button
@@ -250,6 +252,7 @@ export default function LoginScreen() {
         value={phone}
         mode="flat"
         activeUnderlineColor={colors.terracotta}
+        textColor={colors.text}
         style={styles.input}
         left={<TextInput.Affix text="+91 " textStyle={styles.affix} />}
         disabled
@@ -262,6 +265,7 @@ export default function LoginScreen() {
         maxLength={6}
         mode="flat"
         activeUnderlineColor={colors.terracotta}
+        textColor={colors.text}
         style={styles.input}
       />
       <Button
@@ -301,6 +305,7 @@ export default function LoginScreen() {
         secureTextEntry
         mode="flat"
         activeUnderlineColor={colors.terracotta}
+        textColor={colors.text}
         style={styles.input}
       />
       <TextInput
@@ -313,6 +318,7 @@ export default function LoginScreen() {
         secureTextEntry
         mode="flat"
         activeUnderlineColor={colors.terracotta}
+        textColor={colors.text}
         style={styles.input}
       />
       <Button

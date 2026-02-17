@@ -158,15 +158,84 @@ export default function ProtibhaTabScreen() {
   const isEmployer = user?.role === 'employer';
   const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
 
+  // Pagination state for chat history
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [hasMoreHistory, setHasMoreHistory] = useState(false);
+  const loadedCountRef = useRef(0);
+  const historyInitializedRef = useRef(false);
+
+  const HISTORY_PAGE_SIZE = 5;
+
+  // Load chat history on mount
   useEffect(() => {
-    if (!user) return;
-    sendToProtibha('');
+    if (!user?.id) return;
+    historyInitializedRef.current = false;
+    loadChatHistory(true);
   }, [user?.id]);
 
-  const sendToProtibha = async (userText: string) => {
+  const loadChatHistory = useCallback(async (isInitial: boolean) => {
+    if (!user?.id) return;
+    if (historyLoading) return;
+
+    setHistoryLoading(true);
+    try {
+      const before = isInitial ? 0 : loadedCountRef.current;
+      const { data } = await api.get('/ai/chat/history', {
+        params: { limit: HISTORY_PAGE_SIZE, before },
+      });
+
+      const serverMessages: ChatMessage[] = (data.messages || []).map((m: any, idx: number) => ({
+        id: `h-${before}-${idx}-${Date.now()}`,
+        role: m.role as ChatMessageRole,
+        content: m.content,
+        timestamp: new Date(),
+        payload: m.payload || undefined,
+      }));
+
+      if (data.lastJobIds?.length) {
+        lastJobsRef.current = data.lastJobIds.map((id: string) => ({ id }));
+      }
+
+      setHasMoreHistory(data.hasMore ?? false);
+
+      if (isInitial) {
+        if (serverMessages.length > 0) {
+          loadedCountRef.current = serverMessages.length;
+          setMessages(serverMessages);
+          historyInitializedRef.current = true;
+          setTimeout(() => flatListRef.current?.scrollToEnd({ animated: false }), 150);
+        } else {
+          // No history: send initial greeting
+          historyInitializedRef.current = true;
+          sendToProtibha('');
+        }
+      } else {
+        // Prepend older messages
+        loadedCountRef.current += serverMessages.length;
+        setMessages((prev) => [...serverMessages, ...prev]);
+      }
+    } catch {
+      if (isInitial) {
+        historyInitializedRef.current = true;
+        sendToProtibha('');
+      }
+    } finally {
+      setHistoryLoading(false);
+    }
+  }, [user?.id, historyLoading]);
+
+  const handleScrollToTop = useCallback(() => {
+    if (hasMoreHistory && !historyLoading) {
+      loadChatHistory(false);
+    }
+  }, [hasMoreHistory, historyLoading, loadChatHistory]);
+
+  const sendToProtibha = async (userText: string, displayLabel?: string) => {
     if (!user?.id) return;
 
     const isInitial = userText === '';
+    const isSlashCmd = userText.startsWith('/');
+    const chatContent = displayLabel || userText;
     const newMessages: { role: 'user' | 'assistant'; content: string }[] = isInitial
       ? []
       : [...messages.map((m) => ({ role: m.role, content: m.content })), { role: 'user' as const, content: userText }];
@@ -177,7 +246,7 @@ export default function ProtibhaTabScreen() {
         {
           id: `u-${Date.now()}`,
           role: 'user',
-          content: userText,
+          content: isSlashCmd ? `✨ ${chatContent}` : chatContent,
           timestamp: new Date(),
         },
       ]);
@@ -213,12 +282,20 @@ export default function ProtibhaTabScreen() {
         ]);
       }
 
+      if (action === 'build_resume') {
+        router.push('/resume-builder');
+      }
+
       if (payload.jobDraft) setJobDraft(payload.jobDraft);
       if (action === 'post_job_success') setJobDraft(null);
 
-      const payloadHasJobs = Array.isArray(payload?.jobs) && payload.jobs.length > 0;
-      if (payloadHasJobs) {
-        lastJobsRef.current = payload.jobs
+      // Update lastJobsRef from jobs or similarJobs
+      const allReturnedJobs = [
+        ...(Array.isArray(payload?.similarJobs) ? payload.similarJobs : []),
+        ...(Array.isArray(payload?.jobs) ? payload.jobs : []),
+      ];
+      if (allReturnedJobs.length > 0) {
+        lastJobsRef.current = allReturnedJobs
           .map((j: any) => j?.id || j?._id)
           .filter((id: any): id is string => typeof id === 'string' && /^[a-f\\d]{24}$/i.test(id))
           .map((id: string) => ({ id }));
@@ -226,23 +303,36 @@ export default function ProtibhaTabScreen() {
 
       setMessages((prev) => {
         const last = prev[prev.length - 1];
+        const mainMsg: ChatMessage = {
+          id: `a-${Date.now()}`,
+          role: 'assistant',
+          content: reply,
+          timestamp: new Date(),
+          payload: Object.keys(payload).length ? payload : undefined,
+        };
+
+        let newList: ChatMessage[];
         if (last?.role === 'assistant' && isInitial) {
-          return prev.slice(0, -1).concat({
-            ...last,
-            content: reply,
-            payload: Object.keys(payload).length ? payload : undefined,
-          });
+          newList = prev.slice(0, -1).concat({ ...last, content: reply, payload: Object.keys(payload).length ? payload : undefined });
+        } else {
+          newList = [...prev, mainMsg];
         }
-        return [
-          ...prev,
-          {
-            id: `a-${Date.now()}`,
-            role: 'assistant',
-            content: reply,
-            timestamp: new Date(),
-            payload: Object.keys(payload).length ? payload : undefined,
-          },
-        ];
+
+        // If apply returned similar jobs, add them as a separate follow-up message
+        if (action === 'apply_success' && Array.isArray(payload?.similarJobs) && payload.similarJobs.length > 0) {
+          newList = [
+            ...newList,
+            {
+              id: `a-sim-${Date.now()}`,
+              role: 'assistant',
+              content: '💡 Erokom aaro jobs aache! Dekhe nin:',
+              timestamp: new Date(),
+              payload: { jobs: payload.similarJobs },
+            },
+          ];
+        }
+
+        return newList;
       });
 
       setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
@@ -269,21 +359,45 @@ export default function ProtibhaTabScreen() {
     sendToProtibha(text);
   };
 
-  const handleChipPress = useCallback((text: string) => {
+  const handleClearChat = useCallback(async () => {
+    Alert.alert('Clear Chat', 'Notun chat shuru korben?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Clear',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await api.post('/ai/chat/clear', {}, { params: { user_id: user?.id } });
+          } catch { /* ignore */ }
+          setMessages([]);
+          setJobDraft(null);
+          lastJobsRef.current = [];
+          loadedCountRef.current = 0;
+          setHasMoreHistory(false);
+          historyInitializedRef.current = false;
+          sendToProtibha('');
+        },
+      },
+    ]);
+  }, [user?.id]);
+
+  // Slash commands bypass AI intent detection for quick actions
+  const handleChipPress = useCallback((command: string, displayLabel: string) => {
     if (sending) return;
-    sendToProtibha(text);
+    sendToProtibha(command, displayLabel);
   }, [sending, messages, user, jobDraft]);
 
   const quickChips = isEmployer
     ? [
-        { key: 'post', label: t('protibha.chipPostJob'), icon: 'briefcase-plus-outline', bgIcon: 'briefcase-edit', tint: colors.terracotta },
-        { key: 'find', label: t('protibha.chipFindCandidates'), icon: 'account-search-outline', bgIcon: 'account-group', tint: colors.gold },
-        { key: 'tips', label: t('protibha.chipTips'), icon: 'lightbulb-on-outline', bgIcon: 'lightbulb-on', tint: colors.bengaliRed },
+        { key: 'post', label: t('protibha.chipPostJob'), command: '/postJob', icon: 'briefcase-plus-outline', bgIcon: 'briefcase-edit', tint: colors.terracotta },
+        { key: 'find', label: t('protibha.chipFindCandidates'), command: '/findCandidates', icon: 'account-search-outline', bgIcon: 'account-group', tint: colors.gold },
+        { key: 'tips', label: t('protibha.chipTips'), command: '/tips', icon: 'lightbulb-on-outline', bgIcon: 'lightbulb-on', tint: colors.bengaliRed },
       ]
     : [
-        { key: 'near', label: t('protibha.chipFindJobs'), icon: 'map-marker-radius-outline', bgIcon: 'map-marker-radius', tint: colors.terracotta },
-        { key: 'skills', label: t('protibha.chipMySkills'), icon: 'star-outline', bgIcon: 'star-four-points', tint: colors.gold },
-        { key: 'salary', label: t('protibha.chipSalary'), icon: 'cash', bgIcon: 'cash-multiple', tint: colors.bengaliRed },
+        { key: 'near', label: t('protibha.chipFindJobs'), command: '/findNearByJobs', icon: 'map-marker-radius-outline', bgIcon: 'map-marker-radius', tint: colors.terracotta },
+        { key: 'skills', label: t('protibha.chipMySkills'), command: '/skillsMatchingJobs', icon: 'star-outline', bgIcon: 'star-four-points', tint: colors.gold },
+        { key: 'salary', label: t('protibha.chipSalary'), command: '/highestPayingJobs', icon: 'cash', bgIcon: 'cash-multiple', tint: colors.bengaliRed },
+        { key: 'resume', label: t('protibha.chipBuildResume'), command: '/buildResume', icon: 'file-document-edit-outline', bgIcon: 'file-document-edit', tint: '#6B7280' },
       ];
 
   const renderWelcome = () => (
@@ -295,7 +409,7 @@ export default function ProtibhaTabScreen() {
           end={{ x: 1, y: 1 }}
           style={styles.welcomeAvatarGradient}
         >
-          <MaterialCommunityIcons name="robot-happy-outline" size={44} color="#fff" />
+          <MaterialCommunityIcons name="robot-happy-outline" size={32} color="#fff" />
         </LinearGradient>
       </View>
       <Text variant="headlineSmall" style={styles.welcomeTitle}>
@@ -309,21 +423,21 @@ export default function ProtibhaTabScreen() {
           <Animated.View key={chip.key} entering={FadeInUp.duration(400).delay(400 + idx * 120)} style={styles.chipAnimWrap}>
             <TouchableOpacity
               activeOpacity={0.75}
-              onPress={() => handleChipPress(chip.label)}
+              onPress={() => handleChipPress(chip.command, chip.label)}
               style={[styles.quickChip, { borderColor: chip.tint + (isDark ? '40' : '30') }]}
             >
               {/* Large decorative background icon */}
               <View style={styles.chipBgIconWrap}>
                 <MaterialCommunityIcons
                   name={chip.bgIcon as any}
-                  size={52}
+                  size={32}
                   color={chip.tint}
                   style={{ opacity: isDark ? 0.12 : 0.1 }}
                 />
               </View>
               {/* Foreground content */}
               <View style={[styles.chipIconCircle, { backgroundColor: chip.tint + '18' }]}>
-                <MaterialCommunityIcons name={chip.icon as any} size={20} color={chip.tint} />
+                <MaterialCommunityIcons name={chip.icon as any} size={14} color={chip.tint} />
               </View>
               <Text variant="labelMedium" style={[styles.quickChipText, { color: chip.tint }]}>{chip.label}</Text>
             </TouchableOpacity>
@@ -439,7 +553,7 @@ export default function ProtibhaTabScreen() {
     </Animated.View>
   );
 
-  const showWelcome = messages.length === 0 && !sending;
+  const showWelcome = messages.length === 0 && !sending && !historyLoading;
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -472,6 +586,15 @@ export default function ProtibhaTabScreen() {
         <Text variant="bodySmall" style={styles.poweredBy}>
           {t('protibha.poweredBy')}
         </Text>
+        {messages.length > 1 && (
+          <TouchableOpacity
+            onPress={handleClearChat}
+            style={styles.clearBtn}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <MaterialCommunityIcons name="broom" size={20} color={colors.textSecondary} />
+          </TouchableOpacity>
+        )}
       </View>
 
       <KeyboardAvoidingView
@@ -493,37 +616,74 @@ export default function ProtibhaTabScreen() {
             data={messages}
             renderItem={renderMessage}
             keyExtractor={(item) => item.id}
-            contentContainerStyle={styles.listContent}
-            onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
+            contentContainerStyle={[
+              styles.listContent,
+              messages.length > 0 && !sending && styles.listContentWithFloatingChips,
+            ]}
+            onContentSizeChange={() => {
+              if (!historyLoading) {
+                flatListRef.current?.scrollToEnd({ animated: true });
+              }
+            }}
             showsVerticalScrollIndicator={false}
             ListFooterComponent={sending ? renderTypingIndicator() : null}
+            ListHeaderComponent={
+              hasMoreHistory ? (
+                <TouchableOpacity
+                  onPress={handleScrollToTop}
+                  style={styles.loadMoreWrap}
+                  disabled={historyLoading}
+                >
+                  {historyLoading ? (
+                    <View style={styles.loadMoreDots}>
+                      <TypingDots colors={colors} />
+                    </View>
+                  ) : (
+                    <View style={styles.loadMoreBtn}>
+                      <MaterialCommunityIcons name="arrow-up-circle-outline" size={16} color={colors.terracotta} />
+                      <Text variant="labelSmall" style={styles.loadMoreText}>
+                        {t('protibha.loadMore') || 'Load earlier messages'}
+                      </Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+              ) : null
+            }
+            onEndReachedThreshold={0.1}
+            maintainVisibleContentPosition={
+              Platform.OS === 'ios' ? { minIndexForVisible: 0 } : undefined
+            }
           />
         )}
 
-        {/* Quick chips when there are messages */}
+        {/* Floating quick chips near chat box (when there are messages) */}
         {messages.length > 0 && !sending && (
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.inlineChipsRow}
-            keyboardShouldPersistTaps="handled"
-          >
-            {quickChips.map((chip) => (
+          <View style={styles.floatingChipsWrap} pointerEvents="box-none">
+            <View style={[styles.floatingChipsInner, isDark && styles.floatingChipsInnerDark]}>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.inlineChipsRow}
+                keyboardShouldPersistTaps="handled"
+              >
+                {quickChips.map((chip) => (
               <TouchableOpacity
                 key={chip.key}
                 activeOpacity={0.7}
-                onPress={() => handleChipPress(chip.label)}
+                onPress={() => handleChipPress(chip.command, chip.label)}
                 style={[styles.inlineChip, { borderColor: chip.tint + (isDark ? '30' : '20') }]}
-              >
-                <View style={[styles.inlineChipIcon, { backgroundColor: chip.tint + '15' }]}>
-                  <MaterialCommunityIcons name={chip.icon as any} size={13} color={chip.tint} />
-                </View>
-                <Text variant="labelSmall" style={[styles.inlineChipText, { color: chip.tint }]}>
-                  {chip.label}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
+                  >
+                    <View style={[styles.inlineChipIcon, { backgroundColor: chip.tint + '15' }]}>
+                      <MaterialCommunityIcons name={chip.icon as any} size={10} color={chip.tint} />
+                    </View>
+                    <Text variant="labelSmall" style={[styles.inlineChipText, { color: chip.tint }]}>
+                      {chip.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+          </View>
         )}
 
         {/* Input bar */}
@@ -642,6 +802,35 @@ function createStyles(colors: ThemeColors, isDark: boolean) {
       fontSize: 10,
       fontStyle: 'italic',
     },
+    clearBtn: {
+      padding: 6,
+      marginLeft: 6,
+    },
+
+    /* Load more history */
+    loadMoreWrap: {
+      alignItems: 'center',
+      paddingVertical: 8,
+      marginBottom: 8,
+    },
+    loadMoreBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      paddingHorizontal: 14,
+      paddingVertical: 6,
+      borderRadius: 16,
+      backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    loadMoreText: {
+      color: colors.terracotta,
+      fontSize: 11,
+    },
+    loadMoreDots: {
+      paddingVertical: 4,
+    },
 
     /* Welcome */
     welcomeScrollContent: {
@@ -649,14 +838,14 @@ function createStyles(colors: ThemeColors, isDark: boolean) {
       justifyContent: 'center',
       alignItems: 'center',
       paddingHorizontal: 28,
-      paddingVertical: 24,
+      paddingVertical: 14,
     },
     welcomeContainer: {
       alignItems: 'center',
       width: '100%',
     },
     welcomeAvatarWrap: {
-      marginBottom: 20,
+      marginBottom: 12,
       ...Platform.select({
         ios: {
           shadowColor: colors.terracotta,
@@ -668,29 +857,29 @@ function createStyles(colors: ThemeColors, isDark: boolean) {
       }),
     },
     welcomeAvatarGradient: {
-      width: 88,
-      height: 88,
-      borderRadius: 44,
+      width: 64,
+      height: 64,
+      borderRadius: 32,
       alignItems: 'center',
       justifyContent: 'center',
     },
     welcomeTitle: {
       fontWeight: '700',
       color: colors.text,
-      marginBottom: 8,
+      marginBottom: 6,
       fontFamily: Platform.OS === 'ios' ? 'Kohinoor Bangla' : 'serif',
     },
     welcomeText: {
       color: colors.textSecondary,
       textAlign: 'center',
-      lineHeight: 22,
-      marginBottom: 24,
+      lineHeight: 20,
+      marginBottom: 14,
     },
     chipsRow: {
       flexDirection: 'row',
       flexWrap: 'wrap',
       justifyContent: 'center',
-      gap: 10,
+      gap: 6,
       width: '100%',
     },
     chipAnimWrap: {
@@ -699,10 +888,10 @@ function createStyles(colors: ThemeColors, isDark: boolean) {
     quickChip: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 10,
-      paddingHorizontal: 14,
-      paddingVertical: 14,
-      borderRadius: 16,
+      gap: 4,
+      paddingHorizontal: 8,
+      paddingVertical: 6,
+      borderRadius: 10,
       borderWidth: 1,
       backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.7)',
       overflow: 'hidden',
@@ -719,21 +908,21 @@ function createStyles(colors: ThemeColors, isDark: boolean) {
     },
     chipBgIconWrap: {
       position: 'absolute' as const,
-      right: -6,
-      bottom: -8,
+      right: -4,
+      bottom: -6,
     },
     chipIconCircle: {
-      width: 36,
-      height: 36,
-      borderRadius: 18,
+      width: 24,
+      height: 24,
+      borderRadius: 12,
       alignItems: 'center',
       justifyContent: 'center',
     },
     quickChipText: {
       fontWeight: '600',
       flex: 1,
-      fontSize: 13,
-      lineHeight: 17,
+      fontSize: 11,
+      lineHeight: 14,
     },
 
     /* Messages */
@@ -741,6 +930,9 @@ function createStyles(colors: ThemeColors, isDark: boolean) {
       padding: 14,
       paddingBottom: 4,
       flexGrow: 1,
+    },
+    listContentWithFloatingChips: {
+      paddingBottom: 48,
     },
     messageRow: {
       marginBottom: 10,
@@ -893,20 +1085,52 @@ function createStyles(colors: ThemeColors, isDark: boolean) {
       fontStyle: 'italic',
     },
 
-    /* Inline quick chips */
+    /* Floating chips container (above input) */
+    floatingChipsWrap: {
+      position: 'absolute',
+      left: 0,
+      right: 0,
+      bottom: 60,
+      alignItems: 'center',
+      justifyContent: 'flex-end',
+    },
+    floatingChipsInner: {
+      flexDirection: 'row',
+      paddingHorizontal: 12,
+      paddingVertical: 15,
+      borderRadius: 24,
+      backgroundColor: 'rgba(255,255,255,0.95)',
+      ...Platform.select({
+        ios: {
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.12,
+          shadowRadius: 8,
+        },
+        android: { elevation: 6 },
+      }),
+    },
+    floatingChipsInnerDark: {
+      backgroundColor: 'rgba(30,30,30,0.98)',
+    },
+    /* Inline quick chips (inside floating container) */
     inlineChipsRow: {
-      paddingHorizontal: 14,
-      paddingBottom: 6,
-      gap: 8,
+      flexDirection: 'row',
+      paddingHorizontal: 4,
+      paddingVertical: 0,
+      gap: 6,
+      alignItems: 'center',
     },
     inlineChip: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 6,
-      paddingHorizontal: 12,
-      paddingVertical: 7,
-      borderRadius: 18,
+      gap: 4,
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      borderRadius: 10,
       borderWidth: 1,
+      minHeight: 28,
+      maxHeight: 28,
       backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.8)',
       ...Platform.select({
         ios: {
@@ -919,15 +1143,16 @@ function createStyles(colors: ThemeColors, isDark: boolean) {
       }),
     },
     inlineChipIcon: {
-      width: 22,
-      height: 22,
-      borderRadius: 11,
+      width: 18,
+      height: 18,
+      borderRadius: 9,
       alignItems: 'center',
       justifyContent: 'center',
     },
     inlineChipText: {
       fontWeight: '500',
-      fontSize: 12,
+      fontSize: 10,
+      lineHeight: 14,
     },
 
     /* Input bar */

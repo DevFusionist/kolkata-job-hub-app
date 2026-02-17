@@ -28,16 +28,8 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { format } from 'date-fns';
 
 const CATEGORIES = [
-  'Sales',
-  'Delivery',
-  'Retail',
-  'Hospitality',
-  'Office Work',
-  'Driver',
-  'Warehouse',
-  'Restaurant',
-  'Security',
-  'Other',
+  'Sales', 'Delivery', 'Retail', 'Hospitality', 'Office Work',
+  'Driver', 'Warehouse', 'Restaurant', 'Security', 'Other',
 ];
 
 const JOB_TYPES = ['Full-time', 'Part-time'];
@@ -62,13 +54,13 @@ interface Job {
 export default function SearchScreen() {
   const router = useRouter();
   const { t } = useLanguage();
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
+
   const [searchQuery, setSearchQuery] = useState('');
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(false);
   const [filterVisible, setFilterVisible] = useState(false);
-  
-  // Filters
+
   const [selectedCategory, setSelectedCategory] = useState('');
   const [selectedJobType, setSelectedJobType] = useState('');
   const [selectedExperience, setSelectedExperience] = useState('');
@@ -104,48 +96,59 @@ export default function SearchScreen() {
     setSelectedExperience('');
     setSelectedEducation('');
     setSearchQuery('');
+    setTimeout(() => searchJobs(), 0);
   };
 
   const activeFiltersCount = [
-    selectedCategory,
-    selectedJobType,
-    selectedExperience,
-    selectedEducation,
+    selectedCategory, selectedJobType, selectedExperience, selectedEducation
   ].filter(Boolean).length;
-  const styles = useMemo(() => createStyles(colors), [colors]);
+
+  const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
       <ImageBackground
         source={require('../../assets/images/kolkata_tram_nostalgia.png')}
         style={styles.backgroundImage}
-        imageStyle={{ opacity: 0.2 }}
+        imageStyle={{ opacity: 0.15 }}
       >
-        <View style={styles.header}>
-          <Text variant="headlineMedium" style={styles.headerTitle}>
-            {t('search.title')}
-          </Text>
-        </View>
+        <View style={styles.stickyHeader}>
+          <View style={styles.header}>
+            <Text variant="headlineMedium" style={styles.headerTitle}>
+              {t('search.title')}
+            </Text>
+          </View>
 
-        <View style={styles.searchContainer}>
-          <Searchbar
-            placeholder={t('search.placeholder')}
-            onChangeText={setSearchQuery}
-            value={searchQuery}
-            onSubmitEditing={searchJobs}
-            style={styles.searchbar}
-            inputStyle={styles.searchInput}
-            placeholderTextColor={colors.muted}
-          />
-          <Button
-            mode="outlined"
-            onPress={() => setFilterVisible(true)}
-            style={styles.filterButton}
-            icon="filter-variant"
-            textColor={colors.terracotta}
-          >
-            {t('search.filters')} {((activeFiltersCount > 0) && `(${activeFiltersCount})`)}
-          </Button>
+          <View style={styles.searchContainer}>
+            <Searchbar
+              placeholder={t('search.placeholder')}
+              onChangeText={setSearchQuery}
+              onClearIconPress={() => {
+                setSearchQuery('');
+                searchJobs();
+              }}
+              value={searchQuery}
+              onSubmitEditing={searchJobs}
+              style={styles.searchbar}
+              inputStyle={styles.searchInput}
+              iconColor={colors.terracotta}
+              placeholderTextColor={colors.muted}
+              // Prevents font-scaling from pushing text out of the container
+              maxFontSizeMultiplier={1.2}
+            />
+            <Button
+              mode="outlined"
+              onPress={() => setFilterVisible(true)}
+              style={styles.filterButton}
+              contentStyle={styles.filterButtonContent}
+              labelStyle={styles.filterButtonLabel}
+              icon="filter-variant"
+              textColor={colors.terracotta}
+              compact={true} // Helps save horizontal space
+            >
+              {activeFiltersCount > 0 ? `${t('search.filters')} (${activeFiltersCount})` : t('search.filters')}
+            </Button>
+          </View>
         </View>
 
         {loading ? (
@@ -153,331 +156,161 @@ export default function SearchScreen() {
             <ActivityIndicator size="large" color={colors.terracotta} />
           </View>
         ) : (
-          <ScrollView style={styles.content}>
-          {jobs.length === 0 ? (
-            <View style={styles.emptyContainer}>
-              <MaterialCommunityIcons name="magnify" size={64} color={colors.muted} />
-              <Text variant="titleMedium" style={styles.emptyText}>
-                {t('search.noResults')}
-              </Text>
-              <Text variant="bodyMedium" style={styles.emptySubtext}>
-                {t('search.tryAdjusting')}
-              </Text>
-            </View>
-          ) : (
-            jobs.map((job) => (
-              <TouchableOpacity
-                key={job.id}
-                onPress={() => router.push(`/job-details?id=${job.id}`)}
-                activeOpacity={0.7}
-              >
-                <GlassCard style={styles.jobCard}>
-                  <View style={styles.jobHeader}>
-                      <Text variant="titleLarge" style={styles.jobTitle}>
-                        {job.title}
-                      </Text>
-                      <Chip
-                        mode="outlined"
-                        textStyle={styles.categoryText}
-                        style={styles.categoryChip}
-                      >
-                        {job.category}
-                      </Chip>
+          <ScrollView
+            style={styles.content}
+            contentContainerStyle={styles.scrollContent}
+            showsVerticalScrollIndicator={false}
+          >
+            {jobs.length === 0 ? (
+              <View style={styles.emptyContainer}>
+                <MaterialCommunityIcons name="magnify" size={64} color={colors.muted} />
+                <Text variant="titleMedium" style={styles.emptyText}>{t('search.noResults')}</Text>
+                <Text variant="bodyMedium" style={styles.emptySubtext}>{t('search.tryAdjusting')}</Text>
+              </View>
+            ) : (
+              jobs.map((job) => (
+                <TouchableOpacity key={job.id} onPress={() => router.push(`/job-details?id=${job.id}`)} activeOpacity={0.7}>
+                  <GlassCard style={styles.jobCard}>
+                    <View style={styles.jobHeader}>
+                      <Text variant="titleLarge" style={styles.jobTitle}>{job.title}</Text>
+                      <Chip mode="outlined" textStyle={styles.categoryText} style={styles.categoryChip}>{job.category}</Chip>
                     </View>
-
-                    <View style={styles.jobInfo}>
-                      <MaterialCommunityIcons name="office-building" size={16} color={colors.terracotta} />
-                      <Text variant="bodyMedium" style={styles.jobInfoText}>
-                        {job.businessName || job.employerName}
-                      </Text>
-                    </View>
-
-                    <View style={styles.jobInfo}>
-                      <MaterialCommunityIcons name="map-marker" size={16} color={colors.terracotta} />
-                      <Text variant="bodyMedium" style={styles.jobInfoText}>
-                        {job.location}
-                      </Text>
-                    </View>
-
-                    <View style={styles.jobInfo}>
-                      <MaterialCommunityIcons name="currency-inr" size={16} color={colors.terracotta} />
-                      <Text variant="bodyMedium" style={styles.jobInfoText}>
-                        {job.salary}
-                      </Text>
-                    </View>
-
+                    <View style={styles.jobInfo}><MaterialCommunityIcons name="office-building" size={16} color={colors.terracotta} /><Text variant="bodyMedium" style={styles.jobInfoText}>{job.businessName || job.employerName}</Text></View>
+                    <View style={styles.jobInfo}><MaterialCommunityIcons name="map-marker" size={16} color={colors.terracotta} /><Text variant="bodyMedium" style={styles.jobInfoText}>{job.location}</Text></View>
+                    <View style={styles.jobInfo}><MaterialCommunityIcons name="currency-inr" size={16} color={colors.terracotta} /><Text variant="bodyMedium" style={styles.jobInfoText}>{job.salary}</Text></View>
                     <View style={styles.jobFooter}>
-                      <Chip icon="clock-outline" compact style={styles.typeChip}>
-                        {job.jobType}
-                      </Chip>
-                      <Text variant="bodySmall" style={styles.dateText}>
-                        {format(new Date(job.postedDate), 'MMM dd')}
-                      </Text>
+                      <Chip icon="clock-outline" compact style={styles.typeChip} textStyle={{ color: colors.text }}>{job.jobType}</Chip>
+                      <Text variant="bodySmall" style={styles.dateText}>{format(new Date(job.postedDate), 'MMM dd')}</Text>
                     </View>
-                </GlassCard>
-              </TouchableOpacity>
-            ))
-          )}
-          <View style={{ height: 40 }} />
+                  </GlassCard>
+                </TouchableOpacity>
+              ))
+            )}
+            <View style={{ height: 40 }} />
           </ScrollView>
         )}
 
-      <Portal>
-        <Modal
-          visible={filterVisible}
-          onDismiss={() => setFilterVisible(false)}
-          contentContainerStyle={styles.modal}
-        >
-          <ScrollView>
-            <Text variant="headlineSmall" style={styles.modalTitle}>
-              {t('search.filterJobs')}
-            </Text>
-
-            <Text variant="titleMedium" style={styles.filterLabel}>
-              Category
-            </Text>
-            <View style={styles.chipContainer}>
-              {CATEGORIES.map((cat) => (
-                <Chip
-                  key={cat}
-                  selected={selectedCategory === cat}
-                  onPress={() =>
-                    setSelectedCategory(selectedCategory === cat ? '' : cat)
-                  }
-                  style={styles.chip}
-                >
-                  {cat}
-                </Chip>
-              ))}
-            </View>
-
-            <Text variant="titleMedium" style={styles.filterLabel}>
-              Job Type
-            </Text>
-            <View style={styles.chipContainer}>
-              {JOB_TYPES.map((type) => (
-                <Chip
-                  key={type}
-                  selected={selectedJobType === type}
-                  onPress={() =>
-                    setSelectedJobType(selectedJobType === type ? '' : type)
-                  }
-                  style={styles.chip}
-                >
-                  {type}
-                </Chip>
-              ))}
-            </View>
-
-            <Text variant="titleMedium" style={styles.filterLabel}>
-              Experience
-            </Text>
-            <View style={styles.chipContainer}>
-              {EXPERIENCE_LEVELS.map((exp) => (
-                <Chip
-                  key={exp}
-                  selected={selectedExperience === exp}
-                  onPress={() =>
-                    setSelectedExperience(selectedExperience === exp ? '' : exp)
-                  }
-                  style={styles.chip}
-                >
-                  {exp}
-                </Chip>
-              ))}
-            </View>
-
-            <Text variant="titleMedium" style={styles.filterLabel}>
-              Education
-            </Text>
-            <View style={styles.chipContainer}>
-              {EDUCATION_LEVELS.map((edu) => (
-                <Chip
-                  key={edu}
-                  selected={selectedEducation === edu}
-                  onPress={() =>
-                    setSelectedEducation(selectedEducation === edu ? '' : edu)
-                  }
-                  style={styles.chip}
-                >
-                  {edu}
-                </Chip>
-              ))}
-            </View>
-
-            <View style={styles.modalButtons}>
-              <Button mode="outlined" onPress={clearFilters} style={styles.modalButton}>
-                {t('search.clearAll')}
-              </Button>
-              <Button
-                mode="contained"
-                onPress={() => {
-                  setFilterVisible(false);
-                  searchJobs();
-                }}
-                style={styles.modalButton}
-              >
-                {t('search.applyFilters')}
-              </Button>
-            </View>
-          </ScrollView>
-        </Modal>
-      </Portal>
+        <Portal>
+          <Modal visible={filterVisible} onDismiss={() => setFilterVisible(false)} contentContainerStyle={styles.modal}>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <Text variant="headlineSmall" style={styles.modalTitle}>{t('search.filterJobs')}</Text>
+              <Text variant="titleMedium" style={styles.filterLabel}>Category</Text>
+              <View style={styles.chipContainer}>
+                {CATEGORIES.map((cat) => (
+                  <Chip key={cat} selected={selectedCategory === cat} style={styles.chip} onPress={() => setSelectedCategory(selectedCategory === cat ? '' : cat)} textStyle={{ color: colors.text }} selectedColor={colors.terracotta}>{cat}</Chip>
+                ))}
+              </View>
+              <Text variant="titleMedium" style={styles.filterLabel}>Job Type</Text>
+              <View style={styles.chipContainer}>
+                {JOB_TYPES.map((type) => (
+                  <Chip key={type} selected={selectedJobType === type} style={styles.chip} onPress={() => setSelectedJobType(selectedJobType === type ? '' : type)} textStyle={{ color: colors.text }} selectedColor={colors.terracotta}>{type}</Chip>
+                ))}
+              </View>
+              <Text variant="titleMedium" style={styles.filterLabel}>Experience</Text>
+              <View style={styles.chipContainer}>
+                {EXPERIENCE_LEVELS.map((exp) => (
+                  <Chip key={exp} selected={selectedExperience === exp} style={styles.chip} onPress={() => setSelectedExperience(selectedExperience === exp ? '' : exp)} textStyle={{ color: colors.text }} selectedColor={colors.terracotta}>{exp}</Chip>
+                ))}
+              </View>
+              <Text variant="titleMedium" style={styles.filterLabel}>Education</Text>
+              <View style={styles.chipContainer}>
+                {EDUCATION_LEVELS.map((edu) => (
+                  <Chip key={edu} selected={selectedEducation === edu} style={styles.chip} onPress={() => setSelectedEducation(selectedEducation === edu ? '' : edu)} textStyle={{ color: colors.text }} selectedColor={colors.terracotta}>{edu}</Chip>
+                ))}
+              </View>
+              <View style={styles.modalButtons}>
+                <Button mode="outlined" onPress={clearFilters} style={styles.modalButton}>{t('search.clearAll')}</Button>
+                <Button mode="contained" buttonColor={colors.terracotta} onPress={() => { setFilterVisible(false); searchJobs(); }} style={styles.modalButton}>{t('search.applyFilters')}</Button>
+              </View>
+            </ScrollView>
+          </Modal>
+        </Portal>
       </ImageBackground>
     </SafeAreaView>
   );
 }
 
-function createStyles(colors: ThemeColors) {
+function createStyles(colors: ThemeColors, isDark: boolean) {
   return StyleSheet.create({
-    container: {
-      flex: 1,
+    container: { flex: 1, backgroundColor: colors.background },
+    backgroundImage: { flex: 1, width: '100%' },
+    stickyHeader: {
       backgroundColor: colors.background,
-    },
-    backgroundImage: {
-      flex: 1,
-      width: '100%',
-    },
-    centerContainer: {
-      flex: 1,
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
-    header: {
-      padding: 24,
+      zIndex: 10,
       borderBottomWidth: 1,
       borderBottomColor: colors.border,
+      paddingBottom: 4,
     },
+    header: { paddingHorizontal: 20, paddingTop: 12 },
     headerTitle: {
       fontWeight: 'bold',
       color: colors.terracotta,
       fontFamily: Platform.OS === 'ios' ? 'Kohinoor Bangla' : 'serif',
     },
     searchContainer: {
-      padding: 16,
+      paddingHorizontal: 16,
+      paddingVertical: 10,
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 8,
+      justifyContent: 'space-between',
     },
     searchbar: {
-      flex: 1,
-      elevation: 2,
-      borderRadius: 2,
+      flex: 1, // Takes all available space
+      height: 46,
+      elevation: 0,
+      borderRadius: 10,
       backgroundColor: colors.surface,
       borderWidth: 1,
       borderColor: colors.border,
+      marginRight: 8, // Gap between search and button
     },
     searchInput: {
-      fontSize: 14,
+      fontSize: 13, // Slightly smaller font to fit more placeholder text
+      minHeight: 46,
+      paddingLeft: 0,
+      marginLeft: -4, // Pulls text closer to the magnifying glass icon
+      alignSelf: 'center',
     },
     filterButton: {
-      marginLeft: 0,
+      minWidth: 90, // Ensures button doesn't get too small
+      flexShrink: 0, // Prevents button from being squashed
+      height: 46,
+      borderRadius: 10,
       borderColor: colors.terracotta,
+      borderWidth: 1,
+      justifyContent: 'center',
     },
-    content: {
-      flex: 1,
-      paddingHorizontal: 16,
+    filterButtonContent: {
+      height: 46,
+      paddingHorizontal: 2,
     },
-    emptyContainer: {
-      alignItems: 'center',
-      marginTop: 64,
+    filterButtonLabel: {
+      fontSize: 11, // Smaller label to ensure it fits next to the search bar
+      marginHorizontal: 2,
+      fontWeight: '600',
     },
-    emptyText: {
-      marginTop: 16,
-      color: colors.textSecondary,
-      textAlign: 'center',
-    },
-    emptySubtext: {
-      marginTop: 8,
-      color: colors.textSecondary,
-      textAlign: 'center',
-    },
-    jobCard: {
-      marginBottom: 16,
-      elevation: 2,
-    },
-    jobHeader: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'flex-start',
-      marginBottom: 12,
-    },
-    jobTitle: {
-      flex: 1,
-      fontWeight: 'bold',
-      marginRight: 8,
-      color: colors.text,
-      fontFamily: Platform.OS === 'ios' ? 'Kohinoor Bangla' : 'serif',
-    },
-    categoryChip: {
-      borderColor: colors.terracotta,
-      borderRadius: 4,
-    },
-    categoryText: {
-      color: colors.terracotta,
-      fontSize: 12,
-    },
-    jobInfo: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      marginBottom: 8,
-    },
-    jobInfoText: {
-      marginLeft: 10,
-      color: colors.text,
-      fontSize: 14,
-    },
-    jobFooter: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      marginTop: 12,
-      paddingTop: 12,
-      borderTopWidth: 0.5,
-      borderTopColor: colors.border,
-    },
-    typeChip: {
-      backgroundColor: colors.cream,
-      borderRadius: 4,
-    },
-    dateText: {
-      color: colors.textSecondary,
-      fontStyle: 'italic',
-    },
-    modal: {
-      backgroundColor: colors.surface,
-      padding: 20,
-      margin: 20,
-      borderRadius: 8,
-      maxHeight: '80%',
-    },
-    modalTitle: {
-      marginBottom: 16,
-      fontWeight: 'bold',
-      color: colors.text,
-    },
-    filterLabel: {
-      marginTop: 16,
-      marginBottom: 8,
-      color: colors.terracotta,
-    },
-    chipContainer: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      gap: 8,
-    },
-    chip: {
-      marginRight: 4,
-      marginBottom: 4,
-    },
-    modalButtons: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      marginTop: 24,
-      gap: 8,
-    },
-    modalButton: {
-      flex: 1,
-    },
+    content: { flex: 1 },
+    scrollContent: { paddingHorizontal: 16, paddingTop: 16 },
+    centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+    emptyContainer: { alignItems: 'center', marginTop: 64 },
+    emptyText: { marginTop: 16, color: colors.textSecondary, textAlign: 'center' },
+    emptySubtext: { marginTop: 8, color: colors.textSecondary, textAlign: 'center' },
+    jobCard: { marginBottom: 16, elevation: 2 },
+    jobHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 },
+    jobTitle: { flex: 1, fontWeight: 'bold', color: colors.text, fontSize: 18 },
+    categoryChip: { borderColor: colors.terracotta, height: 28 },
+    categoryText: { color: colors.terracotta, fontSize: 10 },
+    jobInfo: { flexDirection: 'row', alignItems: 'center', marginBottom: 6 },
+    jobInfoText: { marginLeft: 8, color: colors.text, fontSize: 14 },
+    jobFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 10, paddingTop: 10, borderTopWidth: 0.5, borderTopColor: colors.border },
+    typeChip: { backgroundColor: isDark ? colors.surface : '#EDE9DA', borderRadius: 4 },
+    dateText: { color: colors.textSecondary, fontSize: 12 },
+    modal: { backgroundColor: colors.surface, padding: 20, margin: 20, borderRadius: 12, maxHeight: '85%' },
+    modalTitle: { marginBottom: 16, fontWeight: 'bold', color: colors.text },
+    filterLabel: { marginTop: 16, marginBottom: 8, color: colors.terracotta, fontWeight: '600' },
+    chipContainer: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+    chip: { marginBottom: 4 },
+    modalButtons: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 32, gap: 12, paddingBottom: 8 },
+    modalButton: { flex: 1 },
   });
 }

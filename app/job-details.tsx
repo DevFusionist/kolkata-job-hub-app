@@ -76,9 +76,9 @@ export default function JobDetailsScreen() {
 
   const isEmployer = user?.role === 'employer';
   const isMyJob = job?.employerId === user?.id;
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
   const { t } = useLanguage();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
 
   useEffect(() => {
     fetchJobDetails();
@@ -221,7 +221,7 @@ export default function JobDetailsScreen() {
               <Text variant="headlineSmall" style={styles.title}>
                 {job.title}
               </Text>
-              <Chip mode="outlined">{job.category}</Chip>
+              <Chip mode="outlined" textStyle={{ color: colors.text }}>{job.category}</Chip>
             </View>
 
             <View style={styles.infoRow}>
@@ -246,13 +246,13 @@ export default function JobDetailsScreen() {
             </View>
 
             <View style={styles.chipsRow}>
-              <Chip icon="clock-outline" compact>
+              <Chip icon="clock-outline" compact textStyle={{ color: colors.text }}>
                 {job.jobType}
               </Chip>
-              <Chip icon="briefcase" compact>
+              <Chip icon="briefcase" compact textStyle={{ color: colors.text }}>
                 {job.experience}
               </Chip>
-              <Chip icon="school" compact>
+              <Chip icon="school" compact textStyle={{ color: colors.text }}>
                 {job.education}
               </Chip>
             </View>
@@ -281,7 +281,7 @@ export default function JobDetailsScreen() {
             </Text>
             <View style={styles.chipContainer}>
               {job.languages.map((lang) => (
-                <Chip key={lang} style={styles.chip}>
+                <Chip key={lang} style={styles.chip} textStyle={{ color: colors.text }}>
                   {lang}
                 </Chip>
               ))}
@@ -292,7 +292,7 @@ export default function JobDetailsScreen() {
             </Text>
             <View style={styles.chipContainer}>
               {job.skills.map((skill) => (
-                <Chip key={skill} style={styles.chip}>
+                <Chip key={skill} style={styles.chip} textStyle={{ color: colors.text }}>
                   {skill}
                 </Chip>
               ))}
@@ -393,7 +393,7 @@ export default function JobDetailsScreen() {
                   <Text variant="bodySmall">+91 {app.seekerPhone}</Text>
                   <View style={styles.chipContainer}>
                     {app.seekerSkills.map((skill) => (
-                      <Chip key={skill} compact style={styles.chip}>
+                      <Chip key={skill} compact style={styles.chip} textStyle={{ color: colors.text }}>
                         {skill}
                       </Chip>
                     ))}
@@ -438,7 +438,7 @@ export default function JobDetailsScreen() {
                       </>
                     )}
                     {app.status !== 'pending' && (
-                      <Chip mode="flat">{app.status}</Chip>
+                      <Chip mode="flat" textStyle={{ color: colors.text }}>{app.status}</Chip>
                     )}
                   </View>
               </GlassCard>
@@ -450,7 +450,7 @@ export default function JobDetailsScreen() {
   );
 }
 
-function createStyles(colors: ThemeColors) {
+function createStyles(colors: ThemeColors, isDark: boolean) {
   return StyleSheet.create({
     container: {
       flex: 1,
@@ -578,7 +578,7 @@ function createStyles(colors: ThemeColors) {
     },
     textArea: {
       marginBottom: 16,
-      backgroundColor: colors.cream,
+      backgroundColor: isDark ? colors.surface : '#F0EDE0',
     },
     modalButtons: {
       flexDirection: 'row',

@@ -91,7 +91,9 @@
     "chipTips": "নিয়োগ টিপস",
     "typing": "প্রতিভা ভাবছে...",
     "online": "অনলাইন",
-    "poweredBy": "AI দ্বারা চালিত"
+    "poweredBy": "AI দ্বারা চালিত",
+    "loadMore": "আগের বার্তা দেখুন",
+    "chipBuildResume": "জীবনবৃত্তান্ত তৈরি"
   },
   "home": {
     "myJobPostings": "আমার চাকরি পোস্ট",
@@ -103,7 +105,9 @@
     "noJobsAvailable": "কোনো চাকরি নেই",
     "postFirstJob": "প্রথম চাকরি পোস্ট করুন",
     "applicationsCount": "আবেদন",
-    "errorLoadJobs": "চাকরি লোড হয়নি"
+    "errorLoadJobs": "চাকরি লোড হয়নি",
+    "recommendedForYou": "আপনার জন্য সুপারিশ",
+    "allJobs": "সব চাকরি"
   },
   "profile": {
     "title": "প্রোফাইল",
@@ -130,11 +134,28 @@
     "supportContact": "support@kolkatajobs.com এ যোগাযোগ করুন",
     "improveWithAi": "AI দিয়ে প্রোফাইল উন্নত করুন",
     "improveWithAiDesc": "আপনার অভিজ্ঞতা বা দক্ষতা পেস্ট করুন; আমরা সেগুলি বের করে প্রোফাইলে যোগ করব।",
+    "rawTextPlaceholder": "যেমন ২ বছরের ডেলিভারি অভিজ্ঞতা, সল্ট লেক এলাকা চিনি, হিন্দি ও বাংলা...",
+    "projectsPlaceholder": "প্রজেক্ট (কমা দিয়ে আলাদা, যেমন অনলাইন দোকান, ফুড ডেলিভারি অ্যাপ)",
+    "linksPlaceholder": "লিংক (কমা দিয়ে আলাদা, যেমন linkedin.com/in/you, github.com/you)",
     "analyzing": "বিশ্লেষণ করা হচ্ছে...",
     "skillsExtracted": "দক্ষতা আপনার প্রোফাইলে যোগ করা হয়েছে",
     "darkMode": "ডার্ক মোড",
     "lightMode": "লাইট মোড",
-    "appearance": "চেহারা"
+    "appearance": "চেহারা",
+    "resumeSection": "জীবনবৃত্তান্ত",
+    "resumeHint": "জীবনবৃত্তান্ত আপলোড করুন বা AI দিয়ে তৈরি করুন",
+    "uploadResume": "জীবনবৃত্তান্ত আপলোড",
+    "replaceResume": "জীবনবৃত্তান্ত প্রতিস্থাপন",
+    "buildResume": "AI দিয়ে তৈরি",
+    "rebuildResume": "AI দিয়ে পুনরায় তৈরি",
+    "uploading": "আপলোড হচ্ছে...",
+    "fileTooLarge": "ফাইল বড় (সর্বোচ্চ ৫MB)",
+    "resumeUploaded": "জীবনবৃত্তান্ত সফলভাবে আপলোড হয়েছে! দক্ষতা বের করা হয়েছে।",
+    "uploadedResume": "আপলোড করা হয়েছে",
+    "aiResumeReady": "AI জীবনবৃত্তান্ত সংরক্ষিত ও প্রস্তুত",
+    "viewResume": "দেখুন",
+    "cannotOpenResume": "জীবনবৃত্তান্ত খোলা যাচ্ছে না",
+    "resumeNotAvailable": "জীবনবৃত্তান্ত দেখতে পাওয়া যাচ্ছে না"
   },
   "postJob": {
     "title": "চাকরি পোস্ট করুন",
@@ -205,7 +226,9 @@
   "chat": {
     "placeholder": "বার্তা লিখুন...",
     "send": "পাঠান",
-    "emptyChat": "এখনও কোনো বার্তা নেই। আলাপ শুরু করুন!"
+    "emptyChat": "এখনও কোনো বার্তা নেই। আলাপ শুরু করুন!",
+    "errorLoadMessages": "বার্তা লোড হয়নি",
+    "errorSendMessage": "বার্তা পাঠানো যায়নি"
   },
   "search": {
     "title": "চাকরি খুঁজুন",
@@ -219,5 +242,45 @@
     "tryAdjusting": "খোঁজের শর্ত পরিবর্তন করে দেখুন",
     "filterJobs": "চাকরি ফিল্টার",
     "errorSearch": "খোঁজা যায়নি"
+  },
+  "resume": {
+    "title": "AI জীবনবৃত্তান্ত তৈরি",
+    "stepReview": "তথ্য পর্যালোচনা",
+    "stepDetails": "বিবরণ যোগ",
+    "stepPreview": "প্রিভিউ",
+    "reviewTitle": "আপনার তথ্য",
+    "reviewHint": "তৈরি করার আগে পর্যালোচনা ও সম্পাদনা করুন",
+    "name": "পুরো নাম",
+    "phone": "ফোন",
+    "location": "অবস্থান",
+    "skills": "দক্ষতা",
+    "addSkill": "দক্ষতা যোগ করুন...",
+    "experience": "কাজের অভিজ্ঞতা",
+    "experienceHint": "আপনার কাজের অভিজ্ঞতা যোগ করুন (ফ্রেশারদের জন্য ঐচ্ছিক)",
+    "jobTitle": "পদবি",
+    "company": "কোম্পানি / নিয়োগকর্তা",
+    "duration": "সময়কাল (যেমন ২ বছর)",
+    "achievements": "প্রধান অর্জন (প্রতি লাইনে একটি)",
+    "addMore": "আরেকটি যোগ করুন",
+    "education": "শিক্ষা",
+    "degree": "ডিগ্রি / যোগ্যতা",
+    "institution": "স্কুল / প্রতিষ্ঠান",
+    "year": "বছর",
+    "additional": "অতিরিক্ত তথ্য",
+    "additionalHint": "AI-র জানা উচিত এমন কিছু আছে?",
+    "next": "পরবর্তী: বিবরণ যোগ",
+    "back": "পিছনে",
+    "generate": "জীবনবৃত্তান্ত তৈরি",
+    "generating": "তৈরি হচ্ছে...",
+    "generatingResume": "আপনার ATS-অপ্টিমাইজড জীবনবৃত্তান্ত তৈরি হচ্ছে...",
+    "editAgain": "সম্পাদনা",
+    "share": "শেয়ার",
+    "regenerate": "আবার তৈরি",
+    "saveToProfile": "প্রোফাইলে সংরক্ষণ",
+    "saved": "প্রোফাইলে সংরক্ষিত",
+    "savedToProfile": "আপনার AI জীবনবৃত্তান্ত প্রোফাইলে সংরক্ষিত হয়েছে! নিয়োগকর্তারা এখন এটি দেখতে পারবেন।",
+    "noResumeUrl": "জীবনবৃত্তান্ত PDF সংরক্ষণ হয়নি। আবার তৈরি করুন।",
+    "stayHere": "এখানে থাকুন",
+    "goToProfile": "প্রোফাইলে যান"
   }
 }

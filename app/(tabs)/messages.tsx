@@ -7,6 +7,7 @@ import {
   ImageBackground,
   Platform,
   Alert,
+  RefreshControl,
 } from 'react-native';
 import {
   Text,
@@ -43,6 +44,7 @@ export default function MessagesScreen() {
   const router = useRouter();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { addMessageListener } = useSocket();
 
@@ -163,6 +165,18 @@ export default function MessagesScreen() {
             renderItem={renderConversation}
             keyExtractor={(item) => item.userId}
             contentContainerStyle={styles.content}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={async () => {
+                  setRefreshing(true);
+                  await fetchConversations();
+                  setRefreshing(false);
+                }}
+                tintColor={colors.terracotta}
+                colors={[colors.terracotta]}
+              />
+            }
           />
         )}
       </ImageBackground>

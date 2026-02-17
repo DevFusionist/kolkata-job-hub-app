@@ -1,17 +1,41 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-interface User {
+export interface User {
   id: string;
   phone: string;
-  role: string;
+  role: "seeker" | "employer";
   name: string;
+
   businessName?: string;
+
   location: string;
-  languages: string[];
+
   skills: string[];
+  languages: string[];
+
+  experience: string;
+
   freeJobsRemaining: number;
+
+  preferredLanguage: "en" | "bn";
+
+  preferredSalary: {
+    min: number;
+    max: number;
+  };
+
+  aiExtracted: {
+    skills: string[];
+    experience: string;
+    category: string;
+    score: number;
+  };
+
+  createdAt: string;
+  updatedAt: string;
 }
+
 
 interface AuthContextType {
   user: User | null;

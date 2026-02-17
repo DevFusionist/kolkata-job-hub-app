@@ -91,7 +91,9 @@
     "chipTips": "Hiring tips",
     "typing": "Protibha is thinking...",
     "online": "Online",
-    "poweredBy": "Powered by AI"
+    "poweredBy": "Powered by AI",
+    "loadMore": "Load earlier messages",
+    "chipBuildResume": "Build my resume"
   },
   "home": {
     "myJobPostings": "My Job Postings",
@@ -103,7 +105,9 @@
     "noJobsAvailable": "No jobs available",
     "postFirstJob": "Post Your First Job",
     "applicationsCount": "applications",
-    "errorLoadJobs": "Failed to load jobs"
+    "errorLoadJobs": "Failed to load jobs",
+    "recommendedForYou": "Recommended for You",
+    "allJobs": "All Jobs"
   },
   "profile": {
     "title": "Profile",
@@ -130,11 +134,28 @@
     "supportContact": "Contact us at support@kolkatajobs.com",
     "improveWithAi": "Improve profile with AI",
     "improveWithAiDesc": "Paste your experience or skills; we'll extract and add them to your profile.",
+    "rawTextPlaceholder": "e.g. 2 years delivery experience, know Salt Lake area, Hindi and Bengali...",
+    "projectsPlaceholder": "Projects (comma-separated, e.g. Online Shop, Food Delivery App)",
+    "linksPlaceholder": "Links (comma-separated, e.g. linkedin.com/in/you, github.com/you)",
     "analyzing": "Analyzing...",
     "skillsExtracted": "Skills added to your profile",
     "darkMode": "Dark mode",
     "lightMode": "Light mode",
-    "appearance": "Appearance"
+    "appearance": "Appearance",
+    "resumeSection": "Resume",
+    "resumeHint": "Upload your resume or build one with AI assistance",
+    "uploadResume": "Upload Resume",
+    "replaceResume": "Replace Resume",
+    "buildResume": "Build with AI",
+    "rebuildResume": "Rebuild with AI",
+    "uploading": "Uploading...",
+    "fileTooLarge": "File too large (max 5MB)",
+    "resumeUploaded": "Resume uploaded successfully! Skills extracted from your resume.",
+    "uploadedResume": "Uploaded",
+    "aiResumeReady": "AI Resume saved and ready",
+    "viewResume": "View",
+    "cannotOpenResume": "Cannot open resume",
+    "resumeNotAvailable": "Resume is not available to view"
   },
   "postJob": {
     "title": "Post a Job",
@@ -205,7 +226,9 @@
   "chat": {
     "placeholder": "Type a message...",
     "send": "Send",
-    "emptyChat": "No messages yet. Start the conversation!"
+    "emptyChat": "No messages yet. Start the conversation!",
+    "errorLoadMessages": "Failed to load messages",
+    "errorSendMessage": "Failed to send message"
   },
   "search": {
     "title": "Search Jobs",
@@ -219,5 +242,45 @@
     "tryAdjusting": "Try adjusting your search criteria",
     "filterJobs": "Filter Jobs",
     "errorSearch": "Failed to search jobs"
+  },
+  "resume": {
+    "title": "AI Resume Builder",
+    "stepReview": "Review Info",
+    "stepDetails": "Add Details",
+    "stepPreview": "Preview",
+    "reviewTitle": "Your Information",
+    "reviewHint": "Review and edit your details before generating",
+    "name": "Full Name",
+    "phone": "Phone",
+    "location": "Location",
+    "skills": "Skills",
+    "addSkill": "Add skill...",
+    "experience": "Work Experience",
+    "experienceHint": "Add your work experience (optional for freshers)",
+    "jobTitle": "Job Title",
+    "company": "Company / Employer",
+    "duration": "Duration (e.g., 2 years)",
+    "achievements": "Key achievements (one per line)",
+    "addMore": "Add Another",
+    "education": "Education",
+    "degree": "Degree / Qualification",
+    "institution": "School / Institution",
+    "year": "Year",
+    "additional": "Additional Info",
+    "additionalHint": "Anything else the AI should know?",
+    "next": "Next: Add Details",
+    "back": "Back",
+    "generate": "Generate Resume",
+    "generating": "Generating...",
+    "generatingResume": "Creating your ATS-optimized resume...",
+    "editAgain": "Edit",
+    "share": "Share",
+    "regenerate": "Regenerate",
+    "saveToProfile": "Save to Profile",
+    "saved": "Saved to Profile",
+    "savedToProfile": "Your AI resume has been saved to your profile! Employers can now view it.",
+    "noResumeUrl": "Resume PDF could not be saved. Please try regenerating.",
+    "stayHere": "Stay Here",
+    "goToProfile": "Go to Profile"
   }
 }

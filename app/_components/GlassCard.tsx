@@ -19,7 +19,7 @@ export function GlassCard({ children, style, contentStyle, accent = true }: Glas
     accent && { borderLeftWidth: 4, borderLeftColor: colors.gold },
     style,
   ];
-  const fallbackBg = isDark ? 'rgba(37,47,59,0.85)' : 'rgba(255,255,255,0.18)';
+  const fallbackBg = isDark ? 'rgba(37,47,59,0.85)' : 'rgba(255,255,255,0.82)';
 
   return (
     <View style={cardStyle}>
@@ -27,7 +27,7 @@ export function GlassCard({ children, style, contentStyle, accent = true }: Glas
         <View style={[StyleSheet.absoluteFill, styles.fallback, { backgroundColor: fallbackBg }]} />
       ) : (
         <BlurView
-          intensity={Platform.OS === 'ios' ? 40 : 35}
+          intensity={Platform.OS === 'ios' ? (isDark ? 40 : 70) : (isDark ? 35 : 60)}
           tint={isDark ? 'dark' : 'light'}
           style={StyleSheet.absoluteFill}
         />

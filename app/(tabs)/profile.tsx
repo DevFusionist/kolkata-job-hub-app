@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import {
   View,
   StyleSheet,
@@ -6,6 +6,7 @@ import {
   Alert,
   ImageBackground,
   Platform,
+  Linking,
 } from 'react-native';
 import {
   Text,
@@ -16,9 +17,11 @@ import {
   TextInput,
   ActivityIndicator,
   Switch,
+  ProgressBar,
 } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import * as DocumentPicker from 'expo-document-picker';
 import api from '../_lib/api';
 import { useAuth } from '../_contexts/AuthContext';
 import { useLanguage } from '../_contexts/LanguageContext';
@@ -31,11 +34,114 @@ export default function ProfileScreen() {
   const { user, logout, updateUser } = useAuth();
   const { colors, isDark, setThemeMode } = useTheme();
   const [portfolioRawText, setPortfolioRawText] = useState('');
+  const [portfolioProjects, setPortfolioProjects] = useState('');
+  const [portfolioLinks, setPortfolioLinks] = useState('');
   const [analyzing, setAnalyzing] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [portfolio, setPortfolio] = useState<{
+    resumeUrl?: string | null;
+    resumeFileName?: string | null;
+    generatedResumeUrl?: string | null;
+  } | null>(null);
+  const [loadingViewUrl, setLoadingViewUrl] = useState<'upload' | 'generated' | null>(null);
   const { t } = useLanguage();
   const router = useRouter();
   const isEmployer = user?.role === 'employer';
+  const isSeeker = user?.role === 'seeker';
   const styles = useMemo(() => createStyles(colors), [colors]);
+
+  const fetchPortfolio = useCallback(async () => {
+    if (!user?.id || !isSeeker) return;
+    try {
+      const { data } = await api.get(`/portfolios/seeker/${user.id}`);
+      if (data) setPortfolio(data);
+    } catch {
+      // silently ignore — portfolio may not exist yet
+    }
+  }, [user?.id, isSeeker]);
+
+  useEffect(() => {
+    fetchPortfolio();
+  }, [fetchPortfolio]);
+
+  const handleViewResume = useCallback(async (type: 'upload' | 'generated') => {
+    setLoadingViewUrl(type);
+    try {
+      const { data } = await api.get('/portfolios/resume-view-url');
+      const url = type === 'upload' ? data.uploadUrl : data.generatedUrl;
+      if (url) {
+        const canOpen = await Linking.canOpenURL(url);
+        if (canOpen) await Linking.openURL(url);
+        else Alert.alert(t('common.error'), t('profile.cannotOpenResume') || 'Cannot open resume');
+      } else {
+        Alert.alert(t('common.error'), t('profile.resumeNotAvailable') || 'Resume is not available to view');
+      }
+    } catch (err: any) {
+      Alert.alert(t('common.error'), err.response?.data?.detail || err.message || 'Failed to open resume');
+    } finally {
+      setLoadingViewUrl(null);
+    }
+  }, [t]);
+
+  const handleResumeUpload = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: [
+          'application/pdf',
+          'application/msword',
+          'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        ],
+        copyToCacheDirectory: true,
+      });
+
+      if (result.canceled || !result.assets?.length) return;
+
+      const file = result.assets[0];
+      if (file.size && file.size > 5 * 1024 * 1024) {
+        Alert.alert(t('common.error'), t('profile.fileTooLarge') || 'File too large (max 5MB)');
+        return;
+      }
+
+      setUploading(true);
+      setUploadProgress(0.2);
+
+      const formData = new FormData();
+      formData.append('resume', {
+        uri: file.uri,
+        name: file.name,
+        type: file.mimeType || 'application/pdf',
+      } as any);
+
+      setUploadProgress(0.5);
+
+      const { data } = await api.post('/portfolios/upload-resume', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+
+      setUploadProgress(1);
+
+      if (data.aiAnalysis?.skills?.length) {
+        const merged = [...new Set([...(user?.skills || []), ...data.aiAnalysis.skills])].slice(0, 30);
+        await updateUser({ ...user!, skills: merged });
+      }
+
+      await fetchPortfolio();
+
+      Alert.alert(
+        t('common.success'),
+        t('profile.resumeUploaded') || `Resume "${file.name}" uploaded successfully!${data.aiAnalysis ? ' Skills extracted from your resume.' : ''}`,
+      );
+    } catch (err: any) {
+      Alert.alert(
+        t('common.error'),
+        err.response?.data?.detail || err.message || 'Resume upload failed',
+      );
+    } finally {
+      setUploading(false);
+      setUploadProgress(0);
+    }
+  };
 
   const handleLogout = () => {
     Alert.alert(t('profile.logout'), t('profile.logoutConfirm'), [
@@ -75,7 +181,7 @@ export default function ProfileScreen() {
               <Text variant="headlineSmall" style={styles.name}>
                 {user?.name}
               </Text>
-              <Chip mode="outlined" style={styles.roleChip}>
+              <Chip mode="outlined" style={styles.roleChip} textStyle={{ color: colors.text }}>
                 {isEmployer ? t('profile.employer') : t('profile.jobSeeker')}
               </Chip>
             </View>
@@ -118,7 +224,7 @@ export default function ProfileScreen() {
               </Text>
               <View style={styles.chipContainer}>
                 {user?.languages?.map((lang) => (
-                  <Chip key={lang} style={styles.chip}>
+                  <Chip key={lang} style={styles.chip} textStyle={{ color: colors.text }}>
                     {lang}
                   </Chip>
                 ))}
@@ -132,7 +238,7 @@ export default function ProfileScreen() {
                 </Text>
                 <View style={styles.chipContainer}>
                   {user.skills.map((skill) => (
-                    <Chip key={skill} style={styles.chip}>
+                    <Chip key={skill} style={styles.chip} textStyle={{ color: colors.text }}>
                       {skill}
                     </Chip>
                   ))}
@@ -141,7 +247,103 @@ export default function ProfileScreen() {
             )}
         </GlassCard>
 
-        {!isEmployer && (
+        {isSeeker && (
+          <GlassCard style={styles.card}>
+            <View style={styles.resumeSectionHeader}>
+              <MaterialCommunityIcons name="file-document-outline" size={24} color={colors.terracotta} />
+              <Text variant="titleMedium" style={styles.sectionTitle}>
+                {t('profile.resumeSection') || 'Resume'}
+              </Text>
+            </View>
+            <Text variant="bodySmall" style={styles.portfolioHint}>
+              {t('profile.resumeHint') || 'Upload your resume or build one with AI assistance'}
+            </Text>
+
+            {(portfolio?.resumeFileName || portfolio?.generatedResumeUrl) && (
+              <View style={styles.resumeStatusContainer}>
+                {portfolio.resumeFileName && (
+                  <View style={styles.resumeStatusRow}>
+                    <MaterialCommunityIcons name="file-check" size={18} color="#16A34A" />
+                    <Text variant="bodySmall" style={styles.resumeStatusText}>
+                      {t('profile.uploadedResume') || 'Uploaded'}: {portfolio.resumeFileName}
+                    </Text>
+                    <Button
+                      mode="text"
+                      compact
+                      loading={loadingViewUrl === 'upload'}
+                      disabled={loadingViewUrl !== null}
+                      onPress={() => handleViewResume('upload')}
+                      textColor={colors.terracotta}
+                      style={styles.viewResumeButton}
+                    >
+                      {t('profile.viewResume') || 'View'}
+                    </Button>
+                  </View>
+                )}
+                {portfolio.generatedResumeUrl && (
+                  <View style={styles.resumeStatusRow}>
+                    <MaterialCommunityIcons name="robot" size={18} color="#2563EB" />
+                    <Text variant="bodySmall" style={styles.resumeStatusText}>
+                      {t('profile.aiResumeReady') || 'AI Resume saved and ready'}
+                    </Text>
+                    <Button
+                      mode="text"
+                      compact
+                      loading={loadingViewUrl === 'generated'}
+                      disabled={loadingViewUrl !== null}
+                      onPress={() => handleViewResume('generated')}
+                      textColor={colors.terracotta}
+                      style={styles.viewResumeButton}
+                    >
+                      {t('profile.viewResume') || 'View'}
+                    </Button>
+                  </View>
+                )}
+              </View>
+            )}
+
+            <View style={styles.resumeButtons}>
+              <Button
+                mode="contained"
+                onPress={handleResumeUpload}
+                loading={uploading}
+                disabled={uploading}
+                icon="upload"
+                style={styles.uploadButton}
+                labelStyle={styles.resumeButtonLabel}
+              >
+                {uploading
+                  ? (t('profile.uploading') || 'Uploading...')
+                  : portfolio?.resumeFileName
+                    ? (t('profile.replaceResume') || 'Replace Resume')
+                    : (t('profile.uploadResume') || 'Upload Resume')}
+              </Button>
+
+              <Button
+                mode="outlined"
+                onPress={() => router.push('/resume-builder')}
+                icon="robot"
+                style={styles.buildResumeButton}
+                textColor={colors.terracotta}
+                labelStyle={styles.resumeButtonLabel}
+              >
+                {portfolio?.generatedResumeUrl
+                  ? (t('profile.rebuildResume') || 'Rebuild with AI')
+                  : (t('profile.buildResume') || 'Build with AI')}
+              </Button>
+            </View>
+
+            {uploading && (
+              <ProgressBar
+                progress={uploadProgress}
+                color={colors.terracotta}
+                style={styles.progressBar}
+              />
+            )}
+          </GlassCard>
+        )}
+
+        {isSeeker && (
           <GlassCard style={styles.card}>
             <Text variant="titleMedium" style={styles.sectionTitle}>
               {t('profile.improveWithAi')}
@@ -152,11 +354,30 @@ export default function ProfileScreen() {
             <TextInput
               value={portfolioRawText}
               onChangeText={setPortfolioRawText}
-              placeholder="e.g. 2 years delivery experience, know Salt Lake area, Hindi and Bengali..."
+              placeholder={t('profile.rawTextPlaceholder') || 'e.g. 2 years delivery experience, know Salt Lake area, Hindi and Bengali...'}
               multiline
               numberOfLines={4}
               style={styles.portfolioInput}
+              textColor={colors.text}
               editable={!analyzing}
+            />
+            <TextInput
+              value={portfolioProjects}
+              onChangeText={setPortfolioProjects}
+              placeholder={t('profile.projectsPlaceholder') || 'Projects (comma-separated, e.g. Online Shop, Food Delivery App)'}
+              style={styles.portfolioInput}
+              textColor={colors.text}
+              editable={!analyzing}
+            />
+            <TextInput
+              value={portfolioLinks}
+              onChangeText={setPortfolioLinks}
+              placeholder={t('profile.linksPlaceholder') || 'Links (comma-separated, e.g. linkedin.com/in/you, github.com/you)'}
+              style={styles.portfolioInput}
+              textColor={colors.text}
+              editable={!analyzing}
+              autoCapitalize="none"
+              keyboardType="url"
             />
             <Button
               mode="contained"
@@ -164,14 +385,24 @@ export default function ProfileScreen() {
                 if (!portfolioRawText.trim() || !user?.id) return;
                 setAnalyzing(true);
                 try {
+                  const projects = portfolioProjects
+                    .split(',')
+                    .map((p) => p.trim())
+                    .filter(Boolean);
+                  const links = portfolioLinks
+                    .split(',')
+                    .map((l) => l.trim())
+                    .filter(Boolean);
                   const { data } = await api.post(
                     '/ai/analyze-portfolio',
-                    { seeker_id: user.id, rawText: portfolioRawText.trim(), projects: [], links: [] }
+                    { rawText: portfolioRawText.trim(), projects, links }
                   );
                   const newSkills = data.skills || [];
                   const merged = [...new Set([...(user.skills || []), ...newSkills])].slice(0, 30);
                   await updateUser({ ...user, skills: merged });
                   setPortfolioRawText('');
+                  setPortfolioProjects('');
+                  setPortfolioLinks('');
                   Alert.alert(t('common.success'), t('profile.skillsExtracted'));
                 } catch (err: any) {
                   Alert.alert(t('common.error'), err.response?.data?.detail || err.message || 'Analysis failed');
@@ -328,6 +559,54 @@ function createStyles(colors: ThemeColors) {
     analyzeButton: {
       backgroundColor: colors.terracotta,
       borderRadius: 2,
+    },
+    resumeSectionHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      marginBottom: 4,
+    },
+    resumeStatusContainer: {
+      backgroundColor: colors.surface,
+      borderRadius: 8,
+      padding: 10,
+      marginBottom: 4,
+      gap: 6,
+    },
+    resumeStatusRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+    },
+    resumeStatusText: {
+      color: colors.text,
+      flex: 1,
+    },
+    viewResumeButton: {
+      minWidth: 0,
+      marginLeft: 4,
+    },
+    resumeButtons: {
+      flexDirection: 'row',
+      gap: 10,
+      marginTop: 12,
+    },
+    uploadButton: {
+      flex: 1,
+      backgroundColor: colors.terracotta,
+      borderRadius: 8,
+    },
+    buildResumeButton: {
+      flex: 1,
+      borderColor: colors.terracotta,
+      borderRadius: 8,
+    },
+    resumeButtonLabel: {
+      fontSize: 12,
+    },
+    progressBar: {
+      marginTop: 8,
+      borderRadius: 4,
     },
   });
 }

@@ -52,10 +52,10 @@ const COMMON_SKILLS = [
 
 export default function PostJobScreen() {
   const { user, updateUser } = useAuth();
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
   const router = useRouter();
   const [loading, setLoading] = useState(false);
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
 
   // Form fields
   const [title, setTitle] = useState('');
@@ -251,6 +251,8 @@ export default function PostJobScreen() {
                     selected={category === cat}
                     onPress={() => setCategory(cat)}
                     style={styles.chip}
+                    textStyle={{ color: colors.text }}
+                    selectedColor={colors.terracotta}
                   >
                     {cat}
                   </Chip>
@@ -293,6 +295,8 @@ export default function PostJobScreen() {
                     selected={jobType === type}
                     onPress={() => setJobType(type)}
                     style={styles.chip}
+                    textStyle={{ color: colors.text }}
+                    selectedColor={colors.terracotta}
                   >
                     {type}
                   </Chip>
@@ -309,6 +313,8 @@ export default function PostJobScreen() {
                     selected={experience === exp}
                     onPress={() => setExperience(exp)}
                     style={styles.chip}
+                    textStyle={{ color: colors.text }}
+                    selectedColor={colors.terracotta}
                   >
                     {exp}
                   </Chip>
@@ -325,6 +331,8 @@ export default function PostJobScreen() {
                     selected={education === edu}
                     onPress={() => setEducation(edu)}
                     style={styles.chip}
+                    textStyle={{ color: colors.text }}
+                    selectedColor={colors.terracotta}
                   >
                     {edu}
                   </Chip>
@@ -341,6 +349,8 @@ export default function PostJobScreen() {
                     selected={selectedLanguages.includes(lang)}
                     onPress={() => toggleLanguage(lang)}
                     style={styles.chip}
+                    textStyle={{ color: colors.text }}
+                    selectedColor={colors.terracotta}
                   >
                     {lang}
                   </Chip>
@@ -357,6 +367,8 @@ export default function PostJobScreen() {
                     selected={selectedSkills.includes(skill)}
                     onPress={() => toggleSkill(skill)}
                     style={styles.chip}
+                    textStyle={{ color: colors.text }}
+                    selectedColor={colors.terracotta}
                   >
                     {skill}
                   </Chip>
@@ -379,7 +391,7 @@ export default function PostJobScreen() {
   );
 }
 
-function createStyles(colors: ThemeColors) {
+function createStyles(colors: ThemeColors, isDark: boolean) {
   return StyleSheet.create({
     container: {
       flex: 1,

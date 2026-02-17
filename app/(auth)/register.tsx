@@ -36,7 +36,7 @@ const COMMON_SKILLS = [
 
 export default function RegisterScreen() {
   const { t, locale, setLocale } = useLanguage();
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
   const params = useLocalSearchParams();
   const phone = params.phone as string;
   const [role, setRole] = useState('seeker');
@@ -129,7 +129,7 @@ export default function RegisterScreen() {
   };
 
   const langLabel = (opt: (typeof LANG_OPTIONS)[0]) => (locale === 'bn' ? opt.bn : opt.en);
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
 
   return (
     <ImageBackground
@@ -186,6 +186,7 @@ export default function RegisterScreen() {
               secureTextEntry
               mode="flat"
               activeUnderlineColor={colors.terracotta}
+              textColor={colors.text}
               style={styles.input}
             />
             <TextInput
@@ -198,6 +199,7 @@ export default function RegisterScreen() {
               secureTextEntry
               mode="flat"
               activeUnderlineColor={colors.terracotta}
+              textColor={colors.text}
               style={styles.input}
             />
             <Button
@@ -223,11 +225,11 @@ export default function RegisterScreen() {
               <View style={styles.radioRow}>
                 <View style={styles.radioOption}>
                   <RadioButton value="seeker" color={colors.terracotta} />
-                  <Text>{t('register.jobSeeker')}</Text>
+                  <Text style={{ color: colors.text }}>{t('register.jobSeeker')}</Text>
                 </View>
                 <View style={styles.radioOption}>
                   <RadioButton value="employer" color={colors.terracotta} />
-                  <Text>{t('register.employer')}</Text>
+                  <Text style={{ color: colors.text }}>{t('register.employer')}</Text>
                 </View>
               </View>
             </RadioButton.Group>
@@ -236,6 +238,7 @@ export default function RegisterScreen() {
               label={t('register.fullName')}
               mode="flat"
               activeUnderlineColor={colors.terracotta}
+              textColor={colors.text}
               value={name}
               onChangeText={setName}
               style={styles.input}
@@ -246,6 +249,7 @@ export default function RegisterScreen() {
                 label={t('register.businessName')}
                 mode="flat"
                 activeUnderlineColor={colors.terracotta}
+                textColor={colors.text}
                 value={businessName}
                 onChangeText={setBusinessName}
                 style={styles.input}
@@ -257,6 +261,7 @@ export default function RegisterScreen() {
               placeholder={t('register.localityPlaceholder')}
               mode="flat"
               activeUnderlineColor={colors.terracotta}
+              textColor={colors.text}
               value={location}
               onChangeText={setLocation}
               style={styles.input}
@@ -270,6 +275,7 @@ export default function RegisterScreen() {
                   selected={selectedLanguages.includes(opt.key)}
                   onPress={() => toggleLanguage(opt.key)}
                   selectedColor="#fff"
+                  textStyle={{ color: selectedLanguages.includes(opt.key) ? '#fff' : colors.text }}
                   style={[
                     styles.chip,
                     selectedLanguages.includes(opt.key) && { backgroundColor: colors.terracotta },
@@ -290,6 +296,7 @@ export default function RegisterScreen() {
                       selected={selectedSkills.includes(skill)}
                       onPress={() => toggleSkill(skill)}
                       selectedColor={colors.terracotta}
+                      textStyle={{ color: colors.text }}
                       style={styles.skillChip}
                     >
                       {skill}
@@ -318,7 +325,7 @@ export default function RegisterScreen() {
   );
 }
 
-function createStyles(colors: ThemeColors) {
+function createStyles(colors: ThemeColors, isDark: boolean) {
   return StyleSheet.create({
     backgroundImage: {
       flex: 1,
@@ -329,11 +336,13 @@ function createStyles(colors: ThemeColors) {
     },
     langRow: {
       flexDirection: 'row',
-      justifyContent: 'flex-end',
-      paddingHorizontal: 20,
+      justifyContent: 'center',
+      paddingHorizontal: 24,
       paddingTop: Platform.OS === 'ios' ? 56 : 24,
       paddingBottom: 8,
       gap: 8,
+      marginBottom: 20,
+      marginTop: 20,
     },
     langBtn: {
       paddingVertical: 8,
@@ -369,9 +378,10 @@ function createStyles(colors: ThemeColors) {
     },
     subTitle: {
       fontSize: 14,
-      color: colors.textSecondary,
+      color: colors.text,
       letterSpacing: 1.5,
       textTransform: 'uppercase',
+      fontWeight: '600',
     },
     underline: {
       width: 60,
@@ -406,6 +416,7 @@ function createStyles(colors: ThemeColors) {
     input: {
       marginBottom: 16,
       backgroundColor: 'transparent',
+      color: colors.text,
     },
     chipContainer: {
       flexDirection: 'row',
@@ -414,7 +425,7 @@ function createStyles(colors: ThemeColors) {
       marginBottom: 10,
     },
     chip: {
-      backgroundColor: colors.cream,
+      backgroundColor: isDark ? colors.surface : '#F0EDE0',
     },
     skillChip: {
       borderColor: colors.terracotta,

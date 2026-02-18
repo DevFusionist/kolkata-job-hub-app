@@ -36,6 +36,8 @@ dist
 !.env.example
 *token.json*
 *credentials.json*
+client_secret*.json
+*service*account*.json
 
 # Logs and debug files
 npm-debug.log*
@@ -60,7 +62,8 @@ chainlit.md
 .ipynb_checkpoints/
 .ac
 
-# Deployment
+# Deploymentsudo apt install imagemagick
+
 .vercel
 
 # Data and databases
@@ -85,3 +88,6 @@ android-sdk/
 
 expo-env.d.ts
 # @end expo-cli
+
+# expo machine related detail file info
+.expo/

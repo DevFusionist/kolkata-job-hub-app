@@ -4,6 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 const API_URL =
   process.env.EXPO_PUBLIC_BACKEND_URL ||
   'https://kolkata-job-hub-app-backend-production.up.railway.app';
+  console.log("API_URL", API_URL);
 
 const api = axios.create({
   baseURL: `${API_URL.replace(/\/$/, '')}/api`,

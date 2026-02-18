@@ -45,7 +45,7 @@ export default function LoginScreen() {
       await api.post('/auth/send-otp', { phone });
       setOtpSent(true);
       setStep('otp');
-      Alert.alert(t('common.success'), 'OTP sent. Use 123456 for testing.');
+      Alert.alert(t('common.success'), t('login.otpSent'));
     } catch (error: any) {
       const msg =
         error.response?.data?.detail ||
@@ -77,12 +77,11 @@ export default function LoginScreen() {
         router.push({ pathname: '/(auth)/register', params: { phone } });
         return;
       }
-      // Existing user verified via OTP - store token for set-mpin step
       setUserAfterOtp({ user: response.data.user, token: response.data.token });
       setStep('set_mpin');
       setOtp('');
     } catch (error: any) {
-      Alert.alert(t('common.error'), error.response?.data?.detail || t('login.errorVerifyOtp'));
+      Alert.alert(t('common.error'), error.response?.data?.detail || error.message || t('login.errorVerifyOtp'));
     } finally {
       setLoading(false);
     }
@@ -285,9 +284,6 @@ export default function LoginScreen() {
       >
         {t('login.editNumber')}
       </Button>
-      <View style={styles.footerInfo}>
-        <Text style={styles.testInfo}>{t('login.demoOtp')}</Text>
-      </View>
     </>
   );
 
@@ -406,12 +402,6 @@ export default function LoginScreen() {
             {step === 'mpin' && renderMpinStep()}
             {step === 'otp' && renderOtpStep()}
             {step === 'set_mpin' && renderSetMpinStep()}
-
-            {step !== 'otp' && step !== 'set_mpin' && (
-              <View style={styles.footerInfo}>
-                <Text style={styles.testInfo}>{t('login.demoOtp')}</Text>
-              </View>
-            )}
           </GlassCard>
         </ScrollView>
       </KeyboardAvoidingView>

@@ -21,7 +21,7 @@
     "getOtp": "Get OTP",
     "verify": "Verify",
     "editNumber": "Change Number",
-    "demoOtp": "Demo OTP: 123456",
+    "otpSent": "OTP sent to your number.",
     "errorInvalidPhone": "Please enter a valid 10-digit phone number",
     "errorInvalidOtp": "Please enter a valid 6-digit OTP",
     "errorSendOtp": "Failed to send OTP",

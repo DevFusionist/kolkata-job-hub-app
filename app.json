@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "Protibha",
-    "slug": "protibha",
+    "slug": "frontend",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -50,9 +50,7 @@
       "appName": "Protibha",
       "apiBaseUrl": "https://api.protibha.in",
       "router": {},
-      "eas": {
-        "projectId": "0a343a37-7a66-4f12-91fa-bf4c77a458ae"
-      }
+     "eas": { "projectId": "0a343a37-7a66-4f12-91fa-bf4c77a458ae" }
     }
   }
 }

@@ -42,7 +42,7 @@ interface Job {
   skills: string[];
   employerId: string;
   employerName: string;
-  employerPhone: string;
+  employerPhone?: string;
   businessName?: string;
   postedDate: string;
   applicationsCount: number;

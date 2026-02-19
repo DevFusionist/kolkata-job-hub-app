@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import {
   View,
   StyleSheet,
@@ -55,6 +55,24 @@ export default function PostJobScreen() {
   const { colors, isDark } = useTheme();
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [billingLoading, setBillingLoading] = useState(false);
+  const [entitlements, setEntitlements] = useState<{
+    freeJobsRemaining: number;
+    paidJobsRemaining: number;
+    subscriptionPlan: 'none' | 'monthly_unlimited';
+    subscriptionExpiresAt: string | null;
+    subscriptionActive: boolean;
+    canPost: boolean;
+  } | null>(null);
+  const [catalog, setCatalog] = useState<Array<{
+    itemCode: string;
+    label: string;
+    amount: number;
+    purchaseType: 'credit' | 'subscription';
+    creditsPurchased?: number;
+    subscriptionDays?: number;
+    currency?: string;
+  }>>([]);
   const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
 
   // Form fields
@@ -68,6 +86,44 @@ export default function PostJobScreen() {
   const [education, setEducation] = useState('');
   const [selectedLanguages, setSelectedLanguages] = useState<string[]>([]);
   const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
+
+  const syncAuthFromEntitlements = useCallback(async (next: {
+    freeJobsRemaining: number;
+    paidJobsRemaining: number;
+    subscriptionPlan: 'none' | 'monthly_unlimited';
+    subscriptionExpiresAt: string | null;
+  }) => {
+    if (!user) return;
+    await updateUser({
+      ...user,
+      freeJobsRemaining: next.freeJobsRemaining,
+      paidJobsRemaining: next.paidJobsRemaining,
+      subscriptionPlan: next.subscriptionPlan,
+      subscriptionExpiresAt: next.subscriptionExpiresAt,
+    });
+  }, [user, updateUser]);
+
+  const refreshBilling = useCallback(async () => {
+    if (!user?.id) return;
+    setBillingLoading(true);
+    try {
+      const [{ data: ent }, { data: cat }] = await Promise.all([
+        api.get('/payments/entitlements'),
+        api.get('/payments/catalog'),
+      ]);
+      setEntitlements(ent);
+      setCatalog(Array.isArray(cat?.items) ? cat.items : []);
+      await syncAuthFromEntitlements(ent);
+    } catch {
+      // best-effort only
+    } finally {
+      setBillingLoading(false);
+    }
+  }, [user?.id, syncAuthFromEntitlements]);
+
+  useEffect(() => {
+    refreshBilling();
+  }, [refreshBilling]);
 
   const toggleLanguage = (lang: string) => {
     if (selectedLanguages.includes(lang)) {
@@ -84,6 +140,17 @@ export default function PostJobScreen() {
       setSelectedSkills([...selectedSkills, skill]);
     }
   };
+
+  function showPurchaseOptions() {
+    const single = catalog.find((x) => x.itemCode === 'single_job');
+    const pack = catalog.find((x) => x.itemCode === 'credits_5');
+    const sub = catalog.find((x) => x.itemCode === 'subscription_monthly');
+    Alert.alert('Posting Limit Reached', 'Buy extra credits or subscribe to continue posting jobs.', [
+      single ? { text: `${single.label}`, onPress: () => handlePayment(single.itemCode) } : { text: 'Buy 1 Credit', onPress: () => handlePayment('single_job') },
+      pack ? { text: `${pack.label}`, onPress: () => handlePayment(pack.itemCode) } : { text: 'Buy 5 Credits', onPress: () => handlePayment('credits_5') },
+      sub ? { text: `${sub.label}`, onPress: () => handlePayment(sub.itemCode) } : { text: 'Subscribe', onPress: () => handlePayment('subscription_monthly') },
+    ]);
+  }
 
   const handlePostJob = async () => {
     // Validation
@@ -102,16 +169,16 @@ export default function PostJobScreen() {
       return;
     }
 
-    // Check if user has free jobs
-    if (user?.freeJobsRemaining === 0) {
-      Alert.alert(
-        'Payment Required',
-        'You have used all your free job posts. Pay ₹50 to post this job.',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Pay Now', onPress: handlePayment },
-        ]
-      );
+    const fallbackSubActive = !!(
+      user?.subscriptionPlan
+      && user.subscriptionPlan !== 'none'
+      && user.subscriptionExpiresAt
+      && new Date(user.subscriptionExpiresAt).getTime() > Date.now()
+    );
+    const canPost = entitlements?.canPost
+      ?? (fallbackSubActive || ((user?.freeJobsRemaining || 0) + (user?.paidJobsRemaining || 0) > 0));
+    if (!canPost) {
+      showPurchaseOptions();
       return;
     }
 
@@ -130,19 +197,9 @@ export default function PostJobScreen() {
         skills: selectedSkills,
       };
 
-      await api.post(
-        `/jobs?employer_id=${user?.id}`,
-        jobData
-      );
+      await api.post('/jobs', jobData);
 
-      // Update user's free jobs count
-      if (user) {
-        const updatedUser = {
-          ...user,
-          freeJobsRemaining: user.freeJobsRemaining - 1,
-        };
-        await updateUser(updatedUser);
-      }
+      await refreshBilling();
 
       Alert.alert('Success', 'Job posted successfully!', [
         { text: 'OK', onPress: () => router.push('/(tabs)') },
@@ -161,19 +218,20 @@ export default function PostJobScreen() {
       setSelectedSkills([]);
     } catch (error: any) {
       console.error('Error posting job:', error);
-      Alert.alert('Error', error.response?.data?.detail || 'Failed to post job');
+      if (error?.response?.status === 402) {
+        showPurchaseOptions();
+      } else {
+        Alert.alert('Error', error.response?.data?.detail || 'Failed to post job');
+      }
     } finally {
       setLoading(false);
     }
   };
 
-  const handlePayment = async () => {
+  const handlePayment = async (itemCode = 'single_job') => {
     try {
       // Create Razorpay order
-      const orderResponse = await api.post(
-        `/payments/create-order?employer_id=${user?.id}`,
-        { amount: 5000 } // ₹50 in paise
-      );
+      const orderResponse = await api.post('/payments/create-order', { itemCode });
 
       // Mock payment success (in production, use Razorpay SDK)
       Alert.alert(
@@ -183,25 +241,16 @@ export default function PostJobScreen() {
           {
             text: 'Simulate Success',
             onPress: async () => {
-              await api.post(
-                `/payments/verify?employer_id=${user?.id}`,
-                {
-                  razorpayOrderId: orderResponse.data.id,
-                  razorpayPaymentId: 'demo_payment_id',
-                  razorpaySignature: 'demo_signature',
-                }
-              );
+              await api.post('/payments/verify', {
+                itemCode,
+                razorpayOrderId: orderResponse.data.id,
+                razorpayPaymentId: 'demo_payment_id',
+                razorpaySignature: 'demo_signature',
+              });
 
-              // Update user's free jobs count
-              if (user) {
-                const updatedUser = {
-                  ...user,
-                  freeJobsRemaining: user.freeJobsRemaining + 1,
-                };
-                await updateUser(updatedUser);
-              }
+              await refreshBilling();
 
-              Alert.alert('Success', 'Payment successful! You can now post your job.');
+              Alert.alert('Success', 'Payment successful! Your posting balance is updated.');
             },
           },
         ]
@@ -223,7 +272,12 @@ export default function PostJobScreen() {
             Post a Job
           </Text>
           <Text variant="bodyMedium" style={styles.headerSubtitle}>
-            Free jobs remaining: {user?.freeJobsRemaining || 0}
+            Free: {entitlements?.freeJobsRemaining ?? user?.freeJobsRemaining ?? 0}
+            {'  '}|{'  '}
+            Paid: {entitlements?.paidJobsRemaining ?? user?.paidJobsRemaining ?? 0}
+            {'  '}|{'  '}
+            Plan: {entitlements?.subscriptionActive ? 'Active Subscription' : 'Free'}
+            {billingLoading ? ' (syncing...)' : ''}
           </Text>
         </View>
 

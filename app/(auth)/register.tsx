@@ -38,7 +38,10 @@ export default function RegisterScreen() {
   const { t, locale, setLocale } = useLanguage();
   const { colors, isDark } = useTheme();
   const params = useLocalSearchParams();
-  const phone = params.phone as string;
+  const phone = Array.isArray(params.phone) ? params.phone[0] : (params.phone as string);
+  const registrationToken = Array.isArray(params.registrationToken)
+    ? params.registrationToken[0]
+    : (params.registrationToken as string);
   const [role, setRole] = useState('seeker');
   const [name, setName] = useState('');
   const [businessName, setBusinessName] = useState('');
@@ -70,6 +73,12 @@ export default function RegisterScreen() {
   };
 
   const handleRegister = async () => {
+    if (!registrationToken) {
+      Alert.alert(t('common.error'), 'Registration token missing. Please verify OTP again.');
+      router.replace('/(auth)/login');
+      return;
+    }
+
     if (!name || !location || selectedLanguages.length === 0) {
       Alert.alert(t('common.error'), t('register.errorFillRequired'));
       return;
@@ -87,6 +96,7 @@ export default function RegisterScreen() {
     try {
       const userData = {
         phone,
+        registrationToken,
         role,
         name,
         businessName: role === 'employer' ? businessName : undefined,
@@ -115,7 +125,15 @@ export default function RegisterScreen() {
     }
     setLoading(true);
     try {
-      await api.post('/auth/set-mpin', { phone, mpin });
+      if (!userToLogin?.token) {
+        Alert.alert(t('common.error'), 'Registration session expired. Please register again.');
+        return;
+      }
+      await api.post(
+        '/auth/set-mpin',
+        { mpin },
+        { headers: { Authorization: `Bearer ${userToLogin.token}` } }
+      );
       if (userToLogin) {
         const { token, ...userData } = userToLogin;
         await login(userData, token);

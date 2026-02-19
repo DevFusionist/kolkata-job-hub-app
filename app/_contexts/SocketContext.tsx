@@ -41,7 +41,9 @@ interface SocketContextType {
 
 const SocketContext = createContext<SocketContextType | undefined>(undefined);
 
-const API_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
+const API_URL =
+  process.env.EXPO_PUBLIC_BACKEND_URL ||
+  'https://kolkata-job-hub-app-backend-production.up.railway.app';
 
 const MIN_RECONNECT_MS = 1000;
 const MAX_RECONNECT_MS = 30000;
@@ -79,7 +81,7 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
     if (wsRef.current?.readyState === WebSocket.OPEN) return;
 
     intentionalCloseRef.current = false;
-    const token = await AsyncStorage.getItem('token');
+    const token = await AsyncStorage.getItem('authToken');
     const tokenParam = token ? `?token=${encodeURIComponent(token)}` : '';
     const wsUrl = `${getWsUrl(API_URL)}/ws/${user.id}${tokenParam}`;
     const ws = new WebSocket(wsUrl);

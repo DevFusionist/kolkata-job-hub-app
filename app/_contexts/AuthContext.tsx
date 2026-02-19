@@ -17,6 +17,9 @@ export interface User {
   experience: string;
 
   freeJobsRemaining: number;
+  paidJobsRemaining?: number;
+  subscriptionPlan?: "none" | "monthly_unlimited";
+  subscriptionExpiresAt?: string | null;
 
   preferredLanguage: "en" | "bn";
 

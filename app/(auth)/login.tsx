@@ -20,6 +20,7 @@ import { GlassCard } from '../_components/GlassCard';
 import type { ThemeColors } from '../_theme';
 
 type Step = 'phone' | 'mpin' | 'otp' | 'set_mpin';
+type OtpPurpose = 'register' | 'reset_mpin';
 
 export default function LoginScreen() {
   const { t, locale, setLocale } = useLanguage();
@@ -28,6 +29,7 @@ export default function LoginScreen() {
   const [mpin, setMpin] = useState('');
   const [otp, setOtp] = useState('');
   const [otpSent, setOtpSent] = useState(false);
+  const [otpPurpose, setOtpPurpose] = useState<OtpPurpose | null>(null);
   const [step, setStep] = useState<Step>('phone');
   const [mpinConfirm, setMpinConfirm] = useState('');
   const [userAfterOtp, setUserAfterOtp] = useState<any>(null);
@@ -35,23 +37,31 @@ export default function LoginScreen() {
   const { login } = useAuth();
   const router = useRouter();
 
-  const sendOTP = async () => {
+  const sendOTP = async (purpose: OtpPurpose) => {
     if (phone.length !== 10) {
       Alert.alert(t('common.error'), t('login.errorInvalidPhone'));
       return;
     }
     setLoading(true);
     try {
-      await api.post('/auth/send-otp', { phone });
+      await api.post('/auth/send-otp', { phone, purpose });
       setOtpSent(true);
+      setOtpPurpose(purpose);
+      setOtp('');
       setStep('otp');
       Alert.alert(t('common.success'), t('login.otpSent'));
     } catch (error: any) {
+      const status = error.response?.status;
       const msg =
         error.response?.data?.detail ||
         error.response?.data?.message ||
         error.message ||
         t('login.errorSendOtp');
+      if (status === 409 && purpose === 'register') {
+        setStep('mpin');
+        setOtpSent(false);
+        setOtpPurpose(null);
+      }
       Alert.alert(t('common.error'), typeof msg === 'string' ? msg : JSON.stringify(msg));
     } finally {
       setLoading(false);
@@ -63,25 +73,59 @@ export default function LoginScreen() {
       Alert.alert(t('common.error'), t('login.errorInvalidOtp'));
       return;
     }
+    if (!otpPurpose) {
+      Alert.alert(t('common.error'), 'Please request OTP again.');
+      return;
+    }
     setLoading(true);
     try {
-      const response = await api.post('/auth/verify-otp', { phone, otp });
+      const response = await api.post('/auth/verify-otp', { phone, otp, purpose: otpPurpose });
       if (!response.data.success) {
         Alert.alert(t('common.error'), t('login.errorVerifyOtp'));
         return;
       }
       if (response.data.isNewUser) {
+        const registrationToken = response.data.registrationToken;
+        if (!registrationToken) {
+          Alert.alert(t('common.error'), 'OTP verification incomplete. Please try again.');
+          return;
+        }
         setStep('phone');
         setOtpSent(false);
+        setOtpPurpose(null);
         setOtp('');
-        router.push({ pathname: '/(auth)/register', params: { phone } });
+        router.push({
+          pathname: '/(auth)/register',
+          params: { phone, registrationToken },
+        });
         return;
       }
-      setUserAfterOtp({ user: response.data.user, token: response.data.token });
+      if (otpPurpose === 'reset_mpin') {
+        if (!response.data.mpinResetToken) {
+          Alert.alert(t('common.error'), 'Reset token missing. Please request OTP again.');
+          return;
+        }
+        setUserAfterOtp({
+          mpinResetToken: response.data.mpinResetToken,
+          phone,
+          user: response.data.user || null,
+        });
+      } else {
+        setUserAfterOtp({ user: response.data.user, token: response.data.token });
+      }
       setStep('set_mpin');
       setOtp('');
+      setOtpPurpose(null);
     } catch (error: any) {
-      Alert.alert(t('common.error'), error.response?.data?.detail || error.message || t('login.errorVerifyOtp'));
+      const status = error.response?.status;
+      const msg = error.response?.data?.detail || error.response?.data?.message || error.message || t('login.errorVerifyOtp');
+      if (status === 409 && otpPurpose === 'register') {
+        setStep('mpin');
+        setOtp('');
+        setOtpSent(false);
+        setOtpPurpose(null);
+      }
+      Alert.alert(t('common.error'), msg);
     } finally {
       setLoading(false);
     }
@@ -98,16 +142,38 @@ export default function LoginScreen() {
     }
     setLoading(true);
     try {
-      await api.post('/auth/set-mpin', { phone, mpin });
       const pending = userAfterOtp;
+      if (pending?.mpinResetToken) {
+        await api.post(
+          '/auth/set-mpin',
+          { mpin },
+          { headers: { 'x-mpin-reset-token': pending.mpinResetToken } }
+        );
+        const loginResp = await api.post('/auth/login', { phone: pending.phone || phone, mpin });
+        if (loginResp.data?.success && loginResp.data?.user && loginResp.data?.token) {
+          await login(loginResp.data.user, loginResp.data.token);
+          router.replace('/(tabs)');
+        } else {
+          Alert.alert(t('common.error'), 'MPIN updated. Please login now.');
+          setStep('phone');
+        }
+      } else if (pending?.token) {
+        await api.post(
+          '/auth/set-mpin',
+          { mpin },
+          { headers: { Authorization: `Bearer ${pending.token}` } }
+        );
+        if (pending?.user) {
+          await login(pending.user, pending.token);
+          router.replace('/(tabs)');
+        }
+      } else {
+        Alert.alert(t('common.error'), 'Session expired. Please verify OTP again.');
+      }
       setUserAfterOtp(null);
       setMpin('');
       setMpinConfirm('');
       setStep('phone');
-      if (pending?.user) {
-        await login(pending.user, pending.token);
-        router.replace('/(tabs)');
-      }
     } catch (error: any) {
       Alert.alert(t('common.error'), error.response?.data?.detail || 'Failed to set MPIN');
     } finally {
@@ -132,12 +198,12 @@ export default function LoginScreen() {
       if (error.response?.status === 404 || (typeof detail === 'string' && detail.toLowerCase().includes('not found'))) {
         Alert.alert(t('common.error'), t('login.errorUserNotFound'), [
           { text: t('common.cancel'), style: 'cancel' },
-          { text: t('login.getOtp'), onPress: () => { setStep('phone'); sendOTP(); } },
+          { text: t('login.getOtp'), onPress: () => { setStep('phone'); sendOTP('reset_mpin'); } },
         ]);
       } else if (error.response?.status === 400 && typeof detail === 'string' && detail.toLowerCase().includes('not set')) {
         Alert.alert(t('common.error'), t('login.errorMpinNotSet'), [
           { text: t('common.cancel'), style: 'cancel' },
-          { text: t('login.getOtp'), onPress: () => { setStep('phone'); sendOTP(); } },
+          { text: t('login.getOtp'), onPress: () => { setStep('phone'); sendOTP('reset_mpin'); } },
         ]);
       } else {
         Alert.alert(t('common.error'), typeof detail === 'string' ? detail : t('login.errorVerifyOtp'));
@@ -181,7 +247,7 @@ export default function LoginScreen() {
       </Button>
       <Button
         mode="text"
-        onPress={sendOTP}
+        onPress={() => sendOTP('reset_mpin')}
         loading={loading}
         textColor={colors.terracotta}
         style={styles.textButton}
@@ -190,7 +256,7 @@ export default function LoginScreen() {
       </Button>
       <Button
         mode="text"
-        onPress={sendOTP}
+        onPress={() => sendOTP('register')}
         textColor={colors.muted}
         style={styles.textButton}
       >
@@ -235,7 +301,7 @@ export default function LoginScreen() {
       </Button>
       <Button
         mode="text"
-        onPress={() => { setStep('phone'); setMpin(''); sendOTP(); }}
+        onPress={() => { setStep('phone'); setMpin(''); sendOTP('reset_mpin'); }}
         textColor={colors.terracotta}
         style={styles.textButton}
       >

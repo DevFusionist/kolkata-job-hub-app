@@ -27,6 +27,7 @@ import { useAuth } from '../_contexts/AuthContext';
 import { useLanguage } from '../_contexts/LanguageContext';
 import { useTheme } from '../_contexts/ThemeContext';
 import { GlassCard } from '../_components/GlassCard';
+import { PaymentModal } from '../_components/PaymentModal';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import type { ThemeColors } from '../_theme';
 
@@ -45,11 +46,31 @@ export default function ProfileScreen() {
     generatedResumeUrl?: string | null;
   } | null>(null);
   const [loadingViewUrl, setLoadingViewUrl] = useState<'upload' | 'generated' | null>(null);
+  const [paymentModalVisible, setPaymentModalVisible] = useState(false);
+  const [entitlements, setEntitlements] = useState<{ aiFreeTokensRemaining?: number; aiPaidTokensRemaining?: number } | null>(null);
   const { t } = useLanguage();
   const router = useRouter();
   const isEmployer = user?.role === 'employer';
   const isSeeker = user?.role === 'seeker';
   const styles = useMemo(() => createStyles(colors), [colors]);
+
+  const fetchEntitlements = useCallback(async () => {
+    try {
+      const { data } = await api.get('/payments/entitlements');
+      if (data) {
+        setEntitlements({
+          aiFreeTokensRemaining: data.aiFreeTokensRemaining,
+          aiPaidTokensRemaining: data.aiPaidTokensRemaining,
+        });
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  useEffect(() => {
+    if (user?.id) fetchEntitlements();
+  }, [user?.id, fetchEntitlements]);
 
   const fetchPortfolio = useCallback(async () => {
     if (!user?.id || !isSeeker) return;
@@ -133,6 +154,15 @@ export default function ProfileScreen() {
         t('profile.resumeUploaded') || `Resume "${file.name}" uploaded successfully!${data.aiAnalysis ? ' Skills extracted from your resume.' : ''}`,
       );
     } catch (err: any) {
+      if (err.response?.status === 402) {
+        setPaymentModalVisible(true);
+        Alert.alert(
+          t('profile.paymentRequiredAi') || 'AI credits needed',
+          err.response?.data?.detail || (t('profile.paymentRequiredAi') || 'Add AI credits to analyze your resume.'),
+          [{ text: t('common.ok') }],
+        );
+        return;
+      }
       Alert.alert(
         t('common.error'),
         err.response?.data?.detail || err.message || 'Resume upload failed',
@@ -405,6 +435,15 @@ export default function ProfileScreen() {
                   setPortfolioLinks('');
                   Alert.alert(t('common.success'), t('profile.skillsExtracted'));
                 } catch (err: any) {
+                  if (err.response?.status === 402) {
+                    setPaymentModalVisible(true);
+                    Alert.alert(
+                      t('profile.paymentRequiredAi') || 'AI credits needed',
+                      err.response?.data?.detail || (t('profile.paymentRequiredAi') || 'Add AI credits to continue.'),
+                      [{ text: t('common.ok') }],
+                    );
+                    return;
+                  }
                   Alert.alert(t('common.error'), err.response?.data?.detail || err.message || 'Analysis failed');
                 } finally {
                   setAnalyzing(false);
@@ -450,6 +489,14 @@ export default function ProfileScreen() {
             )}
 
             <List.Item
+              title={t('profile.aiCredits') || 'AI credits'}
+              description={`${t('profile.aiCreditsDesc') || 'For chat, resume analysis & AI builder'} — ${(entitlements?.aiFreeTokensRemaining ?? user?.aiFreeTokensRemaining ?? 0) + (entitlements?.aiPaidTokensRemaining ?? user?.aiPaidTokensRemaining ?? 0)} ${t('profile.creditsRemaining') || 'remaining'}`}
+              left={(props) => <List.Icon {...props} icon="robot" />}
+              right={(props) => <List.Icon {...props} icon="chevron-right" />}
+              onPress={() => setPaymentModalVisible(true)}
+            />
+
+            <List.Item
               title={t('profile.helpSupport')}
               left={(props) => <List.Icon {...props} icon="help-circle" />}
               right={(props) => <List.Icon {...props} icon="chevron-right" />}
@@ -480,6 +527,17 @@ export default function ProfileScreen() {
         </Button>
         </ScrollView>
       </ImageBackground>
+      <PaymentModal
+        visible={paymentModalVisible}
+        onClose={() => setPaymentModalVisible(false)}
+        onSuccess={() => {
+          fetchEntitlements();
+          setPaymentModalVisible(false);
+        }}
+        title={t('profile.addAiCredits') || 'Add AI credits'}
+        subtitle={t('profile.addAiCreditsSubtitle') || 'Buy AI credits for Protibha chat, resume analysis, and AI resume builder.'}
+        filter="ai"
+      />
     </SafeAreaView>
   );
 }

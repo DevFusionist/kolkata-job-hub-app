@@ -155,7 +155,13 @@
     "aiResumeReady": "AI Resume saved and ready",
     "viewResume": "View",
     "cannotOpenResume": "Cannot open resume",
-    "resumeNotAvailable": "Resume is not available to view"
+    "resumeNotAvailable": "Resume is not available to view",
+    "aiCredits": "AI credits",
+    "aiCreditsDesc": "For Protibha chat, resume analysis & AI builder",
+    "creditsRemaining": "remaining",
+    "addAiCredits": "Add AI credits",
+    "addAiCreditsSubtitle": "Buy AI credits for Protibha chat, resume analysis, and AI resume builder.",
+    "paymentRequiredAi": "AI credits exhausted. Add credits to continue."
   },
   "postJob": {
     "title": "Post a Job",
@@ -281,6 +287,10 @@
     "savedToProfile": "Your AI resume has been saved to your profile! Employers can now view it.",
     "noResumeUrl": "Resume PDF could not be saved. Please try regenerating.",
     "stayHere": "Stay Here",
-    "goToProfile": "Go to Profile"
+    "goToProfile": "Go to Profile",
+    "creditsRequired": "AI credits needed",
+    "creditsRequiredDesc": "Add AI credits to generate your resume.",
+    "addAiCredits": "Add AI credits",
+    "addAiCreditsSubtitle": "Buy AI credits to generate your resume with AI."
   }
 }

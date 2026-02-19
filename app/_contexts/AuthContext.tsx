@@ -20,6 +20,9 @@ export interface User {
   paidJobsRemaining?: number;
   subscriptionPlan?: "none" | "monthly_unlimited";
   subscriptionExpiresAt?: string | null;
+  aiFreeTokensRemaining?: number;
+  aiPaidTokensRemaining?: number;
+  canUseAi?: boolean;
 
   preferredLanguage: "en" | "bn";
 

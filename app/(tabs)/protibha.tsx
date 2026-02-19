@@ -41,6 +41,7 @@ import Animated, {
   Layout,
 } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
+import { PaymentModal } from '../_components/PaymentModal';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -156,7 +157,21 @@ export default function ProtibhaTabScreen() {
   const flatListRef = useRef<FlatList>(null);
   const lastJobsRef = useRef<LastJobContext[]>([]);
   const isEmployer = user?.role === 'employer';
+  const [paymentModalVisible, setPaymentModalVisible] = useState(false);
+  const [entitlements, setEntitlements] = useState<{ aiFreeTokensRemaining?: number; aiPaidTokensRemaining?: number; canUseAi?: boolean } | null>(null);
   const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
+
+  const refreshEntitlements = useCallback(async () => {
+    if (!user?.id) return;
+    try {
+      const { data } = await api.get('/payments/entitlements');
+      setEntitlements(data);
+    } catch { /* ignore */ }
+  }, [user?.id]);
+
+  useEffect(() => {
+    refreshEntitlements();
+  }, [refreshEntitlements]);
 
   // Pagination state for chat history
   const [historyLoading, setHistoryLoading] = useState(false);
@@ -276,10 +291,7 @@ export default function ProtibhaTabScreen() {
       const payload = data.payload ?? {};
 
       if (action === 'payment_required') {
-        Alert.alert(t('protibha.paymentRequired'), reply, [
-          { text: t('common.cancel'), style: 'cancel' },
-          { text: t('protibha.payNow'), onPress: () => router.push('/(tabs)/post-job') },
-        ]);
+        setPaymentModalVisible(true);
       }
 
       if (action === 'build_resume') {
@@ -325,7 +337,7 @@ export default function ProtibhaTabScreen() {
             {
               id: `a-sim-${Date.now()}`,
               role: 'assistant',
-              content: '💡 Erokom aaro jobs aache! Dekhe nin:',
+              content: '💡 More similar jobs below:',
               timestamp: new Date(),
               payload: { jobs: payload.similarJobs },
             },
@@ -420,7 +432,11 @@ export default function ProtibhaTabScreen() {
       </Text>
       <View style={styles.chipsRow}>
         {quickChips.map((chip, idx) => (
-          <Animated.View key={chip.key} entering={FadeInUp.duration(400).delay(400 + idx * 120)} style={styles.chipAnimWrap}>
+          <Animated.View
+            key={chip.key}
+            entering={FadeInUp.duration(450).delay(350 + idx * 100).springify().damping(14)}
+            style={styles.chipAnimWrap}
+          >
             <TouchableOpacity
               activeOpacity={0.75}
               onPress={() => handleChipPress(chip.command, chip.label)}
@@ -450,10 +466,15 @@ export default function ProtibhaTabScreen() {
   const renderMessage = ({ item, index }: { item: ChatMessage; index: number }) => {
     const isUser = item.role === 'user';
     const jobs = item.payload?.jobs;
-    const enterAnim = isUser ? SlideInRight.duration(300) : SlideInLeft.duration(300);
+    const enterAnim = isUser
+      ? SlideInRight.duration(320).springify().damping(18)
+      : SlideInLeft.duration(320).springify().damping(18);
 
     return (
-      <Animated.View entering={enterAnim} layout={Layout.springify()}>
+      <Animated.View
+        entering={enterAnim}
+        layout={Layout.springify().damping(16).stiffness(120)}
+      >
         <View style={[styles.messageRow, isUser ? styles.userRow : styles.assistantRow]}>
           {!isUser && (
             <View style={styles.avatarSmall}>
@@ -535,7 +556,7 @@ export default function ProtibhaTabScreen() {
   };
 
   const renderTypingIndicator = () => (
-    <Animated.View entering={FadeIn.duration(300)} style={[styles.messageRow, styles.assistantRow]}>
+    <Animated.View entering={FadeIn.duration(200).springify()} style={[styles.messageRow, styles.assistantRow]}>
       <View style={styles.avatarSmall}>
         <LinearGradient
           colors={[colors.terracotta, colors.gold]}
@@ -586,6 +607,12 @@ export default function ProtibhaTabScreen() {
         <Text variant="bodySmall" style={styles.poweredBy}>
           {t('protibha.poweredBy')}
         </Text>
+        <View style={styles.creditsBadge}>
+          <MaterialCommunityIcons name="robot-happy-outline" size={12} color={colors.terracotta} />
+          <Text variant="labelSmall" style={styles.creditsText}>
+            AI: {(entitlements?.aiFreeTokensRemaining ?? user?.aiFreeTokensRemaining ?? 0) + (entitlements?.aiPaidTokensRemaining ?? user?.aiPaidTokensRemaining ?? 0)}
+          </Text>
+        </View>
         {messages.length > 1 && (
           <TouchableOpacity
             onPress={handleClearChat}
@@ -596,6 +623,14 @@ export default function ProtibhaTabScreen() {
           </TouchableOpacity>
         )}
       </View>
+      <PaymentModal
+        visible={paymentModalVisible}
+        onClose={() => setPaymentModalVisible(false)}
+        onSuccess={() => { refreshEntitlements(); setPaymentModalVisible(false); }}
+        title={t('protibha.paymentRequired')}
+        subtitle="Buy AI credits to continue chatting with Protibha."
+        filter="ai"
+      />
 
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -806,6 +841,21 @@ function createStyles(colors: ThemeColors, isDark: boolean) {
       padding: 6,
       marginLeft: 6,
     },
+    creditsBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      borderRadius: 12,
+      backgroundColor: isDark ? 'rgba(224,123,111,0.15)' : 'rgba(160,64,53,0.12)',
+      marginRight: 4,
+    },
+    creditsText: {
+      color: colors.terracotta,
+      fontWeight: '600',
+      fontSize: 11,
+    },
 
     /* Load more history */
     loadMoreWrap: {
@@ -845,15 +895,15 @@ function createStyles(colors: ThemeColors, isDark: boolean) {
       width: '100%',
     },
     welcomeAvatarWrap: {
-      marginBottom: 12,
+      marginBottom: 16,
       ...Platform.select({
         ios: {
           shadowColor: colors.terracotta,
-          shadowOffset: { width: 0, height: 0 },
-          shadowOpacity: 0.4,
-          shadowRadius: 16,
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: 0.35,
+          shadowRadius: 20,
         },
-        android: { elevation: 8 },
+        android: { elevation: 10 },
       }),
     },
     welcomeAvatarGradient: {
@@ -973,19 +1023,28 @@ function createStyles(colors: ThemeColors, isDark: boolean) {
       maxWidth: SCREEN_WIDTH * 0.72,
     },
     bubble: {
-      borderRadius: 18,
-      paddingHorizontal: 14,
-      paddingVertical: 10,
+      borderRadius: 20,
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      ...Platform.select({
+        ios: {
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 1 },
+          shadowOpacity: isDark ? 0.15 : 0.08,
+          shadowRadius: 4,
+        },
+        android: { elevation: 2 },
+      }),
     },
     userBubble: {
       backgroundColor: userBubbleBg,
-      borderBottomRightRadius: 4,
+      borderBottomRightRadius: 6,
     },
     assistantBubble: {
       backgroundColor: assistantBubbleBg,
-      borderBottomLeftRadius: 4,
+      borderBottomLeftRadius: 6,
       borderWidth: 1,
-      borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)',
+      borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)',
     },
     bubbleText: {
       fontSize: 15,
@@ -1015,12 +1074,16 @@ function createStyles(colors: ThemeColors, isDark: boolean) {
       fontWeight: '600',
     },
     jobCard: {
-      marginBottom: 8,
-      borderRadius: 12,
-      padding: 12,
+      marginBottom: 10,
+      borderRadius: 14,
+      padding: 14,
       backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : colors.surface,
       borderWidth: 1,
       borderColor: isDark ? 'rgba(255,255,255,0.1)' : colors.border,
+      ...Platform.select({
+        ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 3 },
+        android: { elevation: 2 },
+      }),
     },
     jobCardHeader: {
       flexDirection: 'row',
@@ -1071,13 +1134,13 @@ function createStyles(colors: ThemeColors, isDark: boolean) {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 8,
-      paddingHorizontal: 14,
-      paddingVertical: 10,
-      borderRadius: 18,
-      borderBottomLeftRadius: 4,
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      borderRadius: 20,
+      borderBottomLeftRadius: 6,
       backgroundColor: assistantBubbleBg,
       borderWidth: 1,
-      borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)',
+      borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)',
     },
     typingLabel: {
       color: colors.textSecondary,

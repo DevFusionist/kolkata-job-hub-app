@@ -27,6 +27,7 @@ import { useAuth } from './_contexts/AuthContext';
 import { useLanguage } from './_contexts/LanguageContext';
 import { useTheme } from './_contexts/ThemeContext';
 import { GlassCard } from './_components/GlassCard';
+import { PaymentModal } from './_components/PaymentModal';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import type { ThemeColors } from './_theme';
 
@@ -78,6 +79,7 @@ export default function ResumeBuilderScreen() {
   const [resumeUrl, setResumeUrl] = useState<string | null>(null);
   const [sharing, setSharing] = useState(false);
   const [savedToProfile, setSavedToProfile] = useState(false);
+  const [paymentModalVisible, setPaymentModalVisible] = useState(false);
 
   // Hydrate user info on mount
   useEffect(() => {
@@ -133,6 +135,15 @@ export default function ResumeBuilderScreen() {
       }
       setStep('preview');
     } catch (err: any) {
+      if (err.response?.status === 402) {
+        setPaymentModalVisible(true);
+        Alert.alert(
+          t('resume.creditsRequired') || 'AI credits needed',
+          err.response?.data?.detail || (t('resume.creditsRequiredDesc') || 'Add AI credits to generate your resume.'),
+          [{ text: t('common.ok') }],
+        );
+        return;
+      }
       Alert.alert(
         t('common.error'),
         err.response?.data?.detail || err.message || 'Resume generation failed',
@@ -140,7 +151,7 @@ export default function ResumeBuilderScreen() {
     } finally {
       setGenerating(false);
     }
-  }, [name, phone, location, skills, languages, experience, additionalInfo, user]);
+  }, [name, phone, location, skills, languages, experience, additionalInfo, user, t]);
 
   const handleShare = useCallback(async () => {
     if (!resumeHtml) return;
@@ -580,6 +591,14 @@ export default function ResumeBuilderScreen() {
           )}
         </ScrollView>
       </KeyboardAvoidingView>
+      <PaymentModal
+        visible={paymentModalVisible}
+        onClose={() => setPaymentModalVisible(false)}
+        onSuccess={() => setPaymentModalVisible(false)}
+        title={t('resume.addAiCredits') || 'Add AI credits'}
+        subtitle={t('resume.addAiCreditsSubtitle') || 'Buy AI credits to generate your resume with AI.'}
+        filter="ai"
+      />
     </SafeAreaView>
   );
 }

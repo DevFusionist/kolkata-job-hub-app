@@ -7,6 +7,7 @@ import {
   Platform,
   Alert,
   ImageBackground,
+  TouchableOpacity,
 } from 'react-native';
 import {
   Text,
@@ -20,6 +21,7 @@ import api from '../_lib/api';
 import { useAuth } from '../_contexts/AuthContext';
 import { useTheme } from '../_contexts/ThemeContext';
 import { GlassCard } from '../_components/GlassCard';
+import { PaymentModal } from '../_components/PaymentModal';
 import type { ThemeColors } from '../_theme';
 
 const CATEGORIES = [
@@ -63,6 +65,9 @@ export default function PostJobScreen() {
     subscriptionExpiresAt: string | null;
     subscriptionActive: boolean;
     canPost: boolean;
+    aiFreeTokensRemaining?: number;
+    aiPaidTokensRemaining?: number;
+    canUseAi?: boolean;
   } | null>(null);
   const [catalog, setCatalog] = useState<Array<{
     itemCode: string;
@@ -86,12 +91,17 @@ export default function PostJobScreen() {
   const [education, setEducation] = useState('');
   const [selectedLanguages, setSelectedLanguages] = useState<string[]>([]);
   const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
+  const [paymentModalVisible, setPaymentModalVisible] = useState(false);
+  const [paymentModalFilter, setPaymentModalFilter] = useState<'job' | 'ai' | 'all'>('all');
 
   const syncAuthFromEntitlements = useCallback(async (next: {
     freeJobsRemaining: number;
     paidJobsRemaining: number;
     subscriptionPlan: 'none' | 'monthly_unlimited';
     subscriptionExpiresAt: string | null;
+    aiFreeTokensRemaining?: number;
+    aiPaidTokensRemaining?: number;
+    canUseAi?: boolean;
   }) => {
     if (!user) return;
     await updateUser({
@@ -100,6 +110,9 @@ export default function PostJobScreen() {
       paidJobsRemaining: next.paidJobsRemaining,
       subscriptionPlan: next.subscriptionPlan,
       subscriptionExpiresAt: next.subscriptionExpiresAt,
+      aiFreeTokensRemaining: next.aiFreeTokensRemaining,
+      aiPaidTokensRemaining: next.aiPaidTokensRemaining,
+      canUseAi: next.canUseAi,
     });
   }, [user, updateUser]);
 
@@ -141,15 +154,9 @@ export default function PostJobScreen() {
     }
   };
 
-  function showPurchaseOptions() {
-    const single = catalog.find((x) => x.itemCode === 'single_job');
-    const pack = catalog.find((x) => x.itemCode === 'credits_5');
-    const sub = catalog.find((x) => x.itemCode === 'subscription_monthly');
-    Alert.alert('Posting Limit Reached', 'Buy extra credits or subscribe to continue posting jobs.', [
-      single ? { text: `${single.label}`, onPress: () => handlePayment(single.itemCode) } : { text: 'Buy 1 Credit', onPress: () => handlePayment('single_job') },
-      pack ? { text: `${pack.label}`, onPress: () => handlePayment(pack.itemCode) } : { text: 'Buy 5 Credits', onPress: () => handlePayment('credits_5') },
-      sub ? { text: `${sub.label}`, onPress: () => handlePayment(sub.itemCode) } : { text: 'Subscribe', onPress: () => handlePayment('subscription_monthly') },
-    ]);
+  function showPurchaseOptions(filter: 'job' | 'ai' | 'all' = 'job') {
+    setPaymentModalFilter(filter);
+    setPaymentModalVisible(true);
   }
 
   const handlePostJob = async () => {
@@ -178,7 +185,7 @@ export default function PostJobScreen() {
     const canPost = entitlements?.canPost
       ?? (fallbackSubActive || ((user?.freeJobsRemaining || 0) + (user?.paidJobsRemaining || 0) > 0));
     if (!canPost) {
-      showPurchaseOptions();
+      showPurchaseOptions('job');
       return;
     }
 
@@ -200,7 +207,6 @@ export default function PostJobScreen() {
       await api.post('/jobs', jobData);
 
       await refreshBilling();
-
       Alert.alert('Success', 'Job posted successfully!', [
         { text: 'OK', onPress: () => router.push('/(tabs)') },
       ]);
@@ -228,37 +234,9 @@ export default function PostJobScreen() {
     }
   };
 
-  const handlePayment = async (itemCode = 'single_job') => {
-    try {
-      // Create Razorpay order
-      const orderResponse = await api.post('/payments/create-order', { itemCode });
-
-      // Mock payment success (in production, use Razorpay SDK)
-      Alert.alert(
-        'Demo Payment',
-        'This is a demo. In production, Razorpay payment gateway will open here.',
-        [
-          {
-            text: 'Simulate Success',
-            onPress: async () => {
-              await api.post('/payments/verify', {
-                itemCode,
-                razorpayOrderId: orderResponse.data.id,
-                razorpayPaymentId: 'demo_payment_id',
-                razorpaySignature: 'demo_signature',
-              });
-
-              await refreshBilling();
-
-              Alert.alert('Success', 'Payment successful! Your posting balance is updated.');
-            },
-          },
-        ]
-      );
-    } catch (error: any) {
-      Alert.alert('Error', error.response?.data?.detail || 'Payment failed');
-    }
-  };
+  const handlePaymentSuccess = useCallback(() => {
+    refreshBilling();
+  }, [refreshBilling]);
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
@@ -272,13 +250,21 @@ export default function PostJobScreen() {
             Post a Job
           </Text>
           <Text variant="bodyMedium" style={styles.headerSubtitle}>
-            Free: {entitlements?.freeJobsRemaining ?? user?.freeJobsRemaining ?? 0}
-            {'  '}|{'  '}
-            Paid: {entitlements?.paidJobsRemaining ?? user?.paidJobsRemaining ?? 0}
-            {'  '}|{'  '}
-            Plan: {entitlements?.subscriptionActive ? 'Active Subscription' : 'Free'}
-            {billingLoading ? ' (syncing...)' : ''}
+            Jobs — Free: {entitlements?.freeJobsRemaining ?? user?.freeJobsRemaining ?? 0}
+            {' · '}Paid: {entitlements?.paidJobsRemaining ?? user?.paidJobsRemaining ?? 0}
+            {' · '}{entitlements?.subscriptionActive ? '✓ Subscription' : 'Free'}
           </Text>
+          <Text variant="bodySmall" style={styles.headerSubtitleAi}>
+            AI credits — Free: {entitlements?.aiFreeTokensRemaining ?? user?.aiFreeTokensRemaining ?? 0}
+            {' · '}Paid: {entitlements?.aiPaidTokensRemaining ?? user?.aiPaidTokensRemaining ?? 0}
+            {billingLoading ? ' (syncing…)' : ''}
+          </Text>
+          <TouchableOpacity
+            style={styles.addCreditsBtn}
+            onPress={() => showPurchaseOptions('all')}
+          >
+            <Text variant="labelMedium" style={styles.addCreditsBtnText}>Add credits</Text>
+          </TouchableOpacity>
         </View>
 
         <KeyboardAvoidingView
@@ -441,6 +427,14 @@ export default function PostJobScreen() {
         </ScrollView>
         </KeyboardAvoidingView>
       </ImageBackground>
+      <PaymentModal
+        visible={paymentModalVisible}
+        onClose={() => setPaymentModalVisible(false)}
+        onSuccess={handlePaymentSuccess}
+        title="Add credits"
+        subtitle="Buy job credits, subscription, or AI credits."
+        filter={paymentModalFilter}
+      />
     </SafeAreaView>
   );
 }
@@ -470,6 +464,25 @@ function createStyles(colors: ThemeColors, isDark: boolean) {
       color: colors.text,
       fontSize: 16,
       opacity: 0.8,
+    },
+    headerSubtitleAi: {
+      marginTop: 2,
+      color: colors.textSecondary,
+      fontSize: 13,
+    },
+    addCreditsBtn: {
+      marginTop: 8,
+      alignSelf: 'flex-start',
+      paddingVertical: 6,
+      paddingHorizontal: 12,
+      borderRadius: 8,
+      backgroundColor: colors.terracotta + '20',
+      borderWidth: 1,
+      borderColor: colors.terracotta,
+    },
+    addCreditsBtnText: {
+      color: colors.terracotta,
+      fontWeight: '600',
     },
     flex: {
       flex: 1,

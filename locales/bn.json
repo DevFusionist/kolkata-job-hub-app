@@ -155,7 +155,13 @@
     "aiResumeReady": "AI জীবনবৃত্তান্ত সংরক্ষিত ও প্রস্তুত",
     "viewResume": "দেখুন",
     "cannotOpenResume": "জীবনবৃত্তান্ত খোলা যাচ্ছে না",
-    "resumeNotAvailable": "জীবনবৃত্তান্ত দেখতে পাওয়া যাচ্ছে না"
+    "resumeNotAvailable": "জীবনবৃত্তান্ত দেখতে পাওয়া যাচ্ছে না",
+    "aiCredits": "AI ক্রেডিট",
+    "aiCreditsDesc": "প্রতিভা চ্যাট, রিজিউম বিশ্লেষণ ও AI বিল্ডার",
+    "creditsRemaining": "বাকি",
+    "addAiCredits": "AI ক্রেডিট যোগ করুন",
+    "addAiCreditsSubtitle": "প্রতিভা চ্যাট, রিজিউম বিশ্লেষণ ও AI রিজিউম বিল্ডারের জন্য ক্রেডিট কিনুন।",
+    "paymentRequiredAi": "AI ক্রেডিট শেষ। চালিয়ে যেতে ক্রেডিট যোগ করুন।"
   },
   "postJob": {
     "title": "চাকরি পোস্ট করুন",
@@ -281,6 +287,10 @@
     "savedToProfile": "আপনার AI জীবনবৃত্তান্ত প্রোফাইলে সংরক্ষিত হয়েছে! নিয়োগকর্তারা এখন এটি দেখতে পারবেন।",
     "noResumeUrl": "জীবনবৃত্তান্ত PDF সংরক্ষণ হয়নি। আবার তৈরি করুন।",
     "stayHere": "এখানে থাকুন",
-    "goToProfile": "প্রোফাইলে যান"
+    "goToProfile": "প্রোফাইলে যান",
+    "creditsRequired": "AI ক্রেডিট প্রয়োজন",
+    "creditsRequiredDesc": "রিজিউম জেনারেট করতে AI ক্রেডিট যোগ করুন।",
+    "addAiCredits": "AI ক্রেডিট যোগ করুন",
+    "addAiCreditsSubtitle": "AI দিয়ে রিজিউম তৈরি করতে ক্রেডিট কিনুন।"
   }
 }

@@ -7,6 +7,7 @@ import {
   View,
   StyleSheet,
   Modal,
+  Pressable,
   TouchableOpacity,
   ScrollView,
   Platform,
@@ -19,9 +20,10 @@ import { useTheme } from '../_contexts/ThemeContext';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import RazorpayCheckout from 'react-native-razorpay';
 import api from '../_lib/api';
+import { openRazorpayWebCheckout } from '../_lib/razorpayWeb';
+import type { ThemeColors } from '../_theme';
 
 const RazorpayNative = NativeModules.RNRazorpayCheckout;
-import type { ThemeColors } from '../_theme';
 
 export type CatalogItem = {
   itemCode: string;
@@ -57,7 +59,7 @@ export function PaymentModal({
   const [loading, setLoading] = useState(false);
   const [payingItem, setPayingItem] = useState<string | null>(null);
 
-  const loadCatalog = async () => {
+  const loadCatalog = React.useCallback(async () => {
     if (!visible) return;
     setLoading(true);
     try {
@@ -74,21 +76,21 @@ export function PaymentModal({
     } finally {
       setLoading(false);
     }
-  };
+  }, [visible, filter]);
 
   React.useEffect(() => {
     if (visible) loadCatalog();
-  }, [visible, filter]);
+  }, [visible, loadCatalog]);
 
   const handlePurchase = async (itemCode: string) => {
     setPayingItem(itemCode);
     try {
-      if (!RazorpayNative || typeof RazorpayNative.open !== 'function') {
+      const isWeb = Platform.OS === 'web';
+      if (!isWeb && (!RazorpayNative || typeof RazorpayNative.open !== 'function')) {
         Alert.alert(
           'Payment unavailable',
-          'Razorpay works only in a native development build. Run: npx expo run:android or npx expo run:ios (not Expo Go or web).'
+          'Razorpay works only in a native development build. Run: npx expo run:android or npx expo run:ios (not Expo Go).'
         );
-        setPayingItem(null);
         return;
       }
 
@@ -96,15 +98,23 @@ export function PaymentModal({
       const { id: orderId, keyId, amount, currency } = orderRes.data || {};
       if (!orderId || !keyId) throw new Error('Invalid order response');
 
-      const paymentData = await RazorpayCheckout.open({
-        description: orderRes.data?.label || 'Payment',
-        currency: currency || 'INR',
+      const description = orderRes.data?.label || 'Payment';
+      const orderCurrency = currency || 'INR';
+      const orderAmount = Number(amount || 0);
+      const checkoutOptsWeb = {
+        description,
+        currency: orderCurrency,
         key: keyId,
-        amount: String(amount || 0),
+        amount: orderAmount,
         name: 'Kolkata Job Hub',
         order_id: orderId,
         theme: { color: '#A04035' },
-      });
+      };
+      const checkoutOptsNative = { ...checkoutOptsWeb, amount: String(orderAmount) };
+
+      const paymentData = isWeb
+        ? await openRazorpayWebCheckout(checkoutOptsWeb)
+        : await RazorpayCheckout.open(checkoutOptsNative);
 
 
       const paymentId = paymentData?.razorpay_payment_id;
@@ -119,10 +129,15 @@ export function PaymentModal({
       onSuccess();
       onClose();
     } catch (e: any) {
-      if (e?.code === 0 || e?.description === 'User closed the checkout form') {
+      if (e?.code === 0 || e?.code === 'dismissed' || e?.description === 'User closed the checkout form') {
         // User cancelled – no error message
       } else {
-        const msg = e.response?.data?.detail || e.message || e.description || 'Payment failed';
+        const msg =
+          e?.error?.description ||
+          e.response?.data?.detail ||
+          e.message ||
+          e.description ||
+          'Payment failed';
         Alert.alert('Payment', msg);
       }
     } finally {
@@ -131,24 +146,29 @@ export function PaymentModal({
   };
 
   const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
+  const canClose = !payingItem;
 
   return (
     <Modal
       visible={visible}
       transparent
       animationType="fade"
-      onRequestClose={onClose}
+      onRequestClose={() => {
+        if (canClose) onClose();
+      }}
     >
-      <TouchableOpacity
-        style={styles.backdrop}
-        activeOpacity={1}
-        onPress={onClose}
-      >
-        <TouchableOpacity activeOpacity={1} onPress={(e) => e.stopPropagation()} style={styles.box}>
+      <View style={styles.backdrop}>
+        <Pressable style={styles.backdropPressable} onPress={canClose ? onClose : undefined} />
+        <View style={styles.box}>
           <View style={styles.header}>
             <Text variant="titleLarge" style={styles.title}>{title}</Text>
             <Text variant="bodyMedium" style={styles.subtitle}>{subtitle}</Text>
-            <TouchableOpacity onPress={onClose} style={styles.closeBtn} hitSlop={12}>
+            <TouchableOpacity
+              onPress={onClose}
+              style={[styles.closeBtn, !canClose && styles.closeBtnDisabled]}
+              hitSlop={12}
+              disabled={!canClose}
+            >
               <MaterialCommunityIcons name="close" size={24} color={colors.text} />
             </TouchableOpacity>
           </View>
@@ -198,12 +218,18 @@ export function PaymentModal({
             </ScrollView>
           )}
           <View style={styles.footer}>
-            <Button mode="outlined" onPress={onClose} style={styles.cancelBtn} textColor={colors.text}>
+            <Button
+              mode="outlined"
+              onPress={onClose}
+              style={styles.cancelBtn}
+              textColor={colors.text}
+              disabled={!canClose}
+            >
               Cancel
             </Button>
           </View>
-        </TouchableOpacity>
-      </TouchableOpacity>
+        </View>
+      </View>
     </Modal>
   );
 }
@@ -217,6 +243,9 @@ function createStyles(colors: ThemeColors, isDark: boolean) {
       alignItems: 'center',
       padding: 24,
     },
+    backdropPressable: {
+      ...StyleSheet.absoluteFillObject,
+    },
     box: {
       width: '100%',
       maxWidth: 400,
@@ -224,6 +253,7 @@ function createStyles(colors: ThemeColors, isDark: boolean) {
       backgroundColor: colors.surface,
       borderRadius: 16,
       overflow: 'hidden',
+      zIndex: 1,
       ...Platform.select({
         ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 12 },
         android: { elevation: 8 },
@@ -247,6 +277,9 @@ function createStyles(colors: ThemeColors, isDark: boolean) {
       position: 'absolute',
       top: 16,
       right: 16,
+    },
+    closeBtnDisabled: {
+      opacity: 0.4,
     },
     loader: {
       padding: 40,

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   View,
   StyleSheet,
@@ -17,7 +17,7 @@ import {
   Searchbar,
 } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import api from '../_lib/api';
 import { useAuth } from '../_contexts/AuthContext';
 import { useLanguage } from '../_contexts/LanguageContext';
@@ -56,12 +56,16 @@ export default function HomeScreen() {
   const isEmployer = user?.role === 'employer';
   const isSeeker = user?.role === 'seeker';
 
-  useEffect(() => {
-    fetchJobs();
-    if (isSeeker && user?.id) {
-      fetchRecommended();
-    }
-  }, []);
+  // Refresh every time the tab/screen gains focus so newly posted jobs
+  // (from post-job form or Protibha chat) appear immediately without a manual pull-to-refresh.
+  useFocusEffect(
+    useCallback(() => {
+      fetchJobs();
+      if (isSeeker && user?.id) {
+        fetchRecommended();
+      }
+    }, [isEmployer, isSeeker, user?.id])
+  );
 
   const fetchRecommended = async () => {
     try {

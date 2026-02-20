@@ -201,7 +201,7 @@ export default function ProfileScreen() {
         </View>
 
         <ScrollView style={styles.content}>
-        <GlassCard style={styles.card}>
+          <GlassCard style={styles.card}>
             <View style={styles.profileHeader}>
               <MaterialCommunityIcons
                 name={isEmployer ? 'briefcase' : 'account'}
@@ -275,190 +275,190 @@ export default function ProfileScreen() {
                 </View>
               </View>
             )}
-        </GlassCard>
+          </GlassCard>
 
-        {isSeeker && (
-          <GlassCard style={styles.card}>
-            <View style={styles.resumeSectionHeader}>
-              <MaterialCommunityIcons name="file-document-outline" size={24} color={colors.terracotta} />
-              <Text variant="titleMedium" style={styles.sectionTitle}>
-                {t('profile.resumeSection') || 'Resume'}
-              </Text>
-            </View>
-            <Text variant="bodySmall" style={styles.portfolioHint}>
-              {t('profile.resumeHint') || 'Upload your resume or build one with AI assistance'}
-            </Text>
-
-            {(portfolio?.resumeFileName || portfolio?.generatedResumeUrl) && (
-              <View style={styles.resumeStatusContainer}>
-                {portfolio.resumeFileName && (
-                  <View style={styles.resumeStatusRow}>
-                    <MaterialCommunityIcons name="file-check" size={18} color="#16A34A" />
-                    <Text variant="bodySmall" style={styles.resumeStatusText}>
-                      {t('profile.uploadedResume') || 'Uploaded'}: {portfolio.resumeFileName}
-                    </Text>
-                    <Button
-                      mode="text"
-                      compact
-                      loading={loadingViewUrl === 'upload'}
-                      disabled={loadingViewUrl !== null}
-                      onPress={() => handleViewResume('upload')}
-                      textColor={colors.terracotta}
-                      style={styles.viewResumeButton}
-                    >
-                      {t('profile.viewResume') || 'View'}
-                    </Button>
-                  </View>
-                )}
-                {portfolio.generatedResumeUrl && (
-                  <View style={styles.resumeStatusRow}>
-                    <MaterialCommunityIcons name="robot" size={18} color="#2563EB" />
-                    <Text variant="bodySmall" style={styles.resumeStatusText}>
-                      {t('profile.aiResumeReady') || 'AI Resume saved and ready'}
-                    </Text>
-                    <Button
-                      mode="text"
-                      compact
-                      loading={loadingViewUrl === 'generated'}
-                      disabled={loadingViewUrl !== null}
-                      onPress={() => handleViewResume('generated')}
-                      textColor={colors.terracotta}
-                      style={styles.viewResumeButton}
-                    >
-                      {t('profile.viewResume') || 'View'}
-                    </Button>
-                  </View>
-                )}
+          {isSeeker && (
+            <GlassCard style={styles.card}>
+              <View style={styles.resumeSectionHeader}>
+                <MaterialCommunityIcons name="file-document-outline" size={24} color={colors.terracotta} />
+                <Text variant="titleMedium" style={styles.sectionTitle}>
+                  {t('profile.resumeSection') || 'Resume'}
+                </Text>
               </View>
-            )}
+              <Text variant="bodySmall" style={styles.portfolioHint}>
+                {t('profile.resumeHint') || 'Upload your resume or build one with AI assistance'}
+              </Text>
 
-            <View style={styles.resumeButtons}>
+              {(portfolio?.resumeFileName || portfolio?.generatedResumeUrl) && (
+                <View style={styles.resumeStatusContainer}>
+                  {portfolio.resumeFileName && (
+                    <View style={styles.resumeStatusRow}>
+                      <MaterialCommunityIcons name="file-check" size={18} color="#16A34A" />
+                      <Text variant="bodySmall" style={styles.resumeStatusText}>
+                        {t('profile.uploadedResume') || 'Uploaded'}: {portfolio.resumeFileName}
+                      </Text>
+                      <Button
+                        mode="text"
+                        compact
+                        loading={loadingViewUrl === 'upload'}
+                        disabled={loadingViewUrl !== null}
+                        onPress={() => handleViewResume('upload')}
+                        textColor={colors.terracotta}
+                        style={styles.viewResumeButton}
+                      >
+                        {t('profile.viewResume') || 'View'}
+                      </Button>
+                    </View>
+                  )}
+                  {portfolio.generatedResumeUrl && (
+                    <View style={styles.resumeStatusRow}>
+                      <MaterialCommunityIcons name="robot" size={18} color="#2563EB" />
+                      <Text variant="bodySmall" style={styles.resumeStatusText}>
+                        {t('profile.aiResumeReady') || 'AI Resume saved and ready'}
+                      </Text>
+                      <Button
+                        mode="text"
+                        compact
+                        loading={loadingViewUrl === 'generated'}
+                        disabled={loadingViewUrl !== null}
+                        onPress={() => handleViewResume('generated')}
+                        textColor={colors.terracotta}
+                        style={styles.viewResumeButton}
+                      >
+                        {t('profile.viewResume') || 'View'}
+                      </Button>
+                    </View>
+                  )}
+                </View>
+              )}
+
+              <View style={styles.resumeButtons}>
+                <Button
+                  mode="contained"
+                  onPress={handleResumeUpload}
+                  loading={uploading}
+                  disabled={uploading}
+                  icon="upload"
+                  style={styles.uploadButton}
+                  labelStyle={styles.resumeButtonLabel}
+                >
+                  {uploading
+                    ? (t('profile.uploading') || 'Uploading...')
+                    : portfolio?.resumeFileName
+                      ? (t('profile.replaceResume') || 'Replace Resume')
+                      : (t('profile.uploadResume') || 'Upload Resume')}
+                </Button>
+
+                <Button
+                  mode="outlined"
+                  onPress={() => router.push('/resume-builder')}
+                  icon="robot"
+                  style={styles.buildResumeButton}
+                  textColor={colors.terracotta}
+                  labelStyle={styles.resumeButtonLabel}
+                >
+                  {portfolio?.generatedResumeUrl
+                    ? (t('profile.rebuildResume') || 'Rebuild with AI')
+                    : (t('profile.buildResume') || 'Build with AI')}
+                </Button>
+              </View>
+
+              {uploading && (
+                <ProgressBar
+                  progress={uploadProgress}
+                  color={colors.terracotta}
+                  style={styles.progressBar}
+                />
+              )}
+            </GlassCard>
+          )}
+
+          {isSeeker && (
+            <GlassCard style={styles.card}>
+              <Text variant="titleMedium" style={styles.sectionTitle}>
+                {t('profile.improveWithAi')}
+              </Text>
+              <Text variant="bodySmall" style={styles.portfolioHint}>
+                {t('profile.improveWithAiDesc')}
+              </Text>
+              <TextInput
+                value={portfolioRawText}
+                onChangeText={setPortfolioRawText}
+                placeholder={t('profile.rawTextPlaceholder') || 'e.g. 2 years delivery experience, know Salt Lake area, Hindi and Bengali...'}
+                multiline
+                numberOfLines={4}
+                style={styles.portfolioInput}
+                textColor={colors.text}
+                editable={!analyzing}
+              />
+              <TextInput
+                value={portfolioProjects}
+                onChangeText={setPortfolioProjects}
+                placeholder={t('profile.projectsPlaceholder') || 'Projects (comma-separated, e.g. Online Shop, Food Delivery App)'}
+                style={styles.portfolioInput}
+                textColor={colors.text}
+                editable={!analyzing}
+              />
+              <TextInput
+                value={portfolioLinks}
+                onChangeText={setPortfolioLinks}
+                placeholder={t('profile.linksPlaceholder') || 'Links (comma-separated, e.g. linkedin.com/in/you, github.com/you)'}
+                style={styles.portfolioInput}
+                textColor={colors.text}
+                editable={!analyzing}
+                autoCapitalize="none"
+                keyboardType="url"
+              />
               <Button
                 mode="contained"
-                onPress={handleResumeUpload}
-                loading={uploading}
-                disabled={uploading}
-                icon="upload"
-                style={styles.uploadButton}
-                labelStyle={styles.resumeButtonLabel}
-              >
-                {uploading
-                  ? (t('profile.uploading') || 'Uploading...')
-                  : portfolio?.resumeFileName
-                    ? (t('profile.replaceResume') || 'Replace Resume')
-                    : (t('profile.uploadResume') || 'Upload Resume')}
-              </Button>
-
-              <Button
-                mode="outlined"
-                onPress={() => router.push('/resume-builder')}
-                icon="robot"
-                style={styles.buildResumeButton}
-                textColor={colors.terracotta}
-                labelStyle={styles.resumeButtonLabel}
-              >
-                {portfolio?.generatedResumeUrl
-                  ? (t('profile.rebuildResume') || 'Rebuild with AI')
-                  : (t('profile.buildResume') || 'Build with AI')}
-              </Button>
-            </View>
-
-            {uploading && (
-              <ProgressBar
-                progress={uploadProgress}
-                color={colors.terracotta}
-                style={styles.progressBar}
-              />
-            )}
-          </GlassCard>
-        )}
-
-        {isSeeker && (
-          <GlassCard style={styles.card}>
-            <Text variant="titleMedium" style={styles.sectionTitle}>
-              {t('profile.improveWithAi')}
-            </Text>
-            <Text variant="bodySmall" style={styles.portfolioHint}>
-              {t('profile.improveWithAiDesc')}
-            </Text>
-            <TextInput
-              value={portfolioRawText}
-              onChangeText={setPortfolioRawText}
-              placeholder={t('profile.rawTextPlaceholder') || 'e.g. 2 years delivery experience, know Salt Lake area, Hindi and Bengali...'}
-              multiline
-              numberOfLines={4}
-              style={styles.portfolioInput}
-              textColor={colors.text}
-              editable={!analyzing}
-            />
-            <TextInput
-              value={portfolioProjects}
-              onChangeText={setPortfolioProjects}
-              placeholder={t('profile.projectsPlaceholder') || 'Projects (comma-separated, e.g. Online Shop, Food Delivery App)'}
-              style={styles.portfolioInput}
-              textColor={colors.text}
-              editable={!analyzing}
-            />
-            <TextInput
-              value={portfolioLinks}
-              onChangeText={setPortfolioLinks}
-              placeholder={t('profile.linksPlaceholder') || 'Links (comma-separated, e.g. linkedin.com/in/you, github.com/you)'}
-              style={styles.portfolioInput}
-              textColor={colors.text}
-              editable={!analyzing}
-              autoCapitalize="none"
-              keyboardType="url"
-            />
-            <Button
-              mode="contained"
-              onPress={async () => {
-                if (!portfolioRawText.trim() || !user?.id) return;
-                setAnalyzing(true);
-                try {
-                  const projects = portfolioProjects
-                    .split(',')
-                    .map((p) => p.trim())
-                    .filter(Boolean);
-                  const links = portfolioLinks
-                    .split(',')
-                    .map((l) => l.trim())
-                    .filter(Boolean);
-                  const { data } = await api.post(
-                    '/ai/analyze-portfolio',
-                    { rawText: portfolioRawText.trim(), projects, links }
-                  );
-                  const newSkills = data.skills || [];
-                  const merged = [...new Set([...(user.skills || []), ...newSkills])].slice(0, 30);
-                  await updateUser({ ...user, skills: merged });
-                  setPortfolioRawText('');
-                  setPortfolioProjects('');
-                  setPortfolioLinks('');
-                  Alert.alert(t('common.success'), t('profile.skillsExtracted'));
-                } catch (err: any) {
-                  if (err.response?.status === 402) {
-                    setPaymentModalVisible(true);
-                    Alert.alert(
-                      t('profile.paymentRequiredAi') || 'AI credits needed',
-                      err.response?.data?.detail || (t('profile.paymentRequiredAi') || 'Add AI credits to continue.'),
-                      [{ text: t('common.ok') }],
+                onPress={async () => {
+                  if (!portfolioRawText.trim() || !user?.id) return;
+                  setAnalyzing(true);
+                  try {
+                    const projects = portfolioProjects
+                      .split(',')
+                      .map((p) => p.trim())
+                      .filter(Boolean);
+                    const links = portfolioLinks
+                      .split(',')
+                      .map((l) => l.trim())
+                      .filter(Boolean);
+                    const { data } = await api.post(
+                      '/ai/analyze-portfolio',
+                      { rawText: portfolioRawText.trim(), projects, links }
                     );
-                    return;
+                    const newSkills = data.skills || [];
+                    const merged = [...new Set([...(user.skills || []), ...newSkills])].slice(0, 30);
+                    await updateUser({ ...user, skills: merged });
+                    setPortfolioRawText('');
+                    setPortfolioProjects('');
+                    setPortfolioLinks('');
+                    Alert.alert(t('common.success'), t('profile.skillsExtracted'));
+                  } catch (err: any) {
+                    if (err.response?.status === 402) {
+                      setPaymentModalVisible(true);
+                      Alert.alert(
+                        t('profile.paymentRequiredAi') || 'AI credits needed',
+                        err.response?.data?.detail || (t('profile.paymentRequiredAi') || 'Add AI credits to continue.'),
+                        [{ text: t('common.ok') }],
+                      );
+                      return;
+                    }
+                    Alert.alert(t('common.error'), err.response?.data?.detail || err.message || 'Analysis failed');
+                  } finally {
+                    setAnalyzing(false);
                   }
-                  Alert.alert(t('common.error'), err.response?.data?.detail || err.message || 'Analysis failed');
-                } finally {
-                  setAnalyzing(false);
-                }
-              }}
-              loading={analyzing}
-              disabled={!portfolioRawText.trim() || analyzing}
-              style={styles.analyzeButton}
-            >
-              {analyzing ? t('profile.analyzing') : t('profile.improveWithAi')}
-            </Button>
-          </GlassCard>
-        )}
+                }}
+                loading={analyzing}
+                disabled={!portfolioRawText.trim() || analyzing}
+                style={styles.analyzeButton}
+              >
+                {analyzing ? t('profile.analyzing') : t('profile.improveWithAi')}
+              </Button>
+            </GlassCard>
+          )}
 
-        <GlassCard style={styles.card}>
+          <GlassCard style={styles.card}>
             <List.Item
               title={t('profile.appearance')}
               description={isDark ? t('profile.darkMode') : t('profile.lightMode')}
@@ -514,17 +514,17 @@ export default function ProfileScreen() {
                 )
               }
             />
-        </GlassCard>
+          </GlassCard>
 
-        <Button
-          mode="outlined"
-          onPress={handleLogout}
-          style={styles.logoutButton}
-          icon="logout"
-          textColor={colors.bengaliRed}
-        >
-          {t('profile.logout')}
-        </Button>
+          <Button
+            mode="outlined"
+            onPress={handleLogout}
+            style={styles.logoutButton}
+            icon="logout"
+            textColor={colors.bengaliRed}
+          >
+            {t('profile.logout')}
+          </Button>
         </ScrollView>
       </ImageBackground>
       <PaymentModal
@@ -566,6 +566,7 @@ function createStyles(colors: ThemeColors) {
       flex: 1,
       padding: 16,
       paddingBottom: 40,
+      marginBottom: 20,
     },
     card: {
       marginBottom: 16,

@@ -29,7 +29,7 @@ import type { ThemeColors } from './_theme';
 import { scale, imageBackgroundStyle, screenPaddingHorizontal } from './_design';
 import { enterFadeInDown } from './_animations';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { format } from 'date-fns';
+import { safeFormatDate } from './_lib/date';
 
 interface Job {
   id: string;
@@ -199,7 +199,7 @@ export default function JobDetailsScreen() {
   }
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'bottom']}>
       <ImageBackground
         source={require('../assets/images/kolkata_street_nostalgia.png')}
         style={styles.backgroundImage}
@@ -218,14 +218,20 @@ export default function JobDetailsScreen() {
         </Text>
         </View>
 
-        <ScrollView style={styles.content}>
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={true}
+        >
         <Animated.View entering={enterFadeInDown}>
         <GlassCard style={styles.card}>
             <View style={styles.titleRow}>
               <Text variant="headlineSmall" style={styles.title}>
                 {job.title}
               </Text>
-              <Chip mode="outlined" textStyle={{ color: colors.text }}>{job.category}</Chip>
+              <Chip mode="outlined" style={styles.categoryChip} textStyle={{ color: colors.text }}>
+                {job.category}
+              </Chip>
             </View>
 
             <View style={styles.infoRow}>
@@ -250,19 +256,19 @@ export default function JobDetailsScreen() {
             </View>
 
             <View style={styles.chipsRow}>
-              <Chip icon="clock-outline" compact textStyle={{ color: colors.text }}>
+              <Chip icon="clock-outline" compact style={styles.attributeChip} textStyle={{ color: colors.text }}>
                 {job.jobType}
               </Chip>
-              <Chip icon="briefcase" compact textStyle={{ color: colors.text }}>
+              <Chip icon="briefcase" compact style={styles.attributeChip} textStyle={{ color: colors.text }}>
                 {job.experience}
               </Chip>
-              <Chip icon="school" compact textStyle={{ color: colors.text }}>
+              <Chip icon="school" compact style={styles.attributeChip} textStyle={{ color: colors.text }}>
                 {job.education}
               </Chip>
             </View>
 
             <Text variant="bodySmall" style={styles.dateText}>
-              {t('jobDetails.postedOn')} {format(new Date(job.postedDate), 'MMM dd, yyyy')}
+              {t('jobDetails.postedOn')} {safeFormatDate(job.postedDate, 'MMM dd, yyyy')}
             </Text>
         </GlassCard>
         </Animated.View>
@@ -334,16 +340,19 @@ export default function JobDetailsScreen() {
           <Button
             mode="outlined"
             onPress={handleContactEmployer}
-            style={styles.footerButton}
+            style={[styles.footerButton, styles.footerButtonOutlined]}
+            labelStyle={{ color: colors.terracotta }}
             icon="message"
+            textColor={colors.terracotta}
           >
             {t('jobDetails.message')}
           </Button>
           <Button
             mode="contained"
             onPress={() => setApplyModalVisible(true)}
-            style={styles.footerButton}
+            style={[styles.footerButton, styles.footerButtonPrimary]}
             disabled={hasApplied || job.status !== 'active'}
+            labelStyle={hasApplied ? styles.footerButtonDisabledLabel : undefined}
           >
             {hasApplied ? t('jobDetails.applied') : t('jobDetails.apply')}
           </Button>
@@ -410,7 +419,7 @@ export default function JobDetailsScreen() {
                     ))}
                   </View>
                   <Text variant="bodySmall" style={styles.appliedDate}>
-                    Applied: {format(new Date(app.appliedDate), 'MMM dd, yyyy')}
+                    Applied: {safeFormatDate(app.appliedDate, 'MMM dd, yyyy')}
                   </Text>
                   {app.coverLetter && (
                     <Text variant="bodySmall" style={styles.coverLetter}>
@@ -492,10 +501,13 @@ function createStyles(colors: ThemeColors, isDark: boolean) {
       color: colors.terracotta,
       fontFamily: Platform.OS === 'ios' ? 'Kohinoor Bangla' : 'serif',
     },
-    content: {
+    scrollView: {
       flex: 1,
-      padding: screenPaddingHorizontal,
-      paddingBottom: 40,
+    },
+    scrollContent: {
+      paddingHorizontal: screenPaddingHorizontal,
+      paddingBottom: scale(10),
+      paddingTop:scale(10)
     },
     card: {
       marginBottom: 16,
@@ -506,6 +518,8 @@ function createStyles(colors: ThemeColors, isDark: boolean) {
       justifyContent: 'space-between',
       alignItems: 'flex-start',
       marginBottom: 16,
+      flexWrap: 'wrap',
+      gap: 8,
     },
     title: {
       flex: 1,
@@ -522,10 +536,19 @@ function createStyles(colors: ThemeColors, isDark: boolean) {
       marginLeft: 8,
       color: colors.text,
     },
+    categoryChip: {
+      backgroundColor: isDark ? colors.surface : colors.cream,
+      borderColor: colors.border,
+    },
     chipsRow: {
       flexDirection: 'row',
+      flexWrap: 'wrap',
       gap: 8,
       marginTop: 12,
+    },
+    attributeChip: {
+      backgroundColor: isDark ? colors.surface : colors.cream,
+      borderColor: colors.border,
     },
     dateText: {
       marginTop: 12,
@@ -576,6 +599,15 @@ function createStyles(colors: ThemeColors, isDark: boolean) {
     },
     footerButton: {
       flex: 1,
+    },
+    footerButtonOutlined: {
+      borderColor: colors.terracotta,
+    },
+    footerButtonPrimary: {
+      backgroundColor: colors.terracotta,
+    },
+    footerButtonDisabledLabel: {
+      color: colors.textSecondary,
     },
     modal: {
       backgroundColor: colors.surface,

@@ -191,7 +191,7 @@ export default function ProfileScreen() {
   };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'bottom']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
       <ImageBackground
         source={require('../../assets/images/kolkata_street_nostalgia.png')}
         style={styles.backgroundImage}

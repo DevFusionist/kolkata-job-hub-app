@@ -28,7 +28,7 @@ import type { ThemeColors } from '../_theme';
 import { scale, imageBackgroundStyleTabs, screenPaddingHorizontal } from '../_design';
 import { enterFadeInDown, enterFadeInDownStagger } from '../_animations';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { format } from 'date-fns';
+import { safeFormatDate } from '../_lib/date';
 
 const CATEGORIES = [
   'Sales', 'Delivery', 'Retail', 'Hospitality', 'Office Work',
@@ -184,7 +184,7 @@ export default function SearchScreen() {
                     <View style={styles.jobInfo}><MaterialCommunityIcons name="currency-inr" size={16} color={colors.terracotta} /><Text variant="bodyMedium" style={styles.jobInfoText}>{job.salary}</Text></View>
                     <View style={styles.jobFooter}>
                       <Chip icon="clock-outline" compact style={styles.typeChip} textStyle={{ color: colors.text }}>{job.jobType}</Chip>
-                      <Text variant="bodySmall" style={styles.dateText}>{format(new Date(job.postedDate), 'MMM dd')}</Text>
+                      <Text variant="bodySmall" style={styles.dateText}>{safeFormatDate(job.postedDate, 'MMM dd')}</Text>
                     </View>
                   </GlassCard>
                 </TouchableOpacity>
@@ -295,7 +295,7 @@ function createStyles(colors: ThemeColors, isDark: boolean) {
       fontWeight: '600',
     },
     content: { flex: 1 },
-    scrollContent: { paddingHorizontal: screenPaddingHorizontal, paddingTop: scale(16) },
+    scrollContent: { paddingHorizontal: screenPaddingHorizontal, paddingTop: scale(16), paddingBottom: scale(120) },
     centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
     loadingWrap: { alignSelf: 'stretch', width: '100%' },
     emptyContainer: { alignItems: 'center', marginTop: 64 },

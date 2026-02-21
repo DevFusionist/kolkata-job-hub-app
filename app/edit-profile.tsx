@@ -8,6 +8,7 @@ import {
   Platform,
   KeyboardAvoidingView,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Text, TextInput, Button, Chip } from 'react-native-paper';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Stack } from 'expo-router';
@@ -111,7 +112,7 @@ export default function EditProfileScreen() {
   return (
     <>
       <Stack.Screen options={{ title: t('profile.editProfile') || 'Edit Profile', headerBackTitle: t('common.back') }} />
-      <View style={styles.bg}>
+      <SafeAreaView style={styles.bg} edges={['top', 'bottom']}>
         <ImageBackground
           source={require('../assets/images/kolkata_street_nostalgia.png')}
           style={StyleSheet.absoluteFill}
@@ -233,7 +234,7 @@ export default function EditProfileScreen() {
           </KeyboardAvoidingView>
         </ImageBackground>
         {saving && <LoadingScreen fullScreen overlay />}
-      </View>
+      </SafeAreaView>
     </>
   );
 }
@@ -245,7 +246,7 @@ function createStyles(colors: any) {
     scroll: { flex: 1 },
     scrollContent: {
       padding: screenPaddingHorizontal,
-      paddingBottom: scale(40),
+      paddingBottom: scale(120),
     },
     card: { padding: scale(16), marginTop: scale(16) },
     sectionTitle: {

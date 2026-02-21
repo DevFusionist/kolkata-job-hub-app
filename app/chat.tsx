@@ -19,14 +19,13 @@ import api from './_lib/api';
 import { useAuth } from './_contexts/AuthContext';
 import { useSocket, type IncomingMessage, type ReadReceiptEvent } from './_contexts/SocketContext';
 import { useTheme } from './_contexts/ThemeContext';
-import { GlassCard } from './_components/GlassCard';
 import { LoadingScreen } from './_components/LoadingScreen';
 import type { ThemeColors } from './_theme';
 import { scale, imageBackgroundStyle, screenPaddingHorizontal } from './_design';
 import { enterMessageFade } from './_animations';
 import Animated from 'react-native-reanimated';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { format } from 'date-fns';
+import { safeFormatDate } from './_lib/date';
 import { useLanguage } from './_contexts/LanguageContext';
 
 interface Message {
@@ -164,20 +163,18 @@ export default function ChatScreen() {
           isMine ? styles.myMessageContainer : styles.theirMessageContainer,
         ]}
       >
-        <GlassCard
-          accent={false}
+        <View
           style={[
-            styles.messageCard,
-            isMine ? styles.myMessage : styles.theirMessage,
+            styles.messageBubble,
+            isMine ? styles.myMessageBubble : styles.theirMessageBubble,
           ]}
-          contentStyle={styles.messageContent}
         >
           <Text variant="bodyMedium" style={[styles.messageText, { color: colors.text }]}>
             {item.message}
           </Text>
           <View style={styles.messageFooter}>
             <Text variant="bodySmall" style={styles.timestamp}>
-              {format(new Date(item.timestamp), 'HH:mm')}
+              {safeFormatDate(item.timestamp, 'HH:mm')}
             </Text>
             {isMine && (
               <MaterialCommunityIcons
@@ -188,7 +185,7 @@ export default function ChatScreen() {
               />
             )}
           </View>
-        </GlassCard>
+        </View>
       </Animated.View>
     );
   };
@@ -202,7 +199,7 @@ export default function ChatScreen() {
   }
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'bottom']}>
       <ImageBackground
         source={require('../assets/images/kolkata_street_nostalgia.png')}
         style={styles.backgroundImage}
@@ -224,9 +221,11 @@ export default function ChatScreen() {
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={styles.flex}
-          keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 88 : 0}
         >
           <FlatList
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
             ref={flatListRef}
             data={messages}
             renderItem={renderMessage}
@@ -306,6 +305,7 @@ function createStyles(colors: ThemeColors, isDark: boolean) {
     messagesList: {
       padding: screenPaddingHorizontal,
       flexGrow: 1,
+      paddingBottom: scale(100),
     },
     emptyContainer: {
       flex: 1,
@@ -327,18 +327,29 @@ function createStyles(colors: ThemeColors, isDark: boolean) {
     theirMessageContainer: {
       alignItems: 'flex-start',
     },
-    messageCard: {
+    messageBubble: {
       maxWidth: '75%',
-      elevation: 2,
+      borderRadius: 16,
+      paddingHorizontal: 14,
+      paddingVertical: 10,
+      elevation: 1,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.08,
+      shadowRadius: 2,
     },
-    myMessage: {
-      borderColor: 'rgba(255,255,255,0.3)',
+    myMessageBubble: {
+      backgroundColor: isDark ? colors.muted + 'CC' : colors.terracotta + '22',
+      borderWidth: 1,
+      borderColor: isDark ? 'rgba(255,255,255,0.08)' : colors.border,
     },
-    theirMessage: {
-      borderColor: 'rgba(255,255,255,0.5)',
+    theirMessageBubble: {
+      backgroundColor: isDark ? colors.surface : colors.cream,
+      borderWidth: 1,
+      borderColor: isDark ? 'rgba(255,255,255,0.08)' : colors.border,
     },
     messageContent: {
-      padding: 8,
+      padding: 0,
     },
     messageText: {
       marginBottom: 4,

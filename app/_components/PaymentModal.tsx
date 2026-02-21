@@ -126,6 +126,16 @@ export function PaymentModal({
         razorpayPaymentId: paymentId,
         razorpaySignature: signature,
       });
+      const item = catalog.find((i) => i.itemCode === itemCode);
+      const successMessage =
+        item?.purchaseType === 'subscription'
+          ? 'Payment successful. Your subscription has been activated.'
+          : item?.purchaseType === 'credit'
+            ? 'Payment successful. Your job credits have been added.'
+            : item?.purchaseType === 'ai_credits'
+              ? 'Payment successful. Your AI credits have been added.'
+              : 'Payment successful.';
+      Alert.alert('Success', successMessage);
       onSuccess();
       onClose();
     } catch (e: any) {

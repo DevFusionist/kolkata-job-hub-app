@@ -28,7 +28,7 @@ import type { ThemeColors } from '../_theme';
 import { scale, imageBackgroundStyleTabs, screenPaddingHorizontal } from '../_design';
 import { enterFadeInDown, enterFadeInDownStagger } from '../_animations';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { format } from 'date-fns';
+import { safeFormatDate } from '../_lib/date';
 
 interface Job {
   id: string;
@@ -279,7 +279,7 @@ export default function HomeScreen() {
                         {job.jobType}
                       </Chip>
                       <Text variant="bodySmall" style={styles.dateText}>
-                        {format(new Date(job.postedDate), 'MMM dd, yyyy')}
+                        {safeFormatDate(job.postedDate, 'MMM dd, yyyy')}
                       </Text>
                     </View>
 
@@ -350,6 +350,7 @@ function createStyles(colors: ThemeColors, isDark: boolean) {
     content: {
       flex: 1,
       paddingHorizontal: screenPaddingHorizontal,
+      paddingBottom: scale(10),
     },
     emptyContainer: {
       alignItems: 'center',

@@ -22,6 +22,7 @@ import api from '../_lib/api';
 import { useAuth } from '../_contexts/AuthContext';
 import { useTheme } from '../_contexts/ThemeContext';
 import { GlassCard } from '../_components/GlassCard';
+import { LocationSelector } from '../_components/LocationSelector';
 import { LoadingScreen } from '../_components/LoadingScreen';
 import { PaymentModal } from '../_components/PaymentModal';
 import type { ThemeColors } from '../_theme';
@@ -323,13 +324,10 @@ export default function PostJobScreen() {
                 placeholder="e.g., ₹15,000 - ₹20,000/month"
               />
 
-              <TextInput
-                label="Location in Kolkata *"
-                value={location}
-                onChangeText={setLocation}
-                style={styles.input}
-                placeholder="e.g., Salt Lake, Park Street"
-              />
+              <Text variant="titleMedium" style={styles.sectionTitle}>
+                Location in Kolkata *
+              </Text>
+              <LocationSelector value={location} onChange={setLocation} />
 
               <Text variant="titleMedium" style={styles.sectionTitle}>
                 Job Type *
@@ -497,7 +495,7 @@ function createStyles(colors: ThemeColors, isDark: boolean) {
     content: {
       flex: 1,
       padding: screenPaddingHorizontal,
-      paddingBottom: 40,
+      paddingBottom: scale(120),
     },
     card: {
       elevation: 2,

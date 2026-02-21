@@ -27,7 +27,7 @@ import { useLanguage } from '../_contexts/LanguageContext';
 import { useTheme } from '../_contexts/ThemeContext';
 import type { ThemeColors } from '../_theme';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { format } from 'date-fns';
+import { safeFormatDate } from '../_lib/date';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -661,7 +661,7 @@ export default function ProtibhaTabScreen() {
                 {item.content}
               </Text>
               <Text style={[styles.timeText, isUser && styles.userTimeText]}>
-                {format(item.timestamp, 'HH:mm')}
+                {safeFormatDate(item.timestamp, 'HH:mm')}
               </Text>
             </View>
             {jobs && jobs.length > 0 && (

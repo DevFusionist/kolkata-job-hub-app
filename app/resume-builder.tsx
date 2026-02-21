@@ -28,6 +28,7 @@ import { useLanguage } from './_contexts/LanguageContext';
 import { useTheme } from './_contexts/ThemeContext';
 import Animated from 'react-native-reanimated';
 import { GlassCard } from './_components/GlassCard';
+import { LocationSelector } from './_components/LocationSelector';
 import { PaymentModal } from './_components/PaymentModal';
 import { enterFadeInDown } from './_animations';
 import { scale, screenPaddingHorizontal } from './_design';
@@ -233,7 +234,7 @@ export default function ResumeBuilderScreen() {
   const stepNumber = step === 'review' ? 1 : step === 'details' ? 2 : 3;
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'bottom']}>
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -313,14 +314,10 @@ export default function ResumeBuilderScreen() {
                   mode="outlined"
                   keyboardType="phone-pad"
                 />
-                <TextInput
-                  label={t('resume.location') || 'Location'}
-                  value={location}
-                  onChangeText={setLocation}
-                  style={styles.input}
-                  textColor={colors.text}
-                  mode="outlined"
-                />
+                <Text variant="bodySmall" style={[styles.hint, { marginTop: 4 }]}>
+                  {t('resume.location') || 'Location'}
+                </Text>
+                <LocationSelector value={location} onChange={setLocation} />
               </GlassCard>
 
               <GlassCard style={styles.card}>
@@ -655,7 +652,7 @@ function createStyles(colors: ThemeColors, isDark: boolean) {
     stepLabel: { fontSize: 10, color: colors.textSecondary },
     stepLabelActive: { color: colors.terracotta, fontWeight: '600' },
     progressBar: { marginHorizontal: 16 },
-    content: { flex: 1, padding: screenPaddingHorizontal, paddingBottom: 40 },
+    content: { flex: 1, padding: screenPaddingHorizontal, paddingBottom: scale(120) },
     card: { marginBottom: 16 },
     cardTitle: { color: colors.text, fontWeight: 'bold', marginBottom: 4 },
     hint: { color: colors.textSecondary, marginBottom: 12 },

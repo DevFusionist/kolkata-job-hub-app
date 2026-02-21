@@ -26,7 +26,7 @@ import type { ThemeColors } from '../_theme';
 import { scale, imageBackgroundStyleTabs, screenPaddingHorizontal } from '../_design';
 import { enterFadeInDown, enterFadeInDownStagger } from '../_animations';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { format } from 'date-fns';
+import { safeFormatDate } from '../_lib/date';
 
 interface Application {
   id: string;
@@ -218,7 +218,7 @@ export default function ApplicationsScreen() {
 
                     <View style={styles.footer}>
                       <Text variant="bodySmall" style={styles.dateText}>
-                        Applied on {format(new Date(app.appliedDate), 'MMM dd, yyyy')}
+                        Applied on {safeFormatDate(app.appliedDate, 'MMM dd, yyyy')}
                       </Text>
                     </View>
                 </GlassCard>
@@ -268,6 +268,7 @@ function createStyles(colors: ThemeColors) {
     content: {
       flex: 1,
       paddingHorizontal: screenPaddingHorizontal,
+      paddingBottom: scale(120),
     },
     emptyContainer: {
       alignItems: 'center',

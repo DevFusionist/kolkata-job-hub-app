@@ -28,7 +28,7 @@ import type { ThemeColors } from '../_theme';
 import { scale, imageBackgroundStyle, screenPaddingHorizontal } from '../_design';
 import { enterFadeInDownTiming, enterFadeInDownStaggerTiming } from '../_animations';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { format } from 'date-fns';
+import { safeFormatDate } from '../_lib/date';
 
 interface Conversation {
   userId: string;
@@ -106,7 +106,7 @@ export default function MessagesScreen() {
                 {item.userName}
               </Text>
               <Text variant="bodySmall" style={styles.timestamp}>
-                {format(new Date(item.lastMessage.timestamp), 'HH:mm')}
+                {safeFormatDate(item.lastMessage?.timestamp, 'HH:mm')}
               </Text>
             </View>
             <View style={styles.messageRow}>
@@ -217,7 +217,7 @@ function createStyles(colors: ThemeColors) {
     content: {
       paddingHorizontal: screenPaddingHorizontal,
       paddingTop: scale(16),
-      paddingBottom: 40,
+      paddingBottom: scale(120),
     },
     emptyContainer: {
       alignItems: 'center',

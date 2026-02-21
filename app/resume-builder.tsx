@@ -26,8 +26,11 @@ import api from './_lib/api';
 import { useAuth } from './_contexts/AuthContext';
 import { useLanguage } from './_contexts/LanguageContext';
 import { useTheme } from './_contexts/ThemeContext';
+import Animated from 'react-native-reanimated';
 import { GlassCard } from './_components/GlassCard';
 import { PaymentModal } from './_components/PaymentModal';
+import { enterFadeInDown } from './_animations';
+import { scale, screenPaddingHorizontal } from './_design';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import type { ThemeColors } from './_theme';
 
@@ -283,7 +286,7 @@ export default function ResumeBuilderScreen() {
         <ScrollView style={styles.content} keyboardShouldPersistTaps="handled">
           {/* STEP 1: Review Your Info */}
           {step === 'review' && (
-            <View>
+            <Animated.View key="review" entering={enterFadeInDown}>
               <GlassCard style={styles.card}>
                 <Text variant="titleMedium" style={styles.cardTitle}>
                   <MaterialCommunityIcons name="account-check" size={20} color={colors.terracotta} />
@@ -365,12 +368,12 @@ export default function ResumeBuilderScreen() {
               >
                 {t('resume.next') || 'Next: Add Details'}
               </Button>
-            </View>
+            </Animated.View>
           )}
 
           {/* STEP 2: Add Details */}
           {step === 'details' && (
-            <View>
+            <Animated.View key="details" entering={enterFadeInDown}>
               <GlassCard style={styles.card}>
                 <Text variant="titleMedium" style={styles.cardTitle}>
                   <MaterialCommunityIcons name="briefcase-outline" size={20} color={colors.terracotta} />
@@ -513,12 +516,12 @@ export default function ResumeBuilderScreen() {
                     : (t('resume.generate') || 'Generate Resume')}
                 </Button>
               </View>
-            </View>
+            </Animated.View>
           )}
 
           {/* STEP 3: Preview */}
           {step === 'preview' && (
-            <View>
+            <Animated.View key="preview" entering={enterFadeInDown}>
               {resumeHtml ? (
                 <View style={styles.previewContainer}>
                   <GlassCard style={styles.previewCard}>
@@ -587,7 +590,7 @@ export default function ResumeBuilderScreen() {
                   </Text>
                 </View>
               )}
-            </View>
+            </Animated.View>
           )}
         </ScrollView>
       </KeyboardAvoidingView>
@@ -648,11 +651,11 @@ function createStyles(colors: ThemeColors, isDark: boolean) {
       borderWidth: 2.5,
     },
     stepNum: { fontSize: 12, fontWeight: 'bold', color: colors.textSecondary },
-    stepNumActive: { color: '#fff' },
+    stepNumActive: { color: colors.cream },
     stepLabel: { fontSize: 10, color: colors.textSecondary },
     stepLabelActive: { color: colors.terracotta, fontWeight: '600' },
     progressBar: { marginHorizontal: 16 },
-    content: { flex: 1, padding: 16, paddingBottom: 40 },
+    content: { flex: 1, padding: screenPaddingHorizontal, paddingBottom: 40 },
     card: { marginBottom: 16 },
     cardTitle: { color: colors.text, fontWeight: 'bold', marginBottom: 4 },
     hint: { color: colors.textSecondary, marginBottom: 12 },
@@ -663,7 +666,7 @@ function createStyles(colors: ThemeColors, isDark: boolean) {
       gap: 6,
       marginBottom: 8,
     },
-    chip: { marginBottom: 2 },
+    chip: { marginBottom: 2, backgroundColor: isDark ? colors.surface : colors.cream, borderColor: colors.border },
     addSkillRow: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -704,7 +707,7 @@ function createStyles(colors: ThemeColors, isDark: boolean) {
     },
     webview: {
       height: screenHeight * 0.55,
-      backgroundColor: '#fff',
+      backgroundColor: colors.surface,
     },
     shareButton: {
       flex: 2,
@@ -712,15 +715,15 @@ function createStyles(colors: ThemeColors, isDark: boolean) {
       borderRadius: 8,
     },
     saveToProfileButton: {
-      backgroundColor: '#2563EB',
+      backgroundColor: colors.gold,
       borderRadius: 8,
       marginBottom: 10,
     },
     savedButton: {
-      backgroundColor: '#16A34A',
+      backgroundColor: colors.gold,
     },
     regenerateButton: {
-      backgroundColor: isDark ? colors.surface : '#EDE9DA',
+      backgroundColor: isDark ? colors.surface : colors.cream,
       borderRadius: 8,
     },
     loadingContainer: {

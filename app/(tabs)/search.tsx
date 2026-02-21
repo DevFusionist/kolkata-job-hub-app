@@ -8,6 +8,7 @@ import {
   ImageBackground,
   Platform,
 } from 'react-native';
+import Animated from 'react-native-reanimated';
 import {
   Text,
   Chip,
@@ -15,7 +16,6 @@ import {
   Button,
   Modal,
   Portal,
-  ActivityIndicator,
 } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -23,7 +23,10 @@ import api from '../_lib/api';
 import { useLanguage } from '../_contexts/LanguageContext';
 import { useTheme } from '../_contexts/ThemeContext';
 import { GlassCard } from '../_components/GlassCard';
+import { LoadingScreen } from '../_components/LoadingScreen';
 import type { ThemeColors } from '../_theme';
+import { scale, imageBackgroundStyleTabs, screenPaddingHorizontal } from '../_design';
+import { enterFadeInDown, enterFadeInDownStagger } from '../_animations';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { format } from 'date-fns';
 
@@ -110,7 +113,7 @@ export default function SearchScreen() {
       <ImageBackground
         source={require('../../assets/images/kolkata_tram_nostalgia.png')}
         style={styles.backgroundImage}
-        imageStyle={{ opacity: 0.15 }}
+        imageStyle={imageBackgroundStyleTabs(colors)}
       >
         <View style={styles.stickyHeader}>
           <View style={styles.header}>
@@ -152,8 +155,8 @@ export default function SearchScreen() {
         </View>
 
         {loading ? (
-          <View style={styles.centerContainer}>
-            <ActivityIndicator size="large" color={colors.terracotta} />
+          <View style={[styles.centerContainer, styles.loadingWrap]}>
+            <LoadingScreen fullScreen={false} message={t('search.title')} />
           </View>
         ) : (
           <ScrollView
@@ -162,14 +165,15 @@ export default function SearchScreen() {
             showsVerticalScrollIndicator={false}
           >
             {jobs.length === 0 ? (
-              <View style={styles.emptyContainer}>
+              <Animated.View entering={enterFadeInDown} style={styles.emptyContainer}>
                 <MaterialCommunityIcons name="magnify" size={64} color={colors.muted} />
                 <Text variant="titleMedium" style={styles.emptyText}>{t('search.noResults')}</Text>
                 <Text variant="bodyMedium" style={styles.emptySubtext}>{t('search.tryAdjusting')}</Text>
-              </View>
+              </Animated.View>
             ) : (
-              jobs.map((job) => (
-                <TouchableOpacity key={job.id} onPress={() => router.push(`/job-details?id=${job.id}`)} activeOpacity={0.7}>
+              jobs.map((job, index) => (
+                <Animated.View key={job.id} entering={enterFadeInDownStagger(index, 50)}>
+                <TouchableOpacity onPress={() => router.push(`/job-details?id=${job.id}`)} activeOpacity={0.7}>
                   <GlassCard style={styles.jobCard}>
                     <View style={styles.jobHeader}>
                       <Text variant="titleLarge" style={styles.jobTitle}>{job.title}</Text>
@@ -184,6 +188,7 @@ export default function SearchScreen() {
                     </View>
                   </GlassCard>
                 </TouchableOpacity>
+                </Animated.View>
               ))
             )}
             <View style={{ height: 40 }} />
@@ -241,7 +246,7 @@ function createStyles(colors: ThemeColors, isDark: boolean) {
       borderBottomColor: colors.border,
       paddingBottom: 4,
     },
-    header: { paddingHorizontal: 20, paddingTop: 12 },
+    header: { paddingHorizontal: scale(20), paddingTop: scale(12) },
     headerTitle: {
       fontWeight: 'bold',
       color: colors.terracotta,
@@ -290,8 +295,9 @@ function createStyles(colors: ThemeColors, isDark: boolean) {
       fontWeight: '600',
     },
     content: { flex: 1 },
-    scrollContent: { paddingHorizontal: 16, paddingTop: 16 },
+    scrollContent: { paddingHorizontal: screenPaddingHorizontal, paddingTop: scale(16) },
     centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+    loadingWrap: { alignSelf: 'stretch', width: '100%' },
     emptyContainer: { alignItems: 'center', marginTop: 64 },
     emptyText: { marginTop: 16, color: colors.textSecondary, textAlign: 'center' },
     emptySubtext: { marginTop: 8, color: colors.textSecondary, textAlign: 'center' },
@@ -303,13 +309,13 @@ function createStyles(colors: ThemeColors, isDark: boolean) {
     jobInfo: { flexDirection: 'row', alignItems: 'center', marginBottom: 6 },
     jobInfoText: { marginLeft: 8, color: colors.text, fontSize: 14 },
     jobFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 10, paddingTop: 10, borderTopWidth: 0.5, borderTopColor: colors.border },
-    typeChip: { backgroundColor: isDark ? colors.surface : '#EDE9DA', borderRadius: 4 },
+    typeChip: { backgroundColor: isDark ? colors.surface : colors.cream, borderRadius: 4 },
     dateText: { color: colors.textSecondary, fontSize: 12 },
     modal: { backgroundColor: colors.surface, padding: 20, margin: 20, borderRadius: 12, maxHeight: '85%' },
     modalTitle: { marginBottom: 16, fontWeight: 'bold', color: colors.text },
     filterLabel: { marginTop: 16, marginBottom: 8, color: colors.terracotta, fontWeight: '600' },
     chipContainer: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-    chip: { marginBottom: 4 },
+    chip: { marginBottom: 4, backgroundColor: isDark ? colors.surface : colors.cream, borderColor: colors.border },
     modalButtons: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 32, gap: 12, paddingBottom: 8 },
     modalButton: { flex: 1 },
   });

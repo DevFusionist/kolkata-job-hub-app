@@ -1,4 +1,5 @@
-// Shared theme for Kolkata Job Hub – light and dark palettes
+// Shared theme for Kolkata Job Hub – Palette 4
+// #1C1C1C Black | #F7F3E9 Cream | #3F5D6B Teal | #A54A3F Terracotta
 
 export type ThemeMode = 'light' | 'dark';
 
@@ -11,57 +12,52 @@ export interface ThemeColors {
   white: string;
   border: string;
   bengaliRed: string;
-  /** Background for main screens */
   background: string;
-  /** Card/surface background */
   surface: string;
-  /** Primary text */
   text: string;
-  /** Secondary/subtle text */
   textSecondary: string;
 }
 
 export const LIGHT_COLORS: ThemeColors = {
-  cream: '#FDFCF0',
-  terracotta: '#A04035',
-  gold: '#D4AF37',
-  ink: '#1A252F',
-  muted: '#7F8C8D',
-  white: '#FFF',
-  border: '#DEDBC1',
-  bengaliRed: '#B22222',
-  background: '#FDFCF0',
-  surface: '#FFF',
-  text: '#1A252F',
-  textSecondary: '#7F8C8D',
+  cream: '#F7F3E9',        // Off-white / cream
+  terracotta: '#A54A3F',   // Terracotta / muted red-brown
+  gold: '#3F5D6B',        // Teal as secondary accent
+  ink: '#1C1C1C',         // Black / very dark gray
+  muted: '#3F5D6B',       // Desaturated teal / slate blue
+  white: '#FFFFFF',
+  border: '#C5CFD4',      // Light teal-gray border
+  bengaliRed: '#A54A3F',  // Terracotta for destructive/error
+  background: '#F7F3E9',
+  surface: '#FFFFFF',
+  text: '#1C1C1C',
+  textSecondary: '#3F5D6B',
 };
 
 export const DARK_COLORS: ThemeColors = {
-  cream: '#1A252F',
-  terracotta: '#E07B6F',
-  gold: '#E5C158',
-  ink: '#FDFCF0',
-  muted: '#9CA3A8',
-  white: '#252F3B',
-  border: '#3D4A55',
-  bengaliRed: '#E85555',
-  background: '#1A252F',
-  surface: '#252F3B',
-  text: '#FDFCF0',
-  textSecondary: '#9CA3A8',
+  cream: '#1C1C1C',       // Black base
+  terracotta: '#C45A4F',   // Slightly lighter terracotta for contrast
+  gold: '#5A7A8A',        // Lighter teal for dark mode
+  ink: '#F7F3E9',         // Cream as text
+  muted: '#8A9BA8',       // Muted teal-gray
+  white: '#2A2A2A',      // Dark surface
+  border: '#3F5D6B',      // Teal border
+  bengaliRed: '#E85A4F',  // Brighter terracotta for errors
+  background: '#1C1C1C',
+  surface: '#2A2A2A',
+  text: '#F7F3E9',
+  textSecondary: '#8A9BA8',
 };
 
-// Backward compatibility: default export light colors as COLORS
 export const COLORS = LIGHT_COLORS;
 
 export const VINTAGE_STYLES = {
   card: {
-    borderRadius: 2,
-    elevation: 3,
-    borderWidth: 1,
+    borderRadius: 4,        // More sophisticated, less "bouncy"
+    elevation: 2,           // Subtle shadow for a premium look
+    borderWidth: 1.2,
   },
   title: {
-    fontFamily: 'serif',
-    fontWeight: 'bold',
+    fontFamily: 'serif',    // Keeps the intellectual heritage feel
+    fontWeight: '700',
   },
 };

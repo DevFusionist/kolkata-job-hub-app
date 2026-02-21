@@ -9,10 +9,10 @@ import {
   Alert,
   RefreshControl,
 } from 'react-native';
+import Animated from 'react-native-reanimated';
 import {
   Text,
   Badge,
-  ActivityIndicator,
   Avatar,
 } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -23,7 +23,10 @@ import { useSocket } from '../_contexts/SocketContext';
 import { useLanguage } from '../_contexts/LanguageContext';
 import { useTheme } from '../_contexts/ThemeContext';
 import { GlassCard } from '../_components/GlassCard';
+import { LoadingScreen } from '../_components/LoadingScreen';
 import type { ThemeColors } from '../_theme';
+import { scale, imageBackgroundStyle, screenPaddingHorizontal } from '../_design';
+import { enterFadeInDownTiming, enterFadeInDownStaggerTiming } from '../_animations';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { format } from 'date-fns';
 
@@ -83,7 +86,8 @@ export default function MessagesScreen() {
       .slice(0, 2);
   };
 
-  const renderConversation = ({ item }: { item: Conversation }) => (
+  const renderConversation = ({ item, index }: { item: Conversation; index: number }) => (
+    <Animated.View entering={enterFadeInDownStaggerTiming(index, 40)}>
     <TouchableOpacity
       onPress={() =>
         router.push(`/chat?userId=${item.userId}&userName=${item.userName}`)
@@ -118,12 +122,13 @@ export default function MessagesScreen() {
           </View>
       </GlassCard>
     </TouchableOpacity>
+    </Animated.View>
   );
 
   if (loading) {
     return (
-      <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color={colors.terracotta} />
+      <View style={[styles.container, styles.centerContainer, { backgroundColor: colors.background }]}>
+        <LoadingScreen message={t('messages.title')} />
       </View>
     );
   }
@@ -133,7 +138,7 @@ export default function MessagesScreen() {
       <ImageBackground
         source={require('../../assets/images/kolkata_street_nostalgia.png')}
         style={styles.backgroundImage}
-        imageStyle={{ opacity: 0.2 }}
+        imageStyle={imageBackgroundStyle(colors)}
       >
         <View style={styles.header}>
           <Text variant="headlineMedium" style={styles.headerTitle}>
@@ -142,11 +147,11 @@ export default function MessagesScreen() {
         </View>
 
         {loading ? (
-          <View style={styles.emptyContainer}>
-            <ActivityIndicator size="large" color={colors.terracotta} />
+          <View style={[styles.emptyContainer, { flex: 1 }]}>
+            <LoadingScreen fullScreen={false} message={t('messages.title')} />
           </View>
         ) : conversations.length === 0 ? (
-          <View style={styles.emptyContainer}>
+          <Animated.View entering={enterFadeInDownTiming} style={styles.emptyContainer}>
             <MaterialCommunityIcons
               name="message-outline"
               size={64}
@@ -158,7 +163,7 @@ export default function MessagesScreen() {
             <Text variant="bodyMedium" style={styles.emptySubtext}>
               {t('messages.emptySubtext')}
             </Text>
-          </View>
+          </Animated.View>
         ) : (
           <FlatList
             data={conversations}
@@ -200,7 +205,7 @@ function createStyles(colors: ThemeColors) {
       alignItems: 'center',
     },
     header: {
-      padding: 24,
+      padding: scale(24),
       borderBottomWidth: 1,
       borderBottomColor: colors.border,
     },
@@ -210,7 +215,8 @@ function createStyles(colors: ThemeColors) {
       fontFamily: Platform.OS === 'ios' ? 'Kohinoor Bangla' : 'serif',
     },
     content: {
-      padding: 16,
+      paddingHorizontal: screenPaddingHorizontal,
+      paddingTop: scale(16),
       paddingBottom: 40,
     },
     emptyContainer: {

@@ -20,7 +20,11 @@ import { useAuth } from './_contexts/AuthContext';
 import { useSocket, type IncomingMessage, type ReadReceiptEvent } from './_contexts/SocketContext';
 import { useTheme } from './_contexts/ThemeContext';
 import { GlassCard } from './_components/GlassCard';
+import { LoadingScreen } from './_components/LoadingScreen';
 import type { ThemeColors } from './_theme';
+import { scale, imageBackgroundStyle, screenPaddingHorizontal } from './_design';
+import { enterMessageFade } from './_animations';
+import Animated from 'react-native-reanimated';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { format } from 'date-fns';
 import { useLanguage } from './_contexts/LanguageContext';
@@ -153,7 +157,8 @@ export default function ChatScreen() {
     const isMine = item.senderId === user?.id;
 
     return (
-      <View
+      <Animated.View
+        entering={enterMessageFade}
         style={[
           styles.messageContainer,
           isMine ? styles.myMessageContainer : styles.theirMessageContainer,
@@ -178,22 +183,30 @@ export default function ChatScreen() {
               <MaterialCommunityIcons
                 name={item.read ? 'check-all' : 'check'}
                 size={14}
-                color={item.read ? '#4CAF50' : colors.textSecondary}
+                color={item.read ? colors.gold : colors.textSecondary}
                 style={{ marginLeft: 4 }}
               />
             )}
           </View>
         </GlassCard>
-      </View>
+      </Animated.View>
     );
   };
+
+  if (loading) {
+    return (
+      <View style={[styles.container, styles.flex, { backgroundColor: colors.background }]}>
+        <LoadingScreen message={otherUserName} />
+      </View>
+    );
+  }
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
       <ImageBackground
         source={require('../assets/images/kolkata_street_nostalgia.png')}
         style={styles.backgroundImage}
-        imageStyle={{ opacity: 0.2 }}
+        imageStyle={imageBackgroundStyle(colors)}
       >
         <View style={styles.header}>
           <MaterialCommunityIcons
@@ -278,7 +291,7 @@ function createStyles(colors: ThemeColors, isDark: boolean) {
     header: {
       flexDirection: 'row',
       alignItems: 'center',
-      padding: 24,
+      padding: scale(24),
       borderBottomWidth: 1,
       borderBottomColor: colors.border,
     },
@@ -291,7 +304,7 @@ function createStyles(colors: ThemeColors, isDark: boolean) {
       fontFamily: Platform.OS === 'ios' ? 'Kohinoor Bangla' : 'serif',
     },
     messagesList: {
-      padding: 16,
+      padding: screenPaddingHorizontal,
       flexGrow: 1,
     },
     emptyContainer: {
@@ -349,7 +362,7 @@ function createStyles(colors: ThemeColors, isDark: boolean) {
     },
     input: {
       flex: 1,
-      backgroundColor: isDark ? colors.surface : '#F0EDE0',
+      backgroundColor: isDark ? colors.surface : colors.cream,
       maxHeight: 100,
     },
     sendButton: {

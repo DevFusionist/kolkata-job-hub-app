@@ -8,6 +8,7 @@ import {
   Platform,
   Linking,
 } from 'react-native';
+import Animated from 'react-native-reanimated';
 import {
   Text,
   Button,
@@ -28,6 +29,8 @@ import { useLanguage } from '../_contexts/LanguageContext';
 import { useTheme } from '../_contexts/ThemeContext';
 import { GlassCard } from '../_components/GlassCard';
 import { PaymentModal } from '../_components/PaymentModal';
+import { scale, imageBackgroundStyle, screenPaddingHorizontal } from '../_design';
+import { enterFadeInDown } from '../_animations';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import type { ThemeColors } from '../_theme';
 
@@ -52,7 +55,7 @@ export default function ProfileScreen() {
   const router = useRouter();
   const isEmployer = user?.role === 'employer';
   const isSeeker = user?.role === 'seeker';
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
 
   const fetchEntitlements = useCallback(async () => {
     try {
@@ -188,11 +191,11 @@ export default function ProfileScreen() {
   };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'bottom']}>
       <ImageBackground
         source={require('../../assets/images/kolkata_street_nostalgia.png')}
         style={styles.backgroundImage}
-        imageStyle={{ opacity: 0.2 }}
+        imageStyle={imageBackgroundStyle(colors)}
       >
         <View style={styles.header}>
           <Text variant="headlineMedium" style={styles.headerTitle}>
@@ -200,7 +203,12 @@ export default function ProfileScreen() {
           </Text>
         </View>
 
-        <ScrollView style={styles.content}>
+        <ScrollView
+          style={styles.content}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          <Animated.View entering={enterFadeInDown}>
           <GlassCard style={styles.card}>
             <View style={styles.profileHeader}>
               <MaterialCommunityIcons
@@ -276,8 +284,10 @@ export default function ProfileScreen() {
               </View>
             )}
           </GlassCard>
+          </Animated.View>
 
           {isSeeker && (
+          <Animated.View entering={enterFadeInDown}>
             <GlassCard style={styles.card}>
               <View style={styles.resumeSectionHeader}>
                 <MaterialCommunityIcons name="file-document-outline" size={24} color={colors.terracotta} />
@@ -293,7 +303,7 @@ export default function ProfileScreen() {
                 <View style={styles.resumeStatusContainer}>
                   {portfolio.resumeFileName && (
                     <View style={styles.resumeStatusRow}>
-                      <MaterialCommunityIcons name="file-check" size={18} color="#16A34A" />
+                      <MaterialCommunityIcons name="file-check" size={18} color={colors.gold} />
                       <Text variant="bodySmall" style={styles.resumeStatusText}>
                         {t('profile.uploadedResume') || 'Uploaded'}: {portfolio.resumeFileName}
                       </Text>
@@ -312,7 +322,7 @@ export default function ProfileScreen() {
                   )}
                   {portfolio.generatedResumeUrl && (
                     <View style={styles.resumeStatusRow}>
-                      <MaterialCommunityIcons name="robot" size={18} color="#2563EB" />
+                      <MaterialCommunityIcons name="robot" size={18} color={colors.terracotta} />
                       <Text variant="bodySmall" style={styles.resumeStatusText}>
                         {t('profile.aiResumeReady') || 'AI Resume saved and ready'}
                       </Text>
@@ -369,8 +379,9 @@ export default function ProfileScreen() {
                   color={colors.terracotta}
                   style={styles.progressBar}
                 />
-              )}
-            </GlassCard>
+            )}
+          </GlassCard>
+          </Animated.View>
           )}
 
           {isSeeker && (
@@ -475,7 +486,7 @@ export default function ProfileScreen() {
               title={t('profile.editProfile')}
               left={(props) => <List.Icon {...props} icon="pencil" />}
               right={(props) => <List.Icon {...props} icon="chevron-right" />}
-              onPress={() => Alert.alert(t('profile.comingSoon'), t('profile.editProfileSoon'))}
+              onPress={() => router.push('/edit-profile')}
             />
 
             {isEmployer && (
@@ -542,7 +553,7 @@ export default function ProfileScreen() {
   );
 }
 
-function createStyles(colors: ThemeColors) {
+function createStyles(colors: ThemeColors, isDark: boolean) {
   return StyleSheet.create({
     container: {
       flex: 1,
@@ -553,7 +564,7 @@ function createStyles(colors: ThemeColors) {
       width: '100%',
     },
     header: {
-      padding: 24,
+      padding: scale(24),
       borderBottomWidth: 1,
       borderBottomColor: colors.border,
     },
@@ -564,9 +575,10 @@ function createStyles(colors: ThemeColors) {
     },
     content: {
       flex: 1,
-      padding: 16,
-      paddingBottom: 40,
-      marginBottom: 20,
+    },
+    scrollContent: {
+      paddingHorizontal: screenPaddingHorizontal,
+      paddingBottom: scale(100),
     },
     card: {
       marginBottom: 16,
@@ -583,6 +595,8 @@ function createStyles(colors: ThemeColors) {
     },
     roleChip: {
       marginTop: 8,
+      backgroundColor: isDark ? colors.surface : colors.cream,
+      borderColor: colors.border,
     },
     divider: {
       marginVertical: 16,
@@ -602,6 +616,8 @@ function createStyles(colors: ThemeColors) {
     chip: {
       marginRight: 4,
       marginBottom: 4,
+      backgroundColor: isDark ? colors.surface : colors.cream,
+      borderColor: colors.border,
     },
     logoutButton: {
       marginVertical: 16,

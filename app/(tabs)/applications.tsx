@@ -9,10 +9,10 @@ import {
   ImageBackground,
   Platform,
 } from 'react-native';
+import Animated from 'react-native-reanimated';
 import {
   Text,
   Chip,
-  ActivityIndicator,
 } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
@@ -21,7 +21,10 @@ import { useAuth } from '../_contexts/AuthContext';
 import { useLanguage } from '../_contexts/LanguageContext';
 import { useTheme } from '../_contexts/ThemeContext';
 import { GlassCard } from '../_components/GlassCard';
+import { LoadingScreen } from '../_components/LoadingScreen';
 import type { ThemeColors } from '../_theme';
+import { scale, imageBackgroundStyleTabs, screenPaddingHorizontal } from '../_design';
+import { enterFadeInDown, enterFadeInDownStagger } from '../_animations';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { format } from 'date-fns';
 
@@ -111,8 +114,8 @@ export default function ApplicationsScreen() {
 
   if (loading) {
     return (
-      <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color={colors.terracotta} />
+      <View style={[styles.container, styles.centerContainer, { backgroundColor: colors.background }]}>
+        <LoadingScreen message={t('applications.title')} />
       </View>
     );
   }
@@ -122,7 +125,7 @@ export default function ApplicationsScreen() {
       <ImageBackground
         source={require('../../assets/images/kolkata_tram_nostalgia.png')}
         style={styles.backgroundImage}
-        imageStyle={{ opacity: 0.2 }}
+        imageStyle={imageBackgroundStyleTabs(colors)}
       >
         <View style={styles.header}>
           <Text variant="headlineMedium" style={styles.headerTitle}>
@@ -140,7 +143,7 @@ export default function ApplicationsScreen() {
           }
         >
         {applications.length === 0 ? (
-          <View style={styles.emptyContainer}>
+          <Animated.View entering={enterFadeInDown} style={styles.emptyContainer}>
             <MaterialCommunityIcons
               name="file-document-outline"
               size={64}
@@ -152,15 +155,15 @@ export default function ApplicationsScreen() {
             <Text variant="bodyMedium" style={styles.emptySubtext}>
               {t('applications.emptySubtext')}
             </Text>
-          </View>
+          </Animated.View>
         ) : (
-          applications.map((app) => {
+          applications.map((app, index) => {
             const job = jobs[app.jobId];
             if (!job) return null;
 
             return (
+              <Animated.View key={app.id} entering={enterFadeInDownStagger(index, 50)}>
               <TouchableOpacity
-                key={app.id}
                 onPress={() => router.push(`/job-details?id=${app.jobId}`)}
                 activeOpacity={0.7}
               >
@@ -174,7 +177,7 @@ export default function ApplicationsScreen() {
                         style={{
                           backgroundColor: getStatusColor(app.status),
                         }}
-                        textStyle={{ color: '#fff' }}
+                        textStyle={{ color: colors.cream }}
                       >
                         {app.status}
                       </Chip>
@@ -220,6 +223,7 @@ export default function ApplicationsScreen() {
                     </View>
                 </GlassCard>
               </TouchableOpacity>
+              </Animated.View>
             );
           })
         )}
@@ -246,7 +250,7 @@ function createStyles(colors: ThemeColors) {
       alignItems: 'center',
     },
     header: {
-      padding: 24,
+      padding: scale(24),
       borderBottomWidth: 1,
       borderBottomColor: colors.border,
     },
@@ -263,7 +267,7 @@ function createStyles(colors: ThemeColors) {
     },
     content: {
       flex: 1,
-      paddingHorizontal: 16,
+      paddingHorizontal: screenPaddingHorizontal,
     },
     emptyContainer: {
       alignItems: 'center',

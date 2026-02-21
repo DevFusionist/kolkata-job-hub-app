@@ -53,7 +53,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       colors: {
         ...base.colors,
         primary: colors.terracotta,
-        primaryContainer: isDark ? '#3D2A28' : '#FFDAD6',
+        primaryContainer: isDark ? '#3D2522' : '#F5E0DE',
         secondary: colors.gold,
         background: colors.background,
         surface: colors.surface,
@@ -61,7 +61,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
         outline: colors.border,
         error: colors.bengaliRed,
         onPrimary: '#FFF',
-        onSecondary: isDark ? '#1A252F' : '#1A252F',
+        onSecondary: '#FFF',
         onBackground: colors.text,
         onSurface: colors.text,
         onSurfaceVariant: colors.textSecondary,

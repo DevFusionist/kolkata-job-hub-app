@@ -9,6 +9,7 @@ import {
   ImageBackground,
   TouchableOpacity,
 } from 'react-native';
+import Animated from 'react-native-reanimated';
 import {
   Text,
   TextInput,
@@ -21,8 +22,11 @@ import api from '../_lib/api';
 import { useAuth } from '../_contexts/AuthContext';
 import { useTheme } from '../_contexts/ThemeContext';
 import { GlassCard } from '../_components/GlassCard';
+import { LoadingScreen } from '../_components/LoadingScreen';
 import { PaymentModal } from '../_components/PaymentModal';
 import type { ThemeColors } from '../_theme';
+import { scale, imageBackgroundStyleTabs, screenPaddingHorizontal } from '../_design';
+import { enterFadeInDown } from '../_animations';
 
 const CATEGORIES = [
   'Sales',
@@ -240,10 +244,11 @@ export default function PostJobScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
+    {loading && <LoadingScreen fullScreen overlay />}
       <ImageBackground
         source={require('../../assets/images/kolkata_street_nostalgia.png')}
         style={styles.backgroundImage}
-        imageStyle={{ opacity: 0.2 }}
+        imageStyle={imageBackgroundStyleTabs(colors)}
       >
         <View style={styles.header}>
           <Text variant="headlineMedium" style={styles.headerTitle}>
@@ -272,6 +277,7 @@ export default function PostJobScreen() {
           style={styles.flex}
         >
           <ScrollView style={styles.content}>
+          <Animated.View entering={enterFadeInDown}>
           <GlassCard style={styles.card}>
               <TextInput
                 label="Job Title *"
@@ -424,6 +430,7 @@ export default function PostJobScreen() {
                 Post Job
               </Button>
           </GlassCard>
+          </Animated.View>
         </ScrollView>
         </KeyboardAvoidingView>
       </ImageBackground>
@@ -450,7 +457,7 @@ function createStyles(colors: ThemeColors, isDark: boolean) {
       width: '100%',
     },
     header: {
-      padding: 24,
+      padding: scale(24),
       borderBottomWidth: 1,
       borderBottomColor: colors.border,
     },
@@ -489,7 +496,7 @@ function createStyles(colors: ThemeColors, isDark: boolean) {
     },
     content: {
       flex: 1,
-      padding: 16,
+      padding: screenPaddingHorizontal,
       paddingBottom: 40,
     },
     card: {
@@ -515,6 +522,8 @@ function createStyles(colors: ThemeColors, isDark: boolean) {
     chip: {
       marginRight: 4,
       marginBottom: 4,
+      backgroundColor: isDark ? colors.surface : colors.cream,
+      borderColor: colors.border,
     },
     button: {
       marginTop: 24,

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   View,
   StyleSheet,
@@ -9,20 +9,31 @@ import {
   TouchableOpacity,
   ImageBackground,
 } from 'react-native';
-import { Text, TextInput, Button, RadioButton, Chip } from 'react-native-paper';
+import { Text, TextInput, Button, Chip } from 'react-native-paper';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import Animated, {
+  FadeInDown,
+  FadeOutUp,
+  LinearTransition,
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  withTiming,
+} from 'react-native-reanimated';
+
 import api from '../_lib/api';
 import { useAuth } from '../_contexts/AuthContext';
+import { useAuthBack } from '../_contexts/AuthBackContext';
 import { useLanguage } from '../_contexts/LanguageContext';
 import { useTheme } from '../_contexts/ThemeContext';
 import { GlassCard } from '../_components/GlassCard';
-import type { ThemeColors } from '../_theme';
+import { LocationSelector } from '../_components/LocationSelector';
+import { LoadingScreen } from '../_components/LoadingScreen';
+import { scale, imageBackgroundStyle, screenPaddingHorizontal } from '../_design';
 
-const LANG_OPTIONS = [
-  { key: 'Bengali', en: 'Bengali', bn: 'বাংলা' },
-  { key: 'Hindi', en: 'Hindi', bn: 'হিন্দি' },
-  { key: 'English', en: 'English', bn: 'ইংরেজি' },
-];
+/* ---------- CONSTANTS ---------- */
+
+const LANG_OPTIONS = ['Bengali', 'Hindi', 'English'];
 const COMMON_SKILLS = [
   'Sales',
   'Customer Service',
@@ -32,438 +43,547 @@ const COMMON_SKILLS = [
   'Accounting',
   'Warehouse',
   'Delivery',
+  'Cleaning',
+  'Security',
+];
+const EDUCATION_LEVELS = [
+  'Below 10th',
+  '10th Pass',
+  '12th Pass',
+  'Graduate',
+  'Post Graduate',
+];
+const EXPERIENCE_RANGES = [
+  'Fresher',
+  '0-1 years',
+  '1-3 years',
+  '3-5 years',
+  '5-10 years',
+  '10+ years',
 ];
 
 export default function RegisterScreen() {
-  const { t, locale, setLocale } = useLanguage();
-  const { colors, isDark } = useTheme();
+  const { colors } = useTheme();
+  const { t } = useLanguage();
+  const { login } = useAuth();
+  const { setBackOptions } = useAuthBack();
+  const router = useRouter();
   const params = useLocalSearchParams();
-  const phone = Array.isArray(params.phone) ? params.phone[0] : (params.phone as string);
+
+  useEffect(() => {
+    setBackOptions({
+      show: true,
+      onBack: () => router.back(),
+      disabled: false,
+    });
+    return () => {
+      setBackOptions({ show: false, onBack: () => {}, disabled: false });
+    };
+  }, [setBackOptions, router]);
+
+  const phone = Array.isArray(params.phone) ? params.phone[0] : params.phone;
   const registrationToken = Array.isArray(params.registrationToken)
     ? params.registrationToken[0]
-    : (params.registrationToken as string);
-  const [role, setRole] = useState('seeker');
+    : params.registrationToken;
+
+  /* ---------- STATE ---------- */
+
+  const [step, setStep] = useState(0);
+  const [role, setRole] = useState<'seeker' | 'employer'>('seeker');
+  const [roleWidth, setRoleWidth] = useState(0);
+
   const [name, setName] = useState('');
-  const [businessName, setBusinessName] = useState('');
   const [location, setLocation] = useState('');
-  const [selectedLanguages, setSelectedLanguages] = useState<string[]>([]);
+  const [education, setEducation] = useState('10th Pass');
+  const [experience, setExperience] = useState('');
+  const [expectedSalary, setExpectedSalary] = useState('');
+
+  const [selectedLanguages, setSelectedLanguages] = useState<string[]>([
+    'Bengali',
+  ]);
   const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [showSetMpin, setShowSetMpin] = useState(false);
-  const [userToLogin, setUserToLogin] = useState<any>(null);
+
+  const [businessName, setBusinessName] = useState('');
+  const [industry, setIndustry] = useState('');
+
   const [mpin, setMpin] = useState('');
   const [mpinConfirm, setMpinConfirm] = useState('');
-  const { login } = useAuth();
-  const router = useRouter();
 
-  const toggleLanguage = (lang: string) => {
-    if (selectedLanguages.includes(lang)) {
-      setSelectedLanguages(selectedLanguages.filter((l) => l !== lang));
-    } else {
-      setSelectedLanguages([...selectedLanguages, lang]);
-    }
-  };
+  const [userToLogin, setUserToLogin] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
 
-  const toggleSkill = (skill: string) => {
-    if (selectedSkills.includes(skill)) {
-      setSelectedSkills(selectedSkills.filter((s) => s !== skill));
-    } else {
-      setSelectedSkills([...selectedSkills, skill]);
-    }
-  };
+  /* ---------- ANIMATION ---------- */
+
+  const progress = useSharedValue(0);
+
+  useEffect(() => {
+    progress.value = withTiming((step + 1) / 5, { duration: 350 });
+  }, [step]);
+
+  const progressStyle = useAnimatedStyle(() => ({
+    width: `${progress.value * 100}%`,
+  }));
+
+  /* ---------- ROLE SLIDER ---------- */
+
+  const roleX = useSharedValue(0);
+
+  useEffect(() => {
+    roleX.value = withSpring(role === 'seeker' ? 0 : 1);
+  }, [role]);
+
+  const roleSlider = useAnimatedStyle(() => ({
+    transform: [{ translateX: roleX.value * roleWidth }],
+  }));
+
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
+  /* ---------- REGISTER ---------- */
 
   const handleRegister = async () => {
-    if (!registrationToken) {
-      Alert.alert(t('common.error'), 'Registration token missing. Please verify OTP again.');
-      router.replace('/(auth)/login');
-      return;
+    if (!name?.trim()) {
+      return Alert.alert(t('common.error'), t('register.errorFullName'));
     }
-
-    if (!name || !location || selectedLanguages.length === 0) {
-      Alert.alert(t('common.error'), t('register.errorFillRequired'));
-      return;
+    if (!location?.trim()) {
+      return Alert.alert(t('common.error'), t('register.errorLocation'));
     }
-    if (role === 'employer' && !businessName) {
-      Alert.alert(t('common.error'), t('register.errorBusinessName'));
-      return;
+    if (selectedLanguages.length === 0) {
+      return Alert.alert(t('common.error'), t('register.errorSelectLanguage'));
     }
     if (role === 'seeker' && selectedSkills.length === 0) {
-      Alert.alert(t('common.error'), t('register.errorSelectSkill'));
-      return;
+      return Alert.alert(t('common.error'), t('register.errorSelectSkill'));
+    }
+    if (role === 'employer' && !businessName?.trim()) {
+      return Alert.alert(t('common.error'), t('register.errorBusinessName'));
+    }
+    if (role === 'employer' && !industry?.trim()) {
+      return Alert.alert(t('common.error'), t('register.errorIndustry'));
     }
 
     setLoading(true);
     try {
-      const userData = {
+      const payload = {
         phone,
         registrationToken,
         role,
         name,
-        businessName: role === 'employer' ? businessName : undefined,
         location,
+        education,
+        experience,
+        expectedSalary,
+        skills: selectedSkills,
         languages: selectedLanguages,
-        skills: role === 'seeker' ? selectedSkills : [],
+        businessName,
+        industry,
       };
-      const response = await api.post('/users', userData);
-      setUserToLogin(response.data);
-      setShowSetMpin(true);
-    } catch (error: any) {
-      Alert.alert(t('common.error'), error.response?.data?.detail || t('register.errorRegister'));
+
+      const { data } = await api.post('/users', payload);
+      setUserToLogin(data);
+      setStep(4);
+    } catch {
+      Alert.alert(t('common.error'), t('register.errorRegister'));
     } finally {
       setLoading(false);
     }
   };
 
   const handleSetMpin = async () => {
-    if (!mpin || mpin.length < 4 || mpin.length > 6) {
-      Alert.alert(t('common.error'), t('login.errorInvalidMpin'));
-      return;
+    if (mpin.length < 4) {
+      return Alert.alert(t('common.error'), t('login.errorInvalidMpin'));
     }
     if (mpin !== mpinConfirm) {
-      Alert.alert(t('common.error'), t('login.errorMpinMismatch'));
-      return;
+      return Alert.alert(t('common.error'), t('login.errorMpinMismatch'));
     }
-    setLoading(true);
-    try {
-      if (!userToLogin?.token) {
-        Alert.alert(t('common.error'), 'Registration session expired. Please register again.');
-        return;
+
+    await api.post(
+      '/auth/set-mpin',
+      { mpin },
+      {
+        headers: { Authorization: `Bearer ${userToLogin.token}` },
       }
-      await api.post(
-        '/auth/set-mpin',
-        { mpin },
-        { headers: { Authorization: `Bearer ${userToLogin.token}` } }
-      );
-      if (userToLogin) {
-        const { token, ...userData } = userToLogin;
-        await login(userData, token);
-        router.replace('/(tabs)');
-      }
-    } catch (error: any) {
-      Alert.alert(t('common.error'), error.response?.data?.detail || 'Failed to set MPIN');
-    } finally {
-      setLoading(false);
-    }
+    );
+
+    await login(userToLogin, userToLogin.token);
+    router.replace('/(tabs)');
   };
 
-  const langLabel = (opt: (typeof LANG_OPTIONS)[0]) => (locale === 'bn' ? opt.bn : opt.en);
-  const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
+  /* ---------- STEPS ---------- */
 
-  return (
-    <ImageBackground
-      source={require('../../assets/images/kolkata_street_nostalgia.png')}
-      style={[styles.backgroundImage, { backgroundColor: colors.background }]}
-      imageStyle={{ opacity: 0.2 }}
-    >
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.container}
-      >
-        <ScrollView
-          contentContainerStyle={styles.scrollContent}
-          keyboardShouldPersistTaps="handled"
-        >
-          <View style={styles.langRow}>
-          <TouchableOpacity
-            style={[styles.langBtn, locale === 'en' && styles.langBtnActive]}
-            onPress={() => setLocale('en')}
-          >
-            <Text style={[styles.langBtnText, locale === 'en' && styles.langBtnTextActive]}>
-              {t('common.english')}
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.langBtn, locale === 'bn' && styles.langBtnActive]}
-            onPress={() => setLocale('bn')}
-          >
-            <Text style={[styles.langBtnText, locale === 'bn' && styles.langBtnTextActive]}>
-              {t('common.bengali')}
-            </Text>
-          </TouchableOpacity>
-        </View>
+  const renderStep = () => {
+    switch (step) {
+      case 0:
+        return (
+          <>
+            <Text style={styles.title}>Who are you?</Text>
 
-        <View style={styles.headerContainer}>
-          <Text style={styles.brandTitle}>{t('login.brandTitle')}</Text>
-          <Text style={styles.subTitle}>{t('register.brandSubtitle')}</Text>
-          <View style={styles.underline} />
-        </View>
-
-        {showSetMpin ? (
-          <GlassCard style={styles.vintageCard}>
-            <Text variant="headlineSmall" style={styles.formTitle}>
-              {t('login.setMpinTitle')}
-            </Text>
-            <Text style={styles.setMpinHint}>{t('register.setMpinAfterRegister')}</Text>
-            <TextInput
-              label={t('login.enterMpin')}
-              value={mpin}
-              onChangeText={setMpin}
-              placeholder={t('login.mpinPlaceholder')}
-              keyboardType="number-pad"
-              maxLength={6}
-              secureTextEntry
-              mode="flat"
-              activeUnderlineColor={colors.terracotta}
-              textColor={colors.text}
-              style={styles.input}
-            />
-            <TextInput
-              label={t('login.setMpinConfirm')}
-              value={mpinConfirm}
-              onChangeText={setMpinConfirm}
-              placeholder={t('login.mpinPlaceholder')}
-              keyboardType="number-pad"
-              maxLength={6}
-              secureTextEntry
-              mode="flat"
-              activeUnderlineColor={colors.terracotta}
-              textColor={colors.text}
-              style={styles.input}
-            />
-            <Button
-              mode="contained"
-              onPress={handleSetMpin}
-              loading={loading}
-              disabled={loading}
-              contentStyle={{ height: 50 }}
-              style={styles.regButton}
-              labelStyle={styles.buttonLabel}
+            <View
+              style={styles.roleBox}
+              onLayout={(e) => {
+                const w = e.nativeEvent.layout.width;
+                setRoleWidth(w / 2);
+              }}
             >
-              {t('register.setMpin')}
-            </Button>
-          </GlassCard>
-        ) : (
-        <GlassCard style={styles.vintageCard}>
-            <Text variant="headlineSmall" style={styles.formTitle}>
-              {t('register.formTitle')}
-            </Text>
+              <Animated.View
+                style={[
+                  styles.roleSlider,
+                  roleSlider,
+                  { width: roleWidth },
+                ]}
+              />
 
-            <Text style={styles.sectionLabel}>{t('register.iAm')}</Text>
-            <RadioButton.Group onValueChange={setRole} value={role}>
-              <View style={styles.radioRow}>
-                <View style={styles.radioOption}>
-                  <RadioButton value="seeker" color={colors.terracotta} />
-                  <Text style={{ color: colors.text }}>{t('register.jobSeeker')}</Text>
-                </View>
-                <View style={styles.radioOption}>
-                  <RadioButton value="employer" color={colors.terracotta} />
-                  <Text style={{ color: colors.text }}>{t('register.employer')}</Text>
-                </View>
-              </View>
-            </RadioButton.Group>
+              <TouchableOpacity
+                style={styles.roleBtn}
+                onPress={() => setRole('seeker')}
+              >
+                <Text
+                  style={{
+                    color: role === 'seeker' ? '#000' : '#888',
+                  }}
+                >
+                  Job Seeker
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.roleBtn}
+                onPress={() => setRole('employer')}
+              >
+                <Text
+                  style={{
+                    color: role === 'employer' ? '#000' : '#888',
+                  }}
+                >
+                  Employer
+                </Text>
+              </TouchableOpacity>
+            </View>
 
             <TextInput
               label={t('register.fullName')}
-              mode="flat"
-              activeUnderlineColor={colors.terracotta}
-              textColor={colors.text}
+              placeholder={t('register.fullNamePlaceholder')}
               value={name}
               onChangeText={setName}
               style={styles.input}
             />
 
-            {role === 'employer' && (
+            <Button
+              mode="contained"
+              onPress={() => {
+                if (!name?.trim()) {
+                  Alert.alert(t('common.error'), t('register.errorFullName'));
+                  return;
+                }
+                setStep(1);
+              }}
+              style={styles.mainBtn}
+            >
+              Continue
+            </Button>
+          </>
+        );
+
+      case 1:
+        return role === 'seeker' ? (
+          <>
+            <Text style={styles.title}>Your experience</Text>
+
+            <ScrollView>
+              <Text style={styles.fieldHint}>{t('register.education')}</Text>
+              <View style={styles.chipRow}>
+                {EDUCATION_LEVELS.map((e) => (
+                  <Chip
+                    key={e}
+                    selected={education === e}
+                    onPress={() => setEducation(e)}
+                    style={styles.chip}
+                  >
+                    {e}
+                  </Chip>
+                ))}
+              </View>
+
+              <Text style={[styles.fieldHint, { marginTop: 12 }]}>{t('register.experience')}</Text>
+              <Text style={styles.fieldHintSub}>{t('register.experienceRange')}</Text>
+              <View style={styles.chipRow}>
+                {EXPERIENCE_RANGES.map((r) => (
+                  <Chip
+                    key={r}
+                    selected={experience === r}
+                    onPress={() => setExperience(r)}
+                    style={styles.chip}
+                  >
+                    {r}
+                  </Chip>
+                ))}
+              </View>
+
               <TextInput
-                label={t('register.businessName')}
-                mode="flat"
-                activeUnderlineColor={colors.terracotta}
-                textColor={colors.text}
-                value={businessName}
-                onChangeText={setBusinessName}
+                label={t('register.expectedSalary')}
+                placeholder={t('register.expectedSalaryPlaceholder')}
+                value={expectedSalary}
+                onChangeText={setExpectedSalary}
+                keyboardType="number-pad"
                 style={styles.input}
               />
-            )}
 
+              <Button
+                mode="contained"
+                onPress={() => {
+                  if (!experience?.trim()) {
+                    Alert.alert(t('common.error'), t('register.errorExperience'));
+                    return;
+                  }
+                  if (!expectedSalary?.trim()) {
+                    Alert.alert(t('common.error'), t('register.errorExpectedSalary'));
+                    return;
+                  }
+                  setStep(2);
+                }}
+                style={styles.mainBtn}
+              >
+                Continue
+              </Button>
+            </ScrollView>
+          </>
+        ) : (
+          <>
+            <Text style={styles.title}>Business Info</Text>
             <TextInput
-              label={t('register.locality')}
-              placeholder={t('register.localityPlaceholder')}
-              mode="flat"
-              activeUnderlineColor={colors.terracotta}
-              textColor={colors.text}
-              value={location}
-              onChangeText={setLocation}
+              label={t('register.businessName')}
+              placeholder={t('register.businessNamePlaceholder')}
+              value={businessName}
+              onChangeText={setBusinessName}
+              style={styles.input}
+            />
+            <TextInput
+              label={t('register.industry')}
+              placeholder={t('register.industryPlaceholder')}
+              value={industry}
+              onChangeText={setIndustry}
               style={styles.input}
             />
 
-            <Text style={styles.sectionLabel}>{t('register.languages')}</Text>
-            <View style={styles.chipContainer}>
-              {LANG_OPTIONS.map((opt) => (
+            <Button
+              mode="contained"
+              onPress={() => {
+                if (!businessName?.trim()) {
+                  Alert.alert(t('common.error'), t('register.errorBusinessName'));
+                  return;
+                }
+                if (!industry?.trim()) {
+                  Alert.alert(t('common.error'), t('register.errorIndustry'));
+                  return;
+                }
+                setStep(2);
+              }}
+              style={styles.mainBtn}
+            >
+              Continue
+            </Button>
+          </>
+        );
+
+      case 2:
+        return (
+          <>
+            <Text style={styles.title}>Location</Text>
+            <Text style={styles.fieldHintSub}>{t('register.localityPlaceholder')}</Text>
+            <LocationSelector value={location} onChange={setLocation} />
+
+            <Button
+              mode="contained"
+              onPress={() => {
+                if (!location?.trim()) {
+                  Alert.alert(t('common.error'), t('register.errorLocation'));
+                  return;
+                }
+                setStep(3);
+              }}
+              style={styles.mainBtn}
+            >
+              Continue
+            </Button>
+          </>
+        );
+
+      case 3:
+        return (
+          <>
+            <Text style={styles.title}>Skills & Languages</Text>
+            <Text style={styles.fieldHintSub}>{t('register.languages')}</Text>
+            <View style={styles.chipRow}>
+              {LANG_OPTIONS.map((l) => (
                 <Chip
-                  key={opt.key}
-                  selected={selectedLanguages.includes(opt.key)}
-                  onPress={() => toggleLanguage(opt.key)}
-                  selectedColor="#fff"
-                  textStyle={{ color: selectedLanguages.includes(opt.key) ? '#fff' : colors.text }}
-                  style={[
-                    styles.chip,
-                    selectedLanguages.includes(opt.key) && { backgroundColor: colors.terracotta },
-                  ]}
+                  key={l}
+                  selected={selectedLanguages.includes(l)}
+                  onPress={() =>
+                    setSelectedLanguages((prev) =>
+                      prev.includes(l)
+                        ? prev.filter((i) => i !== l)
+                        : [...prev, l]
+                    )
+                  }
+                  style={styles.chip}
                 >
-                  {langLabel(opt)}
+                  {l}
                 </Chip>
               ))}
             </View>
 
             {role === 'seeker' && (
               <>
-                <Text style={styles.sectionLabel}>{t('register.skills')}</Text>
-                <View style={styles.chipContainer}>
-                  {COMMON_SKILLS.map((skill) => (
-                    <Chip
-                      key={skill}
-                      selected={selectedSkills.includes(skill)}
-                      onPress={() => toggleSkill(skill)}
-                      selectedColor={colors.terracotta}
-                      textStyle={{ color: colors.text }}
-                      style={styles.skillChip}
-                    >
-                      {skill}
-                    </Chip>
-                  ))}
+                <Text style={[styles.fieldHint, { marginTop: 8 }]}>{t('register.skills')}</Text>
+                <View style={styles.chipRow}>
+                {COMMON_SKILLS.map((s) => (
+                  <Chip
+                    key={s}
+                    selected={selectedSkills.includes(s)}
+                    onPress={() =>
+                      setSelectedSkills((prev) =>
+                        prev.includes(s)
+                          ? prev.filter((i) => i !== s)
+                          : [...prev, s]
+                      )
+                    }
+                    style={styles.chip}
+                  >
+                    {s}
+                  </Chip>
+                ))}
                 </View>
               </>
             )}
 
             <Button
               mode="contained"
-              onPress={handleRegister}
               loading={loading}
-              disabled={loading}
-              contentStyle={{ height: 50 }}
-              style={styles.regButton}
-              labelStyle={styles.buttonLabel}
+              onPress={handleRegister}
+              style={styles.mainBtn}
             >
-              {t('register.startJourney')}
+              Create Profile
             </Button>
-        </GlassCard>
-        )}
-      </ScrollView>
-    </KeyboardAvoidingView>
+          </>
+        );
+
+      case 4:
+        return (
+          <>
+            <Text style={styles.title}>Secure your account</Text>
+            <Text style={styles.fieldHintSub}>{t('register.mpinHint')}</Text>
+
+            <TextInput
+              label={t('login.enterMpin')}
+              placeholder={t('register.mpinHint')}
+              value={mpin}
+              onChangeText={setMpin}
+              secureTextEntry
+              keyboardType="number-pad"
+              style={styles.input}
+            />
+            <TextInput
+              label={t('login.setMpinConfirm')}
+              placeholder={t('register.mpinHint')}
+              value={mpinConfirm}
+              onChangeText={setMpinConfirm}
+              secureTextEntry
+              keyboardType="number-pad"
+              style={styles.input}
+            />
+
+            <Button
+              mode="contained"
+              onPress={handleSetMpin}
+              style={styles.mainBtn}
+            >
+              Finish
+            </Button>
+          </>
+        );
+    }
+  };
+
+  /* ---------- UI ---------- */
+
+  return (
+    <View style={styles.bg}>
+    <ImageBackground
+      source={require('../../assets/images/kolkata_street_nostalgia.png')}
+      style={styles.bg}
+      imageStyle={imageBackgroundStyle(colors)}
+    >
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={{ flex: 1 }}
+      >
+        <ScrollView contentContainerStyle={styles.scroll}>
+          <View style={styles.progress}>
+            <Animated.View style={[styles.progressFill, progressStyle]} />
+          </View>
+
+          <GlassCard>
+            <Animated.View
+              key={step}
+              entering={FadeInDown.springify()}
+              exiting={FadeOutUp}
+              layout={LinearTransition.springify()}
+            >
+              {renderStep()}
+            </Animated.View>
+          </GlassCard>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </ImageBackground>
+    {loading && <LoadingScreen fullScreen overlay />}
+    </View>
   );
 }
 
-function createStyles(colors: ThemeColors, isDark: boolean) {
-  return StyleSheet.create({
-    backgroundImage: {
-      flex: 1,
-      backgroundColor: colors.background,
-    },
-    container: {
-      flex: 1,
-    },
-    langRow: {
-      flexDirection: 'row',
-      justifyContent: 'center',
-      paddingHorizontal: 24,
-      paddingTop: Platform.OS === 'ios' ? 56 : 24,
-      paddingBottom: 8,
-      gap: 8,
+/* ---------- STYLES ---------- */
+
+const createStyles = (colors: any) =>
+  StyleSheet.create({
+    bg: { flex: 1 },
+    scroll: { flexGrow: 1, justifyContent: 'center', padding: scale(20) },
+
+    progress: {
+      height: 4,
+      backgroundColor: colors.cream,
+      borderRadius: 3,
+      overflow: 'hidden',
       marginBottom: 20,
-      marginTop: 20,
     },
-    langBtn: {
-      paddingVertical: 8,
-      paddingHorizontal: 16,
-      borderRadius: 8,
-      borderWidth: 1,
-      borderColor: colors.terracotta,
+    progressFill: {
+      height: 4,
+      backgroundColor: colors.ink,
     },
-    langBtnActive: {
-      backgroundColor: colors.terracotta,
-    },
-    langBtnText: {
-      fontSize: 14,
-      color: colors.terracotta,
-      fontWeight: '600',
-    },
-    langBtnTextActive: {
-      color: colors.cream,
-    },
-    scrollContent: {
-      padding: 20,
-      paddingBottom: 40,
-    },
-    headerContainer: {
-      alignItems: 'center',
-      marginBottom: 30,
-    },
-    brandTitle: {
-      fontSize: 48,
-      fontFamily: Platform.OS === 'ios' ? 'Kohinoor Bangla' : 'serif',
-      color: colors.terracotta,
-      fontWeight: 'bold',
-    },
-    subTitle: {
-      fontSize: 14,
-      color: colors.text,
-      letterSpacing: 1.5,
-      textTransform: 'uppercase',
-      fontWeight: '600',
-    },
-    underline: {
-      width: 60,
-      height: 3,
-      backgroundColor: colors.gold,
-      marginTop: 8,
-    },
-    vintageCard: {
-      elevation: 2,
-    },
-    formTitle: {
-      textAlign: 'center',
+
+    title: { fontSize: 20, fontWeight: 'bold', marginBottom: 20 },
+    fieldHint: { fontSize: 14, fontWeight: '600', marginBottom: 6, color: colors.text },
+    fieldHintSub: { fontSize: 12, marginBottom: 8, color: colors.textSecondary },
+
+    input: { marginBottom: 10 },
+
+    mainBtn: { marginTop: 20 },
+
+    chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 10 },
+    chip: { backgroundColor: colors.cream, borderColor: colors.border },
+
+    roleBox: {
+      flexDirection: 'row',
+      backgroundColor: colors.cream,
+      borderRadius: 12,
       marginBottom: 20,
-      color: colors.text,
-      fontWeight: '600',
+      overflow: 'hidden',
     },
-    sectionLabel: {
-      marginTop: 16,
-      marginBottom: 8,
-      fontWeight: 'bold',
-      color: colors.terracotta,
+    roleSlider: {
+      position: 'absolute',
+      height: '100%',
+      backgroundColor: colors.surface,
+      borderRadius: 12,
+      shadowColor: '#000',
+      shadowOpacity: 0.1,
+      shadowRadius: 10,
+      elevation: 4,
     },
-    radioRow: {
-      flexDirection: 'row',
-      justifyContent: 'space-around',
-      marginBottom: 10,
-    },
-    radioOption: {
-      flexDirection: 'row',
-      alignItems: 'center',
-    },
-    input: {
-      marginBottom: 16,
-      backgroundColor: 'transparent',
-      color: colors.text,
-    },
-    chipContainer: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      gap: 8,
-      marginBottom: 10,
-    },
-    chip: {
-      backgroundColor: isDark ? colors.surface : '#F0EDE0',
-    },
-    skillChip: {
-      borderColor: colors.terracotta,
-      borderWidth: 1,
-    },
-    regButton: {
-      marginTop: 30,
-      backgroundColor: colors.terracotta,
-      borderRadius: 4,
-    },
-    setMpinHint: {
-      textAlign: 'center',
-      color: colors.textSecondary,
-      marginBottom: 20,
-      fontSize: 14,
-    },
-    buttonLabel: {
-      fontSize: 16,
-      fontWeight: 'bold',
-      letterSpacing: 1,
-    },
+    roleBtn: { flex: 1, padding: 12, alignItems: 'center' },
   });
-}

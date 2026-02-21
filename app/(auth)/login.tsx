@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import {
   View,
   StyleSheet,
@@ -11,13 +11,22 @@ import {
   Image,
 } from 'react-native';
 import { Text, TextInput, Button } from 'react-native-paper';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
+import Animated, {
+  FadeInDown,
+  FadeOutUp,
+  LinearTransition,
+} from 'react-native-reanimated';
+
 import api from '../_lib/api';
 import { useAuth } from '../_contexts/AuthContext';
+import { useAuthBack } from '../_contexts/AuthBackContext';
 import { useLanguage } from '../_contexts/LanguageContext';
 import { useTheme } from '../_contexts/ThemeContext';
 import { GlassCard } from '../_components/GlassCard';
+import { LoadingScreen } from '../_components/LoadingScreen';
 import type { ThemeColors } from '../_theme';
+import { scale, imageBackgroundStyle, screenPaddingHorizontal } from '../_design';
 
 type Step = 'phone' | 'mpin' | 'otp' | 'set_mpin';
 type OtpPurpose = 'register' | 'reset_mpin';
@@ -25,591 +34,463 @@ type OtpPurpose = 'register' | 'reset_mpin';
 export default function LoginScreen() {
   const { t, locale, setLocale } = useLanguage();
   const { colors } = useTheme();
+  const { login } = useAuth();
+  const { setBackOptions } = useAuthBack();
+  const router = useRouter();
+  const goBackRef = useRef<() => void>(() => {});
+
+  /* ---------- STATE ---------- */
+
   const [phone, setPhone] = useState('');
   const [mpin, setMpin] = useState('');
   const [otp, setOtp] = useState('');
-  const [otpSent, setOtpSent] = useState(false);
-  const [otpPurpose, setOtpPurpose] = useState<OtpPurpose | null>(null);
   const [step, setStep] = useState<Step>('phone');
+  const [otpPurpose, setOtpPurpose] = useState<OtpPurpose | null>(null);
   const [mpinConfirm, setMpinConfirm] = useState('');
   const [userAfterOtp, setUserAfterOtp] = useState<any>(null);
   const [loading, setLoading] = useState(false);
-  const { login } = useAuth();
-  const router = useRouter();
+
+  /* ---------- STYLES ---------- */
+
+  const styles = useMemo(() => createStyles(colors), [colors]);
+  const inputTheme = useMemo(
+    () => ({ colors: { primary: colors.terracotta } }),
+    [colors.terracotta]
+  );
+
+  /* ---------- LOGIC ---------- */
 
   const sendOTP = async (purpose: OtpPurpose) => {
     if (phone.length !== 10) {
-      Alert.alert(t('common.error'), t('login.errorInvalidPhone'));
-      return;
+      return Alert.alert(t('common.error'), t('login.errorInvalidPhone'));
     }
+
     setLoading(true);
     try {
       await api.post('/auth/send-otp', { phone, purpose });
-      setOtpSent(true);
       setOtpPurpose(purpose);
       setOtp('');
       setStep('otp');
       Alert.alert(t('common.success'), t('login.otpSent'));
     } catch (error: any) {
-      const status = error.response?.status;
-      const msg =
-        error.response?.data?.detail ||
-        error.response?.data?.message ||
-        error.message ||
-        t('login.errorSendOtp');
-      if (status === 409 && purpose === 'register') {
+      if (error.response?.status === 409 && purpose === 'register') {
         setStep('mpin');
-        setOtpSent(false);
-        setOtpPurpose(null);
       }
-      Alert.alert(t('common.error'), typeof msg === 'string' ? msg : JSON.stringify(msg));
+      Alert.alert(
+        t('common.error'),
+        error.response?.data?.detail || t('login.errorSendOtp')
+      );
     } finally {
       setLoading(false);
     }
   };
 
   const verifyOTP = async () => {
+    console.log('verifyOTP', otp);
     if (otp.length !== 6) {
-      Alert.alert(t('common.error'), t('login.errorInvalidOtp'));
-      return;
+      return Alert.alert(t('common.error'), t('login.errorInvalidOtp'));
     }
-    if (!otpPurpose) {
-      Alert.alert(t('common.error'), 'Please request OTP again.');
-      return;
-    }
+
     setLoading(true);
     try {
-      const response = await api.post('/auth/verify-otp', { phone, otp, purpose: otpPurpose });
-      if (!response.data.success) {
-        Alert.alert(t('common.error'), t('login.errorVerifyOtp'));
-        return;
-      }
+      const response = await api.post('/auth/verify-otp', {
+        phone,
+        otp,
+        purpose: otpPurpose,
+      });
+
       if (response.data.isNewUser) {
-        const registrationToken = response.data.registrationToken;
-        if (!registrationToken) {
-          Alert.alert(t('common.error'), 'OTP verification incomplete. Please try again.');
-          return;
-        }
-        setStep('phone');
-        setOtpSent(false);
-        setOtpPurpose(null);
-        setOtp('');
         router.push({
           pathname: '/(auth)/register',
-          params: { phone, registrationToken },
+          params: {
+            phone,
+            registrationToken: response.data.registrationToken,
+          },
         });
         return;
       }
+
       if (otpPurpose === 'reset_mpin') {
-        if (!response.data.mpinResetToken) {
-          Alert.alert(t('common.error'), 'Reset token missing. Please request OTP again.');
-          return;
-        }
         setUserAfterOtp({
           mpinResetToken: response.data.mpinResetToken,
-          phone,
-          user: response.data.user || null,
         });
       } else {
-        setUserAfterOtp({ user: response.data.user, token: response.data.token });
+        setUserAfterOtp({
+          user: response.data.user,
+          token: response.data.token,
+        });
       }
-      setStep('set_mpin');
-      setOtp('');
-      setOtpPurpose(null);
-    } catch (error: any) {
-      const status = error.response?.status;
-      const msg = error.response?.data?.detail || error.response?.data?.message || error.message || t('login.errorVerifyOtp');
-      if (status === 409 && otpPurpose === 'register') {
-        setStep('mpin');
-        setOtp('');
-        setOtpSent(false);
-        setOtpPurpose(null);
-      }
-      Alert.alert(t('common.error'), msg);
-    } finally {
-      setLoading(false);
-    }
-  };
 
-  const submitSetMpin = async () => {
-    if (!mpin || mpin.length < 4 || mpin.length > 6) {
-      Alert.alert(t('common.error'), t('login.errorInvalidMpin'));
-      return;
-    }
-    if (mpin !== mpinConfirm) {
-      Alert.alert(t('common.error'), t('login.errorMpinMismatch'));
-      return;
-    }
-    setLoading(true);
-    try {
-      const pending = userAfterOtp;
-      if (pending?.mpinResetToken) {
-        await api.post(
-          '/auth/set-mpin',
-          { mpin },
-          { headers: { 'x-mpin-reset-token': pending.mpinResetToken } }
-        );
-        const loginResp = await api.post('/auth/login', { phone: pending.phone || phone, mpin });
-        if (loginResp.data?.success && loginResp.data?.user && loginResp.data?.token) {
-          await login(loginResp.data.user, loginResp.data.token);
-          router.replace('/(tabs)');
-        } else {
-          Alert.alert(t('common.error'), 'MPIN updated. Please login now.');
-          setStep('phone');
-        }
-      } else if (pending?.token) {
-        await api.post(
-          '/auth/set-mpin',
-          { mpin },
-          { headers: { Authorization: `Bearer ${pending.token}` } }
-        );
-        if (pending?.user) {
-          await login(pending.user, pending.token);
-          router.replace('/(tabs)');
-        }
-      } else {
-        Alert.alert(t('common.error'), 'Session expired. Please verify OTP again.');
-      }
-      setUserAfterOtp(null);
-      setMpin('');
-      setMpinConfirm('');
-      setStep('phone');
-    } catch (error: any) {
-      Alert.alert(t('common.error'), error.response?.data?.detail || 'Failed to set MPIN');
+      setStep('set_mpin');
+    } catch {
+      Alert.alert(t('common.error'), t('login.errorVerifyOtp'));
     } finally {
       setLoading(false);
     }
   };
 
   const loginWithMpin = async () => {
-    if (!mpin || mpin.length < 4 || mpin.length > 6) {
-      Alert.alert(t('common.error'), t('login.errorInvalidMpin'));
-      return;
+    if (mpin.length < 4) {
+      return Alert.alert(t('common.error'), t('login.errorInvalidMpin'));
     }
+
     setLoading(true);
     try {
       const response = await api.post('/auth/login', { phone, mpin });
-      if (response.data.success && response.data.user) {
+
+      if (response.data.success) {
         await login(response.data.user, response.data.token);
         router.replace('/(tabs)');
       }
-    } catch (error: any) {
-      const detail = error.response?.data?.detail || '';
-      if (error.response?.status === 404 || (typeof detail === 'string' && detail.toLowerCase().includes('not found'))) {
-        Alert.alert(t('common.error'), t('login.errorUserNotFound'), [
-          { text: t('common.cancel'), style: 'cancel' },
-          { text: t('login.getOtp'), onPress: () => { setStep('phone'); sendOTP('reset_mpin'); } },
-        ]);
-      } else if (error.response?.status === 400 && typeof detail === 'string' && detail.toLowerCase().includes('not set')) {
-        Alert.alert(t('common.error'), t('login.errorMpinNotSet'), [
-          { text: t('common.cancel'), style: 'cancel' },
-          { text: t('login.getOtp'), onPress: () => { setStep('phone'); sendOTP('reset_mpin'); } },
-        ]);
-      } else {
-        Alert.alert(t('common.error'), typeof detail === 'string' ? detail : t('login.errorVerifyOtp'));
-      }
+    } catch {
+      Alert.alert(t('common.error'), t('login.errorVerifyOtp'));
     } finally {
       setLoading(false);
     }
   };
 
-  const goToMpinStep = () => {
-    if (phone.length !== 10) {
-      Alert.alert(t('common.error'), t('login.errorInvalidPhone'));
-      return;
+  const submitSetMpin = async () => {
+    if (mpin !== mpinConfirm) {
+      return Alert.alert(t('common.error'), t('login.errorMpinMismatch'));
     }
-    setStep('mpin');
-    setMpin('');
+
+    setLoading(true);
+    try {
+      const pending = userAfterOtp;
+
+      const headers = pending?.mpinResetToken
+        ? { 'x-mpin-reset-token': pending.mpinResetToken }
+        : { Authorization: `Bearer ${pending.token}` };
+
+      await api.post('/auth/set-mpin', { mpin }, { headers });
+
+      const loginResp = await api.post('/auth/login', { phone, mpin });
+
+      if (loginResp.data.success) {
+        await login(loginResp.data.user, loginResp.data.token);
+        router.replace('/(tabs)');
+      }
+    } catch {
+      Alert.alert(t('common.error'), 'Failed to set MPIN');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const renderPhoneStep = () => (
-    <>
-      <TextInput
-        label={t('login.phoneNumber')}
-        value={phone}
-        onChangeText={setPhone}
-        keyboardType="phone-pad"
-        maxLength={10}
-        mode="flat"
-        activeUnderlineColor={colors.terracotta}
-        textColor={colors.text}
-        style={styles.input}
-        left={<TextInput.Affix text="+91 " textStyle={styles.affix} />}
-      />
-      <Button
-        mode="contained"
-        onPress={goToMpinStep}
-        disabled={loading || phone.length !== 10}
-        style={styles.mainButton}
-        labelStyle={styles.buttonLabel}
-      >
-        {t('login.loginWithMpin')}
-      </Button>
-      <Button
-        mode="text"
-        onPress={() => sendOTP('reset_mpin')}
-        loading={loading}
-        textColor={colors.terracotta}
-        style={styles.textButton}
-      >
-        {t('login.forgotMpin')}
-      </Button>
-      <Button
-        mode="text"
-        onPress={() => sendOTP('register')}
-        textColor={colors.muted}
-        style={styles.textButton}
-      >
-        {t('login.newUserSendOtp')}
-      </Button>
-    </>
-  );
-
-  const renderMpinStep = () => (
-    <>
-      <Text style={styles.phoneDisplay}>+91 {phone}</Text>
-      <TextInput
-        label={t('login.enterMpin')}
-        value={mpin}
-        onChangeText={setMpin}
-        placeholder={t('login.mpinPlaceholder')}
-        keyboardType="number-pad"
-        maxLength={6}
-        secureTextEntry
-        mode="flat"
-        activeUnderlineColor={colors.terracotta}
-        textColor={colors.text}
-        style={styles.input}
-      />
-      <Button
-        mode="contained"
-        onPress={loginWithMpin}
-        loading={loading}
-        disabled={loading}
-        style={styles.mainButton}
-        labelStyle={styles.buttonLabel}
-      >
-        {t('login.loginWithMpin')}
-      </Button>
-      <Button
-        mode="text"
-        onPress={() => { setStep('phone'); setMpin(''); }}
-        textColor={colors.muted}
-        style={styles.textButton}
-      >
-        {t('login.editNumber')}
-      </Button>
-      <Button
-        mode="text"
-        onPress={() => { setStep('phone'); setMpin(''); sendOTP('reset_mpin'); }}
-        textColor={colors.terracotta}
-        style={styles.textButton}
-      >
-        {t('login.forgotMpin')}
-      </Button>
-    </>
-  );
-
-  const renderOtpStep = () => (
-    <>
-      <TextInput
-        label={t('login.phoneNumber')}
-        value={phone}
-        mode="flat"
-        activeUnderlineColor={colors.terracotta}
-        textColor={colors.text}
-        style={styles.input}
-        left={<TextInput.Affix text="+91 " textStyle={styles.affix} />}
-        disabled
-      />
-      <TextInput
-        label={t('login.enterOtp')}
-        value={otp}
-        onChangeText={setOtp}
-        keyboardType="number-pad"
-        maxLength={6}
-        mode="flat"
-        activeUnderlineColor={colors.terracotta}
-        textColor={colors.text}
-        style={styles.input}
-      />
-      <Button
-        mode="contained"
-        onPress={verifyOTP}
-        loading={loading}
-        style={styles.mainButton}
-        labelStyle={styles.buttonLabel}
-      >
-        {t('login.verify')}
-      </Button>
-      <Button
-        mode="text"
-        onPress={() => { setStep('phone'); setOtpSent(false); setOtp(''); }}
-        textColor={colors.muted}
-        style={styles.textButton}
-      >
-        {t('login.editNumber')}
-      </Button>
-    </>
-  );
-
-  const renderSetMpinStep = () => (
-    <>
-      <Text style={styles.setMpinTitle}>{t('login.setMpinTitle')}</Text>
-      <Text style={styles.instructionText}>{t('login.createMpinInstruction')}</Text>
-      <TextInput
-        label={t('login.enterMpin')}
-        value={mpin}
-        onChangeText={setMpin}
-        placeholder={t('login.mpinPlaceholder')}
-        keyboardType="number-pad"
-        maxLength={6}
-        secureTextEntry
-        mode="flat"
-        activeUnderlineColor={colors.terracotta}
-        textColor={colors.text}
-        style={styles.input}
-      />
-      <TextInput
-        label={t('login.setMpinConfirm')}
-        value={mpinConfirm}
-        onChangeText={setMpinConfirm}
-        placeholder={t('login.mpinPlaceholder')}
-        keyboardType="number-pad"
-        maxLength={6}
-        secureTextEntry
-        mode="flat"
-        activeUnderlineColor={colors.terracotta}
-        textColor={colors.text}
-        style={styles.input}
-      />
-      <Button
-        mode="contained"
-        onPress={submitSetMpin}
-        loading={loading}
-        disabled={loading}
-        style={styles.mainButton}
-        labelStyle={styles.buttonLabel}
-      >
-        {t('register.setMpin')}
-      </Button>
-    </>
-  );
-
-  const getTitle = () => {
-    if (step === 'phone') return t('login.welcome');
-    if (step === 'mpin') return t('login.enterMpin');
-    if (step === 'otp') return t('login.verifyOtp');
-    if (step === 'set_mpin') return t('login.setMpinTitle');
-    return t('login.welcome');
+  const goBack = () => {
+    if (step === 'mpin') {
+      setMpin('');
+      setStep('phone');
+    } else if (step === 'otp') {
+      setOtp('');
+      setOtpPurpose(null);
+      setStep('phone');
+    } else if (step === 'set_mpin') {
+      setMpin('');
+      setMpinConfirm('');
+      setUserAfterOtp(null);
+      setStep('phone');
+    }
   };
 
-  const getInstruction = () => {
-    if (step === 'phone') return t('login.instruction');
-    if (step === 'mpin') return t('login.mpinPlaceholder');
-    if (step === 'otp') return t('login.instructionOtp');
-    if (step === 'set_mpin') return t('login.createMpinInstruction');
-    return t('login.instruction');
+  goBackRef.current = goBack;
+
+  const syncBackOptions = useCallback(() => {
+    if (step !== 'phone') {
+      setBackOptions({
+        show: true,
+        onBack: () => goBackRef.current?.(),
+        disabled: loading,
+      });
+    } else {
+      setBackOptions({ show: false, onBack: () => {}, disabled: false });
+    }
+  }, [step, loading, setBackOptions]);
+
+  useFocusEffect(
+    useCallback(() => {
+      syncBackOptions();
+      return () => {
+        setBackOptions({ show: false, onBack: () => {}, disabled: false });
+      };
+    }, [syncBackOptions, setBackOptions])
+  );
+
+  useEffect(() => {
+    syncBackOptions();
+  }, [syncBackOptions]);
+
+  /* ---------- HEADER ---------- */
+
+  const titles = {
+    phone: t('login.welcome'),
+    mpin: t('login.enterMpin'),
+    otp: t('login.verifyOtp'),
+    set_mpin: t('login.setMpinTitle'),
   };
 
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const subs = {
+    phone: t('login.instruction'),
+    mpin: t('login.mpinPlaceholder'),
+    otp: t('login.instructionOtp'),
+    set_mpin: t('login.createMpinInstruction'),
+  };
+
+  /* ---------- UI ---------- */
 
   return (
+    <View style={styles.bg}>
     <ImageBackground
       source={require('../../assets/images/kolkata_street_nostalgia.png')}
-      style={[styles.backgroundImage, { backgroundColor: colors.background }]}
-      imageStyle={{ opacity: 0.2 }}
+      style={[styles.bg, { backgroundColor: colors.background }]}
+      imageStyle={styles.bgImage}
     >
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.container}
+        style={{ flex: 1 }}
       >
         <ScrollView
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={styles.scroll}
           keyboardShouldPersistTaps="handled"
         >
+          {/* Language */}
           <View style={styles.langRow}>
-            <TouchableOpacity
-              style={[styles.langBtn, locale === 'en' && styles.langBtnActive]}
-              onPress={() => setLocale('en')}
-            >
-              <Text style={[styles.langBtnText, locale === 'en' && styles.langBtnTextActive]}>
-                {t('common.english')}
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.langBtn, locale === 'bn' && styles.langBtnActive]}
-              onPress={() => setLocale('bn')}
-            >
-              <Text style={[styles.langBtnText, locale === 'bn' && styles.langBtnTextActive]}>
-                {t('common.bengali')}
-              </Text>
-            </TouchableOpacity>
+            {['en', 'bn'].map((l) => (
+              <TouchableOpacity
+                key={l}
+                onPress={() => setLocale(l as any)}
+                style={[
+                  styles.langBtn,
+                  locale === l && { backgroundColor: colors.ink },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.langBtnTxt,
+                    locale === l && { color: colors.cream },
+                  ]}
+                >
+                  {l === 'en' ? 'EN' : 'বাংলা'}
+                </Text>
+              </TouchableOpacity>
+            ))}
           </View>
 
-          <View style={styles.brandingSection}>
-            <Image
-              source={require('../../assets/images/bengali_business_motifs.png')}
-              style={styles.logo}
-              resizeMode="contain"
-            />
-            <Text style={styles.brandTitle}>{t('login.brandTitle')}</Text>
-            <View style={styles.divider} />
-            <Text style={styles.brandSubtitle}>{t('login.brandName')}</Text>
-          </View>
+          {/* Branding */}
+          <Animated.View entering={FadeInDown.springify()}>
+            <View style={styles.branding}>
+              <Image
+                source={require('../../assets/images/bengali_business_motifs.png')}
+                style={styles.logo}
+              />
+              <Text style={styles.brandTitle}>প্ৰতিভা</Text>
+              <View
+                style={[
+                  styles.divider,
+                  { backgroundColor: colors.gold },
+                ]}
+              />
+              <Text style={styles.brandSubtitle}>
+                KOLKATA DIGITAL HUB
+              </Text>
+            </View>
+          </Animated.View>
 
-          <GlassCard style={styles.vintageCard}>
-            <Text style={styles.welcomeText}>{getTitle()}</Text>
-            <Text style={styles.instructionText}>
-              {step === 'set_mpin' ? '' : getInstruction()}
-            </Text>
+          {/* Card */}
+          <GlassCard style={styles.card}>
+            <Animated.View
+              key={step}
+              entering={FadeInDown.springify()}
+              exiting={FadeOutUp}
+              layout={LinearTransition.springify()}
+            >
+              <Text style={styles.welcomeText}>{titles[step]}</Text>
+              <Text style={styles.instructionText}>{subs[step]}</Text>
 
-            {step === 'phone' && renderPhoneStep()}
-            {step === 'mpin' && renderMpinStep()}
-            {step === 'otp' && renderOtpStep()}
-            {step === 'set_mpin' && renderSetMpinStep()}
+              {/* PHONE */}
+              {step === 'phone' && (
+                <>
+                  <TextInput
+                    label={t('login.phoneNumber')}
+                    value={phone}
+                    onChangeText={setPhone}
+                    keyboardType="phone-pad"
+                    maxLength={10}
+                    mode="flat"
+                    theme={inputTheme}
+                    style={styles.input}
+                  />
+
+                  <Button
+                    mode="contained"
+                    style={styles.mainBtn}
+                    labelStyle={styles.btnLabel}
+                    onPress={() => setStep('mpin')}
+                    disabled={loading}
+                  >
+                    {t('login.loginWithMpin')}
+                  </Button>
+
+                  <TouchableOpacity
+                    onPress={() => sendOTP('register')}
+                    style={styles.centerLink}
+                  >
+                    <Text style={styles.linkText}>
+                      {t('login.newUserSendOtp')}
+                    </Text>
+                  </TouchableOpacity>
+                </>
+              )}
+
+              {/* MPIN */}
+              {step === 'mpin' && (
+                <>
+                  <TextInput
+                    label={t('login.enterMpin')}
+                    value={mpin}
+                    onChangeText={setMpin}
+                    secureTextEntry
+                    keyboardType="number-pad"
+                    style={styles.input}
+                  />
+
+                  <Button
+                    mode="contained"
+                    style={styles.mainBtn}
+                    labelStyle={styles.btnLabel}
+                    onPress={loginWithMpin}
+                    disabled={loading}
+                  >
+                    {t('login.loginWithMpin')}
+                  </Button>
+                </>
+              )}
+
+              {/* OTP */}
+              {step === 'otp' && (
+                <>
+                  <TextInput
+                    label={t('login.enterOtp')}
+                    value={otp}
+                    onChangeText={setOtp}
+                    keyboardType="number-pad"
+                    style={styles.input}
+                  />
+
+                  <Button
+                    mode="contained"
+                    style={styles.mainBtn}
+                    labelStyle={styles.btnLabel}
+                    onPress={verifyOTP}
+                    disabled={loading}
+                  >
+                    {t('login.verify')}
+                  </Button>
+                </>
+              )}
+
+              {/* SET MPIN */}
+              {step === 'set_mpin' && (
+                <>
+                  <TextInput
+                    label={t('login.enterMpin')}
+                    value={mpin}
+                    onChangeText={setMpin}
+                    secureTextEntry
+                    style={styles.input}
+                  />
+
+                  <TextInput
+                    label={t('login.setMpinConfirm')}
+                    value={mpinConfirm}
+                    onChangeText={setMpinConfirm}
+                    secureTextEntry
+                    style={styles.input}
+                  />
+
+                  <Button
+                    mode="contained"
+                    style={styles.mainBtn}
+                    labelStyle={styles.btnLabel}
+                    onPress={submitSetMpin}
+                    disabled={loading}
+                  >
+                    {t('register.setMpin')}
+                  </Button>
+                </>
+              )}
+            </Animated.View>
           </GlassCard>
         </ScrollView>
       </KeyboardAvoidingView>
     </ImageBackground>
+    {loading && <LoadingScreen fullScreen overlay />}
+    </View>
   );
 }
 
-function createStyles(colors: ThemeColors) {
-  return StyleSheet.create({
-    backgroundImage: {
-      flex: 1,
-      backgroundColor: colors.background,
-    },
-    container: {
-      flex: 1,
-    },
-    logo: {
-      width: 80,
-      height: 80,
-      marginBottom: 10,
-    },
+/* ---------- STYLES ---------- */
+
+const createStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    bg: { flex: 1 },
+    bgImage: imageBackgroundStyle(colors),
+    scroll: { flexGrow: 1, padding: screenPaddingHorizontal, justifyContent: 'center' },
+
     langRow: {
       flexDirection: 'row',
-      justifyContent: 'center',
-      paddingHorizontal: 24,
-      paddingTop: Platform.OS === 'ios' ? 56 : 24,
-      paddingBottom: 8,
+      justifyContent: 'flex-end',
       gap: 8,
       marginBottom: 20,
-      marginTop: 20,
     },
     langBtn: {
-      paddingVertical: 8,
-      paddingHorizontal: 16,
-      borderRadius: 8,
+      paddingVertical: 4,
+      paddingHorizontal: 12,
       borderWidth: 1,
-      borderColor: colors.terracotta,
+      borderColor: colors.ink,
     },
-    langBtnActive: {
-      backgroundColor: colors.terracotta,
-    },
-    langBtnText: {
-      fontSize: 14,
-      color: colors.terracotta,
-      fontWeight: '600',
-    },
-    langBtnTextActive: {
-      color: colors.cream,
-    },
-    scrollContent: {
-      flexGrow: 1,
-      justifyContent: 'center',
-      padding: 24,
-    },
-    brandingSection: {
-      alignItems: 'center',
-      marginBottom: 30,
-    },
-    brandTitle: {
-      fontSize: 42,
-      color: colors.terracotta,
-      fontFamily: Platform.OS === 'ios' ? 'Kohinoor Bangla' : 'serif',
-      fontWeight: '700',
-      textAlign: 'center',
-    },
+    langBtnTxt: { fontSize: 11, fontWeight: '700', color: colors.ink },
+
+    branding: { alignItems: 'center', marginBottom: 24 },
+    logo: { width: 60, height: 60, tintColor: colors.ink },
+    brandTitle: { fontSize: 42, color: colors.ink, fontWeight: '700' },
     brandSubtitle: {
-      fontSize: 14,
-      letterSpacing: 2,
+      fontSize: 10,
+      letterSpacing: 4,
       color: colors.text,
-      marginTop: 4,
-      fontWeight: '600',
-    },
-    divider: {
-      width: 60,
-      height: 2,
-      backgroundColor: colors.gold,
       marginTop: 8,
     },
-    vintageCard: {
-      elevation: 2,
+    divider: { width: 30, height: 2, marginTop: 4 },
+
+    card: {
+      padding: scale(20),
+      borderWidth: 1.5,
+      borderColor: colors.border,
+      backgroundColor: colors.surface,
     },
-    welcomeText: {
-      fontSize: 22,
-      fontWeight: 'bold',
-      textAlign: 'center',
-      color: colors.text,
-      marginBottom: 8,
-      fontFamily: Platform.OS === 'ios' ? 'Kohinoor Bangla' : 'serif',
-    },
+
+    welcomeText: { fontSize: 22, fontWeight: 'bold', marginBottom: 10 },
     instructionText: {
       textAlign: 'center',
-      color: colors.textSecondary,
-      marginBottom: 24,
-      fontSize: 14,
-      lineHeight: 20,
-      paddingHorizontal: 10,
-    },
-    input: {
       marginBottom: 20,
-      backgroundColor: 'transparent',
-    },
-    affix: {
-      color: colors.text,
-      fontWeight: 'bold',
-    },
-    mainButton: {
-      backgroundColor: colors.terracotta,
-      borderRadius: 2,
-      marginTop: 10,
-    },
-    buttonLabel: {
-      paddingVertical: 4,
-      fontSize: 16,
-      fontWeight: 'bold',
-    },
-    textButton: {
-      marginTop: 12,
-    },
-    footerInfo: {
-      marginTop: 20,
-      borderTopWidth: 0.5,
-      borderTopColor: colors.border,
-      paddingTop: 15,
-    },
-    testInfo: {
-      textAlign: 'center',
-      fontSize: 12,
       color: colors.textSecondary,
-      fontStyle: 'italic',
     },
-    phoneDisplay: {
-      fontSize: 16,
-      color: colors.text,
-      marginBottom: 16,
-      fontWeight: '600',
-    },
-    setMpinTitle: {
-      fontSize: 18,
-      fontWeight: 'bold',
-      color: colors.text,
-      marginBottom: 8,
+
+    input: { marginBottom: 16, backgroundColor: 'transparent' },
+    mainBtn: { backgroundColor: colors.ink, height: 48 },
+
+    linkText: {
+      marginTop: 12,
       textAlign: 'center',
+      color: colors.muted,
     },
+
+    centerLink: { marginTop: 12 },
+
+    btnLabel: {
+      color: '#fff',
+      fontWeight: 'bold',
+      letterSpacing: 1,
+    }
+
   });
-}

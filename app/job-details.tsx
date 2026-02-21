@@ -7,11 +7,11 @@ import {
   ImageBackground,
   Platform,
 } from 'react-native';
+import Animated from 'react-native-reanimated';
 import {
   Text,
   Button,
   Chip,
-  ActivityIndicator,
   TextInput,
   Portal,
   Modal,
@@ -24,7 +24,10 @@ import { useAuth } from './_contexts/AuthContext';
 import { useLanguage } from './_contexts/LanguageContext';
 import { useTheme } from './_contexts/ThemeContext';
 import { GlassCard } from './_components/GlassCard';
+import { LoadingScreen } from './_components/LoadingScreen';
 import type { ThemeColors } from './_theme';
+import { scale, imageBackgroundStyle, screenPaddingHorizontal } from './_design';
+import { enterFadeInDown } from './_animations';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { format } from 'date-fns';
 
@@ -181,8 +184,8 @@ export default function JobDetailsScreen() {
 
   if (loading) {
     return (
-      <View style={[styles.centerContainer, styles.container]}>
-        <ActivityIndicator size="large" color={colors.terracotta} />
+      <View style={[styles.centerContainer, styles.container, { backgroundColor: colors.background }]}>
+        <LoadingScreen message={t('jobDetails.title')} />
       </View>
     );
   }
@@ -200,7 +203,7 @@ export default function JobDetailsScreen() {
       <ImageBackground
         source={require('../assets/images/kolkata_street_nostalgia.png')}
         style={styles.backgroundImage}
-        imageStyle={{ opacity: 0.2 }}
+        imageStyle={imageBackgroundStyle(colors)}
       >
         <View style={styles.header}>
 <MaterialCommunityIcons
@@ -216,6 +219,7 @@ export default function JobDetailsScreen() {
         </View>
 
         <ScrollView style={styles.content}>
+        <Animated.View entering={enterFadeInDown}>
         <GlassCard style={styles.card}>
             <View style={styles.titleRow}>
               <Text variant="headlineSmall" style={styles.title}>
@@ -261,7 +265,9 @@ export default function JobDetailsScreen() {
               {t('jobDetails.postedOn')} {format(new Date(job.postedDate), 'MMM dd, yyyy')}
             </Text>
         </GlassCard>
+        </Animated.View>
 
+        <Animated.View entering={enterFadeInDown}>
         <GlassCard style={styles.card}>
             <Text variant="titleLarge" style={styles.sectionTitle}>
               {t('jobDetails.description')}
@@ -270,7 +276,9 @@ export default function JobDetailsScreen() {
               {job.description}
             </Text>
         </GlassCard>
+        </Animated.View>
 
+        <Animated.View entering={enterFadeInDown}>
         <GlassCard style={styles.card}>
             <Text variant="titleLarge" style={styles.sectionTitle}>
               {t('jobDetails.requirements')}
@@ -298,8 +306,10 @@ export default function JobDetailsScreen() {
               ))}
             </View>
         </GlassCard>
+        </Animated.View>
 
         {isMyJob && (
+          <Animated.View entering={enterFadeInDown}>
           <GlassCard style={styles.card}>
               <Text variant="titleLarge" style={styles.sectionTitle}>
                 {t('jobDetails.applications')}
@@ -315,6 +325,7 @@ export default function JobDetailsScreen() {
                 {t('jobDetails.viewApplications')}
               </Button>
           </GlassCard>
+          </Animated.View>
         )}
       </ScrollView>
 
@@ -469,7 +480,7 @@ function createStyles(colors: ThemeColors, isDark: boolean) {
     header: {
       flexDirection: 'row',
       alignItems: 'center',
-      padding: 24,
+      padding: scale(24),
       borderBottomWidth: 1,
       borderBottomColor: colors.border,
     },
@@ -483,7 +494,7 @@ function createStyles(colors: ThemeColors, isDark: boolean) {
     },
     content: {
       flex: 1,
-      padding: 16,
+      padding: screenPaddingHorizontal,
       paddingBottom: 40,
     },
     card: {
@@ -543,6 +554,8 @@ function createStyles(colors: ThemeColors, isDark: boolean) {
     chip: {
       marginRight: 4,
       marginBottom: 4,
+      backgroundColor: isDark ? colors.surface : colors.cream,
+      borderColor: colors.border,
     },
     applicationsText: {
       marginBottom: 12,
@@ -578,7 +591,7 @@ function createStyles(colors: ThemeColors, isDark: boolean) {
     },
     textArea: {
       marginBottom: 16,
-      backgroundColor: isDark ? colors.surface : '#F0EDE0',
+      backgroundColor: isDark ? colors.surface : colors.cream,
     },
     modalButtons: {
       flexDirection: 'row',

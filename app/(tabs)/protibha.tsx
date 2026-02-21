@@ -40,7 +40,7 @@ import Animated, {
   SlideInRight,
   SlideInLeft,
   Easing,
-  Layout,
+  LinearTransition,
 } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import { PaymentModal } from '../_components/PaymentModal';
@@ -504,6 +504,8 @@ export default function ProtibhaTabScreen() {
 
       scrollToEndAfterLayout();
       setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 280);
+      // Sync token count after every AI usage so the header badge updates in real time
+      refreshEntitlements();
     } catch (err: any) {
       const msg = err.response?.data?.message || err.message || t('common.error');
       shouldScrollToEndRef.current = true;
@@ -569,13 +571,13 @@ export default function ProtibhaTabScreen() {
             { key: 'near', label: t('protibha.chipFindJobs'), command: '/findNearByJobs', icon: 'map-marker-radius-outline', bgIcon: 'map-marker-radius', tint: colors.terracotta },
             { key: 'skills', label: t('protibha.chipMySkills'), command: '/skillsMatchingJobs', icon: 'star-outline', bgIcon: 'star-four-points', tint: colors.gold },
             { key: 'salary', label: t('protibha.chipSalary'), command: '/highestPayingJobs', icon: 'cash', bgIcon: 'cash-multiple', tint: colors.bengaliRed },
-            { key: 'resume', label: t('protibha.chipBuildResume'), command: '/buildResume', icon: 'file-document-edit-outline', bgIcon: 'file-document-edit', tint: '#6B7280' },
+            { key: 'resume', label: t('protibha.chipBuildResume'), command: '/buildResume', icon: 'file-document-edit-outline', bgIcon: 'file-document-edit', tint: colors.muted },
           ],
     [isEmployer, t, colors.terracotta, colors.gold, colors.bengaliRed]
   );
 
   const renderWelcome = () => (
-    <Animated.View entering={FadeInDown.duration(600).delay(200)} style={styles.welcomeContainer}>
+    <Animated.View entering={FadeInDown.duration(400).delay(120)} style={styles.welcomeContainer}>
       <View style={styles.welcomeAvatarWrap}>
         <LinearGradient
           colors={[colors.terracotta, colors.gold]}
@@ -596,7 +598,7 @@ export default function ProtibhaTabScreen() {
         {quickChips.map((chip, idx) => (
           <Animated.View
             key={chip.key}
-            entering={FadeInUp.duration(450).delay(350 + idx * 100).springify().damping(14)}
+            entering={FadeInUp.duration(320).delay(180 + idx * 60)}
             style={styles.chipAnimWrap}
           >
             <TouchableOpacity
@@ -631,14 +633,14 @@ export default function ProtibhaTabScreen() {
     const isRecent = index >= messages.length - 2;
     const enterAnim = isRecent
       ? (isUser
-          ? SlideInRight.duration(280).springify().damping(18)
-          : SlideInLeft.duration(280).springify().damping(18))
+          ? SlideInRight.duration(220)
+          : SlideInLeft.duration(220))
       : undefined;
 
     return (
       <Animated.View
         entering={enterAnim}
-        layout={isRecent ? Layout.springify().damping(16).stiffness(120) : undefined}
+        layout={isRecent ? LinearTransition.duration(200) : undefined}
       >
         <View style={[styles.messageRow, isUser ? styles.userRow : styles.assistantRow]}>
           {!isUser && (
@@ -744,7 +746,7 @@ export default function ProtibhaTabScreen() {
   }, [colors, isDark, isEmployer, styles, t, user?.id, router, scrollToEndAfterLayout, messages.length]);
 
   const renderTypingIndicator = useCallback(() => (
-    <Animated.View entering={FadeIn.duration(200).springify()} style={[styles.messageRow, styles.assistantRow]}>
+    <Animated.View entering={FadeIn.duration(180)} style={[styles.messageRow, styles.assistantRow]}>
       <View style={styles.avatarSmall}>
         <LinearGradient
           colors={[colors.terracotta, colors.gold]}
@@ -1018,11 +1020,11 @@ function createStyles(colors: ThemeColors, isDark: boolean) {
       width: 7,
       height: 7,
       borderRadius: 4,
-      backgroundColor: '#4CAF50',
+      backgroundColor: colors.gold,
       marginRight: 4,
     },
     onlineText: {
-      color: '#4CAF50',
+      color: colors.gold,
       fontSize: 11,
     },
     poweredBy: {
@@ -1432,7 +1434,7 @@ function createStyles(colors: ThemeColors, isDark: boolean) {
       }),
     },
     floatingChipsInnerDark: {
-      backgroundColor: 'rgba(30,30,30,0.98)',
+      backgroundColor: colors.surface,
     },
     /* Inline quick chips (inside floating container) */
     inlineChipsRow: {

@@ -9,11 +9,11 @@ import {
   ImageBackground,
   Platform,
 } from 'react-native';
+import Animated from 'react-native-reanimated';
 import {
   Text,
   Chip,
   Button,
-  ActivityIndicator,
   Searchbar,
 } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -23,7 +23,10 @@ import { useAuth } from '../_contexts/AuthContext';
 import { useLanguage } from '../_contexts/LanguageContext';
 import { useTheme } from '../_contexts/ThemeContext';
 import { GlassCard } from '../_components/GlassCard';
+import { LoadingScreen } from '../_components/LoadingScreen';
 import type { ThemeColors } from '../_theme';
+import { scale, imageBackgroundStyleTabs, screenPaddingHorizontal } from '../_design';
+import { enterFadeInDown, enterFadeInDownStagger } from '../_animations';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { format } from 'date-fns';
 
@@ -87,7 +90,7 @@ export default function HomeScreen() {
       const response = await api.get(endpoint);
       setJobs(response.data);
     } catch (error) {
-      console.error('Error fetching jobs:', error);
+      console.log('Error fetching jobs:', error);
       Alert.alert(t('common.error'), t('home.errorLoadJobs'));
     } finally {
       setLoading(false);
@@ -111,8 +114,8 @@ export default function HomeScreen() {
 
   if (loading) {
     return (
-      <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color={colors.terracotta} />
+      <View style={[styles.container, styles.centerContainer, { backgroundColor: colors.background }]}>
+        <LoadingScreen message={isEmployer ? undefined : t('home.latestJobs')} />
       </View>
     );
   }
@@ -122,7 +125,7 @@ export default function HomeScreen() {
       <ImageBackground
         source={require('../../assets/images/kolkata_tram_nostalgia.png')}
         style={styles.backgroundImage}
-        imageStyle={{ opacity: 0.2 }}
+        imageStyle={imageBackgroundStyleTabs(colors)}
       >
         <View style={styles.header}>
           <Text variant="headlineMedium" style={styles.headerTitle}>
@@ -154,7 +157,7 @@ export default function HomeScreen() {
         >
         {/* AI Recommended Jobs for Seekers */}
         {isSeeker && recommended.length > 0 && (
-          <View style={styles.recommendedSection}>
+          <Animated.View entering={enterFadeInDown} style={styles.recommendedSection}>
             <View style={styles.recommendedHeader}>
               <MaterialCommunityIcons name="star-four-points" size={20} color={colors.gold} />
               <Text variant="titleMedium" style={styles.recommendedTitle}>
@@ -166,9 +169,9 @@ export default function HomeScreen() {
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.recommendedScroll}
             >
-              {recommended.map((job) => (
+              {recommended.map((job, index) => (
+                <Animated.View key={`rec-${job.id}`} entering={enterFadeInDownStagger(index, 40)}>
                 <TouchableOpacity
-                  key={`rec-${job.id}`}
                   onPress={() => router.push(`/job-details?id=${job.id}`)}
                   activeOpacity={0.7}
                 >
@@ -199,9 +202,10 @@ export default function HomeScreen() {
                     </Chip>
                   </GlassCard>
                 </TouchableOpacity>
+                </Animated.View>
               ))}
             </ScrollView>
-          </View>
+          </Animated.View>
         )}
 
         {/* Section header for main list */}
@@ -212,7 +216,7 @@ export default function HomeScreen() {
         )}
 
         {filteredJobs.length === 0 ? (
-          <View style={styles.emptyContainer}>
+          <Animated.View entering={enterFadeInDown} style={styles.emptyContainer}>
             <MaterialCommunityIcons name="briefcase-outline" size={64} color={colors.muted} />
             <Text variant="titleMedium" style={styles.emptyText}>
               {isEmployer ? t('home.noJobsPosted') : t('home.noJobsAvailable')}
@@ -226,68 +230,71 @@ export default function HomeScreen() {
                 {t('home.postFirstJob')}
               </Button>
             )}
-          </View>
+          </Animated.View>
         ) : (
-          filteredJobs.map((job) => (
-            <TouchableOpacity
-              key={job.id}
-              onPress={() => router.push(`/job-details?id=${job.id}`)}
-              activeOpacity={0.7}
-            >
-              <GlassCard style={styles.jobCard}>
-                <View style={styles.jobHeader}>
-                    <Text variant="titleLarge" style={styles.jobTitle}>
-                      {job.title}
-                    </Text>
-                    <Chip 
-                      mode="outlined" 
-                      textStyle={styles.categoryText} 
-                      style={styles.categoryChip}
-                    >
-                      {job.category}
-                    </Chip>
-                  </View>
+          <>
+            {filteredJobs.map((job, index) => (
+              <Animated.View key={job.id} entering={enterFadeInDownStagger(index, 50)}>
+                <TouchableOpacity
+                  onPress={() => router.push(`/job-details?id=${job.id}`)}
+                  activeOpacity={0.7}
+                >
+                  <GlassCard style={styles.jobCard}>
+                    <View style={styles.jobHeader}>
+                      <Text variant="titleLarge" style={styles.jobTitle}>
+                        {job.title}
+                      </Text>
+                      <Chip
+                        mode="outlined"
+                        textStyle={styles.categoryText}
+                        style={styles.categoryChip}
+                      >
+                        {job.category}
+                      </Chip>
+                    </View>
 
-                  <View style={styles.jobInfo}>
-                    <MaterialCommunityIcons name="office-building" size={16} color={colors.terracotta} />
-                    <Text variant="bodyMedium" style={styles.jobInfoText}>
-                      {job.businessName || job.employerName}
-                    </Text>
-                  </View>
-
-                  <View style={styles.jobInfo}>
-                    <MaterialCommunityIcons name="map-marker" size={16} color={colors.terracotta} />
-                    <Text variant="bodyMedium" style={styles.jobInfoText}>
-                      {job.location}
-                    </Text>
-                  </View>
-
-                  <View style={styles.jobInfo}>
-                    <MaterialCommunityIcons name="currency-inr" size={16} color={colors.terracotta} />
-                    <Text variant="bodyMedium" style={styles.jobInfoText}>
-                      {job.salary}
-                    </Text>
-                  </View>
-
-                  <View style={styles.jobFooter}>
-                    <Chip icon="clock-outline" compact style={styles.typeChip} textStyle={{ color: colors.text }}>
-                      {job.jobType}
-                    </Chip>
-                    <Text variant="bodySmall" style={styles.dateText}>
-                      {format(new Date(job.postedDate), 'MMM dd, yyyy')}
-                    </Text>
-                  </View>
-
-                  {isEmployer && (
-                    <View style={styles.applicationsCount}>
-                      <Text variant="bodySmall" style={styles.appCountText}>
-                        {job.applicationsCount} {t('home.applicationsCount')}
+                    <View style={styles.jobInfo}>
+                      <MaterialCommunityIcons name="office-building" size={16} color={colors.terracotta} />
+                      <Text variant="bodyMedium" style={styles.jobInfoText}>
+                        {job.businessName || job.employerName}
                       </Text>
                     </View>
-                  )}
-              </GlassCard>
-            </TouchableOpacity>
-          ))
+
+                    <View style={styles.jobInfo}>
+                      <MaterialCommunityIcons name="map-marker" size={16} color={colors.terracotta} />
+                      <Text variant="bodyMedium" style={styles.jobInfoText}>
+                        {job.location}
+                      </Text>
+                    </View>
+
+                    <View style={styles.jobInfo}>
+                      <MaterialCommunityIcons name="currency-inr" size={16} color={colors.terracotta} />
+                      <Text variant="bodyMedium" style={styles.jobInfoText}>
+                        {job.salary}
+                      </Text>
+                    </View>
+
+                    <View style={styles.jobFooter}>
+                      <Chip icon="clock-outline" compact style={styles.typeChip} textStyle={{ color: colors.text }}>
+                        {job.jobType}
+                      </Chip>
+                      <Text variant="bodySmall" style={styles.dateText}>
+                        {format(new Date(job.postedDate), 'MMM dd, yyyy')}
+                      </Text>
+                    </View>
+
+                    {isEmployer && (
+                      <View style={styles.applicationsCount}>
+                        <Text variant="bodySmall" style={styles.appCountText}>
+                          {job.applicationsCount} {t('home.applicationsCount')}
+                        </Text>
+                      </View>
+                    )}
+                  </GlassCard>
+                </TouchableOpacity>
+              </Animated.View>
+            ))}
+          </>
         )}
         <View style={{ height: 40 }} />
         </ScrollView>
@@ -312,7 +319,7 @@ function createStyles(colors: ThemeColors, isDark: boolean) {
       alignItems: 'center',
     },
     header: {
-      padding: 24,
+      padding: scale(24),
       borderBottomWidth: 1,
       borderBottomColor: colors.border,
     },
@@ -328,7 +335,7 @@ function createStyles(colors: ThemeColors, isDark: boolean) {
       opacity: 0.8,
     },
     searchContainer: {
-      padding: 16,
+      padding: scale(16),
     },
     searchbar: {
       elevation: 2,
@@ -342,7 +349,7 @@ function createStyles(colors: ThemeColors, isDark: boolean) {
     },
     content: {
       flex: 1,
-      paddingHorizontal: 16,
+      paddingHorizontal: screenPaddingHorizontal,
     },
     emptyContainer: {
       alignItems: 'center',
@@ -403,7 +410,7 @@ function createStyles(colors: ThemeColors, isDark: boolean) {
       borderTopColor: colors.border,
     },
     typeChip: {
-      backgroundColor: isDark ? colors.surface : '#EDE9DA',
+      backgroundColor: isDark ? colors.surface : colors.cream,
       borderRadius: 4,
     },
     dateText: {
@@ -472,7 +479,7 @@ function createStyles(colors: ThemeColors, isDark: boolean) {
     recChip: {
       alignSelf: 'flex-start',
       marginTop: 6,
-      backgroundColor: isDark ? colors.surface : '#EDE9DA',
+      backgroundColor: isDark ? colors.surface : colors.cream,
       borderRadius: 4,
     },
     recChipText: {

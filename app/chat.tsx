@@ -7,6 +7,7 @@ import {
   Platform,
   ImageBackground,
   Alert,
+  Keyboard,
 } from 'react-native';
 import {
   Text,
@@ -33,7 +34,8 @@ interface Message {
   senderId: string;
   receiverId: string;
   message: string;
-  timestamp: string;
+  timestamp?: string;
+  createdAt?: string;
   read: boolean;
 }
 
@@ -47,11 +49,27 @@ export default function ChatScreen() {
   const [newMessage, setNewMessage] = useState('');
   const [sending, setSending] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
   const flatListRef = useRef<FlatList>(null);
   const { t } = useLanguage();
   const { addMessageListener, addReadReceiptListener } = useSocket();
   const { colors, isDark } = useTheme();
   const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
+
+  useEffect(() => {
+    const showSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      (e) => setKeyboardHeight(e.endCoordinates.height)
+    );
+    const hideSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => setKeyboardHeight(0)
+    );
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
 
   useEffect(() => {
     if (user?.id && otherUserId) {
@@ -169,18 +187,18 @@ export default function ChatScreen() {
             isMine ? styles.myMessageBubble : styles.theirMessageBubble,
           ]}
         >
-          <Text variant="bodyMedium" style={[styles.messageText, { color: colors.text }]}>
+          <Text variant="bodyMedium" style={[styles.messageText, isMine ? styles.myMessageText : { color: colors.text }]}>
             {item.message}
           </Text>
           <View style={styles.messageFooter}>
-            <Text variant="bodySmall" style={styles.timestamp}>
-              {safeFormatDate(item.timestamp, 'HH:mm')}
+            <Text variant="bodySmall" style={[styles.timestamp, isMine && styles.myMessageMeta]}>
+              {safeFormatDate(item.timestamp ?? item.createdAt, 'HH:mm')}
             </Text>
             {isMine && (
               <MaterialCommunityIcons
                 name={item.read ? 'check-all' : 'check'}
                 size={14}
-                color={item.read ? colors.gold : colors.textSecondary}
+                color={item.read ? colors.gold : (isDark ? colors.textSecondary : 'rgba(255,255,255,0.8)')}
                 style={{ marginLeft: 4 }}
               />
             )}
@@ -219,8 +237,8 @@ export default function ChatScreen() {
         </View>
 
         <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={styles.flex}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={[styles.flex, Platform.OS === 'android' && keyboardHeight > 0 && { paddingBottom: keyboardHeight }]}
           keyboardVerticalOffset={Platform.OS === 'ios' ? 88 : 0}
         >
           <FlatList
@@ -339,12 +357,11 @@ function createStyles(colors: ThemeColors, isDark: boolean) {
       shadowRadius: 2,
     },
     myMessageBubble: {
-      backgroundColor: isDark ? colors.muted + 'CC' : colors.terracotta + '22',
-      borderWidth: 1,
-      borderColor: isDark ? 'rgba(255,255,255,0.08)' : colors.border,
+      backgroundColor: colors.terracotta,
+      borderWidth: 0,
     },
     theirMessageBubble: {
-      backgroundColor: isDark ? colors.surface : colors.cream,
+      backgroundColor: isDark ? colors.surface : '#E8E3DB',
       borderWidth: 1,
       borderColor: isDark ? 'rgba(255,255,255,0.08)' : colors.border,
     },
@@ -363,17 +380,23 @@ function createStyles(colors: ThemeColors, isDark: boolean) {
       color: colors.textSecondary,
       fontSize: 10,
     },
+    myMessageText: {
+      color: colors.cream,
+    },
+    myMessageMeta: {
+      color: 'rgba(255,255,255,0.85)',
+    },
     inputContainer: {
       flexDirection: 'row',
       alignItems: 'flex-end',
       padding: 8,
-      backgroundColor: colors.surface,
+      backgroundColor: isDark ? colors.surface : '#E8E3DB',
       borderTopWidth: 1,
       borderTopColor: colors.border,
     },
     input: {
       flex: 1,
-      backgroundColor: isDark ? colors.surface : colors.cream,
+      backgroundColor: isDark ? colors.surface : colors.background,
       maxHeight: 100,
     },
     sendButton: {

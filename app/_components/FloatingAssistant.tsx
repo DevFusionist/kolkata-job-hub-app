@@ -12,6 +12,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useRouter, usePathname } from 'expo-router';
 import { useTheme } from '../_contexts/ThemeContext';
+import { useLanguage } from '../_contexts/LanguageContext';
 import { LinearGradient } from 'expo-linear-gradient';
 
 const ICON_SIZE = 54;
@@ -24,6 +25,7 @@ export function FloatingAssistant() {
   const router = useRouter();
   const pathname = usePathname();
   const { colors, isDark } = useTheme();
+  const { t } = useLanguage();
   const isOnProtibha = pathname?.includes('protibha');
 
   const floatY = useSharedValue(0);
@@ -80,7 +82,7 @@ export function FloatingAssistant() {
       onPress={onPress}
       onPressIn={onPressIn}
       onPressOut={onPressOut}
-      accessibilityLabel="Open Protibha assistant"
+      accessibilityLabel={t('tabs.protibha') ? `Open ${t('tabs.protibha')} assistant` : 'Open assistant'}
       accessibilityRole="button"
     >
       {/* Outer neon glow ring */}

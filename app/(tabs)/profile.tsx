@@ -50,7 +50,16 @@ export default function ProfileScreen() {
   } | null>(null);
   const [loadingViewUrl, setLoadingViewUrl] = useState<'upload' | 'generated' | null>(null);
   const [paymentModalVisible, setPaymentModalVisible] = useState(false);
-  const [entitlements, setEntitlements] = useState<{ aiFreeTokensRemaining?: number; aiPaidTokensRemaining?: number } | null>(null);
+  const [paymentModalFilter, setPaymentModalFilter] = useState<'ai' | 'job'>('ai');
+  const [entitlements, setEntitlements] = useState<{
+    aiFreeTokensRemaining?: number;
+    aiPaidTokensRemaining?: number;
+    freeJobsRemaining?: number;
+    paidJobsRemaining?: number;
+    subscriptionActive?: boolean;
+    subscriptionPlan?: string;
+    subscriptionExpiresAt?: string | null;
+  } | null>(null);
   const { t } = useLanguage();
   const router = useRouter();
   const isEmployer = user?.role === 'employer';
@@ -60,12 +69,7 @@ export default function ProfileScreen() {
   const fetchEntitlements = useCallback(async () => {
     try {
       const { data } = await api.get('/payments/entitlements');
-      if (data) {
-        setEntitlements({
-          aiFreeTokensRemaining: data.aiFreeTokensRemaining,
-          aiPaidTokensRemaining: data.aiPaidTokensRemaining,
-        });
-      }
+      if (data) setEntitlements(data);
     } catch {
       // ignore
     }
@@ -490,21 +494,40 @@ export default function ProfileScreen() {
             />
 
             {isEmployer && (
-              <List.Item
-                title={t('profile.purchaseJobPosts')}
-                description={t('profile.perPost')}
-                left={(props) => <List.Icon {...props} icon="cart" />}
-                right={(props) => <List.Icon {...props} icon="chevron-right" />}
-                onPress={() => router.push('/(tabs)/post-job')}
-              />
+              <>
+                {/* <List.Item
+                  title={t('profile.purchaseJobPosts')}
+                  description={t('profile.perPost')}
+                  left={(props) => <List.Icon {...props} icon="cart" />}
+                  right={(props) => <List.Icon {...props} icon="chevron-right" />}
+                  onPress={() => router.push('/(tabs)/post-job')}
+                /> */}
+                <List.Item
+                  title={t('profile.jobCreditsSubscription')}
+                  titleNumberOfLines={2}
+                  titleEllipsizeMode="clip"
+                  description={t('profile.jobCreditsDesc')
+                    ?.replace('{free}', String(entitlements?.freeJobsRemaining ?? user?.freeJobsRemaining ?? 0))
+                    ?.replace('{paid}', String(entitlements?.paidJobsRemaining ?? user?.paidJobsRemaining ?? 0))
+                    ?.replace('{sub}', entitlements?.subscriptionActive ? '✓ Subscription' : 'Free')
+                    ?? `Free: ${entitlements?.freeJobsRemaining ?? user?.freeJobsRemaining ?? 0} · Paid: ${entitlements?.paidJobsRemaining ?? user?.paidJobsRemaining ?? 0}`}
+                  descriptionNumberOfLines={10}
+                  descriptionEllipsizeMode="clip"
+                  left={(props) => <List.Icon {...props} icon="briefcase" />}
+                  right={(props) => <List.Icon {...props} icon="chevron-right" />}
+                  onPress={() => { setPaymentModalFilter('job'); setPaymentModalVisible(true); }}
+                />
+              </>
             )}
 
             <List.Item
               title={t('profile.aiCredits') || 'AI credits'}
               description={`${t('profile.aiCreditsDesc') || 'For chat, resume analysis & AI builder'} — ${(entitlements?.aiFreeTokensRemaining ?? user?.aiFreeTokensRemaining ?? 0) + (entitlements?.aiPaidTokensRemaining ?? user?.aiPaidTokensRemaining ?? 0)} ${t('profile.creditsRemaining') || 'remaining'}`}
+              descriptionNumberOfLines={10}
+              descriptionEllipsizeMode="clip"
               left={(props) => <List.Icon {...props} icon="robot" />}
               right={(props) => <List.Icon {...props} icon="chevron-right" />}
-              onPress={() => setPaymentModalVisible(true)}
+              onPress={() => { setPaymentModalFilter('ai'); setPaymentModalVisible(true); }}
             />
 
             <List.Item
@@ -541,13 +564,29 @@ export default function ProfileScreen() {
       <PaymentModal
         visible={paymentModalVisible}
         onClose={() => setPaymentModalVisible(false)}
-        onSuccess={() => {
-          fetchEntitlements();
-          setPaymentModalVisible(false);
+        onSuccess={async () => {
+          try {
+            const { data } = await api.get('/payments/entitlements');
+            if (data && user) {
+              await updateUser({
+                ...user,
+                freeJobsRemaining: data.freeJobsRemaining ?? user.freeJobsRemaining,
+                paidJobsRemaining: data.paidJobsRemaining ?? user.paidJobsRemaining,
+                subscriptionPlan: data.subscriptionPlan ?? user.subscriptionPlan,
+                subscriptionExpiresAt: data.subscriptionExpiresAt ?? user.subscriptionExpiresAt,
+                aiFreeTokensRemaining: data.aiFreeTokensRemaining ?? user.aiFreeTokensRemaining,
+                aiPaidTokensRemaining: data.aiPaidTokensRemaining ?? user.aiPaidTokensRemaining,
+                canUseAi: data.canUseAi ?? user.canUseAi,
+              });
+            }
+            await fetchEntitlements();
+          } finally {
+            setPaymentModalVisible(false);
+          }
         }}
-        title={t('profile.addAiCredits') || 'Add AI credits'}
-        subtitle={t('profile.addAiCreditsSubtitle') || 'Buy AI credits for Protibha chat, resume analysis, and AI resume builder.'}
-        filter="ai"
+        title={paymentModalFilter === 'job' ? (t('profile.addJobCredits') || 'Add job credits / subscription') : (t('profile.addAiCredits') || 'Add AI credits')}
+        subtitle={paymentModalFilter === 'job' ? (t('profile.addJobCreditsSubtitle') || 'Buy job credits or monthly unlimited posting.') : (t('profile.addAiCreditsSubtitle') || 'Buy AI credits for Kormo chat, resume analysis, and AI resume builder.')}
+        filter={paymentModalFilter}
       />
     </SafeAreaView>
   );

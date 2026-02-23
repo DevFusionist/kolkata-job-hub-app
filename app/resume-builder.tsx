@@ -51,7 +51,7 @@ interface EducationEntry {
 }
 
 export default function ResumeBuilderScreen() {
-  const { user } = useAuth();
+  const { user, updateUser } = useAuth();
   const { colors, isDark } = useTheme();
   const { t } = useLanguage();
   const router = useRouter();
@@ -594,7 +594,21 @@ export default function ResumeBuilderScreen() {
       <PaymentModal
         visible={paymentModalVisible}
         onClose={() => setPaymentModalVisible(false)}
-        onSuccess={() => setPaymentModalVisible(false)}
+        onSuccess={async () => {
+          try {
+            const { data } = await api.get('/payments/entitlements');
+            if (data && user) {
+              await updateUser({
+                ...user,
+                aiFreeTokensRemaining: data.aiFreeTokensRemaining ?? user.aiFreeTokensRemaining,
+                aiPaidTokensRemaining: data.aiPaidTokensRemaining ?? user.aiPaidTokensRemaining,
+                canUseAi: data.canUseAi ?? user.canUseAi,
+              });
+            }
+          } finally {
+            setPaymentModalVisible(false);
+          }
+        }}
         title={t('resume.addAiCredits') || 'Add AI credits'}
         subtitle={t('resume.addAiCreditsSubtitle') || 'Buy AI credits to generate your resume with AI.'}
         filter="ai"

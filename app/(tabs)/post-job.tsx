@@ -239,8 +239,8 @@ export default function PostJobScreen() {
     }
   };
 
-  const handlePaymentSuccess = useCallback(() => {
-    refreshBilling();
+  const handlePaymentSuccess = useCallback(async () => {
+    await refreshBilling();
   }, [refreshBilling]);
 
   return (

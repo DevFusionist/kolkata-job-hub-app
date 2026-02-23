@@ -7,6 +7,7 @@ import {
   ImageBackground,
   Platform,
   Linking,
+  TouchableOpacity,
 } from 'react-native';
 import Animated from 'react-native-reanimated';
 import {
@@ -21,7 +22,7 @@ import {
   ProgressBar,
 } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import * as DocumentPicker from 'expo-document-picker';
 import api from '../_lib/api';
 import { useAuth } from '../_contexts/AuthContext';
@@ -47,6 +48,9 @@ export default function ProfileScreen() {
     resumeUrl?: string | null;
     resumeFileName?: string | null;
     generatedResumeUrl?: string | null;
+    rawText?: string | null;
+    projects?: Array<{ name?: string } | string>;
+    links?: string[];
   } | null>(null);
   const [loadingViewUrl, setLoadingViewUrl] = useState<'upload' | 'generated' | null>(null);
   const [paymentModalVisible, setPaymentModalVisible] = useState(false);
@@ -60,11 +64,35 @@ export default function ProfileScreen() {
     subscriptionPlan?: string;
     subscriptionExpiresAt?: string | null;
   } | null>(null);
+  const [lastAnalysisResult, setLastAnalysisResult] = useState<{
+    skills: string[];
+    experience: string;
+    category: string;
+    score: number;
+    feedback: string;
+  } | null>(null);
+  const [improveStep, setImproveStep] = useState<1 | 2 | 3>(1);
+  const [suggestedSkills, setSuggestedSkills] = useState<{ skills: string[]; category: string } | null>(null);
+  const [addingSkill, setAddingSkill] = useState<string | null>(null);
   const { t } = useLanguage();
   const router = useRouter();
   const isEmployer = user?.role === 'employer';
   const isSeeker = user?.role === 'seeker';
   const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
+
+  // Profile strength (Naukri-style): encourage completeness for better visibility
+  const profileStrength = useMemo(() => {
+    if (!isSeeker || !user) return { score: 0, label: 'Incomplete' };
+    let score = 0;
+    if (user.name?.trim()) score += 15;
+    if (user.phone) score += 10;
+    if (user.location?.trim()) score += 15;
+    if (user.languages?.length) score += 15;
+    if (user.skills?.length) score += 25;
+    if (portfolio?.resumeFileName || portfolio?.generatedResumeUrl) score += 20;
+    const label = score >= 80 ? 'Strong' : score >= 50 ? 'Good' : score >= 25 ? 'Fair' : 'Incomplete';
+    return { score: Math.min(100, score), label };
+  }, [isSeeker, user, portfolio?.resumeFileName, portfolio?.generatedResumeUrl]);
 
   const fetchEntitlements = useCallback(async () => {
     try {
@@ -79,6 +107,13 @@ export default function ProfileScreen() {
     if (user?.id) fetchEntitlements();
   }, [user?.id, fetchEntitlements]);
 
+  // Refresh entitlements when tab gains focus (e.g. after buying on another screen)
+  useFocusEffect(
+    useCallback(() => {
+      if (user?.id) fetchEntitlements();
+    }, [user?.id, fetchEntitlements])
+  );
+
   const fetchPortfolio = useCallback(async () => {
     if (!user?.id || !isSeeker) return;
     try {
@@ -92,6 +127,21 @@ export default function ProfileScreen() {
   useEffect(() => {
     fetchPortfolio();
   }, [fetchPortfolio]);
+
+  const suggestedCategory = user?.aiExtracted?.category || lastAnalysisResult?.category || 'Other';
+  const fetchSuggestedSkills = useCallback(async () => {
+    if (!isSeeker || !user?.id) return;
+    try {
+      const { data } = await api.get('/ai/suggested-skills', { params: { category: suggestedCategory } });
+      if (data?.skills?.length) setSuggestedSkills({ skills: data.skills, category: data.category || suggestedCategory });
+    } catch {
+      // ignore
+    }
+  }, [isSeeker, user?.id, suggestedCategory]);
+
+  useEffect(() => {
+    if (isSeeker) fetchSuggestedSkills();
+  }, [isSeeker, fetchSuggestedSkills]);
 
   const handleViewResume = useCallback(async (type: 'upload' | 'generated') => {
     setLoadingViewUrl(type);
@@ -150,8 +200,17 @@ export default function ProfileScreen() {
       setUploadProgress(1);
 
       if (data.aiAnalysis?.skills?.length) {
-        const merged = [...new Set([...(user?.skills || []), ...data.aiAnalysis.skills])].slice(0, 30);
+        const merged = Array.isArray(data.mergedSkills) ? data.mergedSkills : [...new Set([...(user?.skills || []), ...data.aiAnalysis.skills])].slice(0, 30);
         await updateUser({ ...user!, skills: merged });
+      }
+      if (data.aiAnalysis) {
+        setLastAnalysisResult({
+          skills: data.aiAnalysis.skills || [],
+          experience: data.aiAnalysis.experience || 'Fresher',
+          category: data.aiAnalysis.category || 'Other',
+          score: typeof data.aiAnalysis.score === 'number' ? data.aiAnalysis.score : 0,
+          feedback: data.aiAnalysis.feedback || '',
+        });
       }
 
       await fetchPortfolio();
@@ -226,6 +285,14 @@ export default function ProfileScreen() {
               <Chip mode="outlined" style={styles.roleChip} textStyle={{ color: colors.text }}>
                 {isEmployer ? t('profile.employer') : t('profile.jobSeeker')}
               </Chip>
+              {isSeeker && (
+                <View style={styles.profileStrengthRow}>
+                  <MaterialCommunityIcons name="chart-donut" size={18} color={colors.terracotta} />
+                  <Text variant="bodySmall" style={styles.profileStrengthText}>
+                    {t('profile.profileStrength')}: {profileStrength.score}% — {t(`profile.strength.${profileStrength.label}`)}
+                  </Text>
+                </View>
+              )}
             </View>
 
             <Divider style={styles.divider} />
@@ -390,88 +457,238 @@ export default function ProfileScreen() {
 
           {isSeeker && (
             <GlassCard style={styles.card}>
-              <Text variant="titleMedium" style={styles.sectionTitle}>
-                {t('profile.improveWithAi')}
-              </Text>
+              <View style={styles.stepHeader}>
+                <Text variant="titleMedium" style={styles.sectionTitle}>
+                  {t('profile.improveWithAi')}
+                </Text>
+                <Text variant="labelSmall" style={styles.stepIndicator}>
+                  {t('profile.step')} {improveStep}/3
+                </Text>
+              </View>
               <Text variant="bodySmall" style={styles.portfolioHint}>
-                {t('profile.improveWithAiDesc')}
+                {improveStep === 1 ? t('profile.step1Hint') : improveStep === 2 ? t('profile.step2Hint') : t('profile.step3Hint')}
               </Text>
-              <TextInput
-                value={portfolioRawText}
-                onChangeText={setPortfolioRawText}
-                placeholder={t('profile.rawTextPlaceholder') || 'e.g. 2 years delivery experience, know Salt Lake area, Hindi and Bengali...'}
-                multiline
-                numberOfLines={4}
-                style={styles.portfolioInput}
-                textColor={colors.text}
-                editable={!analyzing}
-              />
-              <TextInput
-                value={portfolioProjects}
-                onChangeText={setPortfolioProjects}
-                placeholder={t('profile.projectsPlaceholder') || 'Projects (comma-separated, e.g. Online Shop, Food Delivery App)'}
-                style={styles.portfolioInput}
-                textColor={colors.text}
-                editable={!analyzing}
-              />
-              <TextInput
-                value={portfolioLinks}
-                onChangeText={setPortfolioLinks}
-                placeholder={t('profile.linksPlaceholder') || 'Links (comma-separated, e.g. linkedin.com/in/you, github.com/you)'}
-                style={styles.portfolioInput}
-                textColor={colors.text}
-                editable={!analyzing}
-                autoCapitalize="none"
-                keyboardType="url"
-              />
-              <Button
-                mode="contained"
-                onPress={async () => {
-                  if (!portfolioRawText.trim() || !user?.id) return;
-                  setAnalyzing(true);
-                  try {
-                    const projects = portfolioProjects
-                      .split(',')
-                      .map((p) => p.trim())
-                      .filter(Boolean);
-                    const links = portfolioLinks
-                      .split(',')
-                      .map((l) => l.trim())
-                      .filter(Boolean);
-                    const { data } = await api.post(
-                      '/ai/analyze-portfolio',
-                      { rawText: portfolioRawText.trim(), projects, links }
-                    );
-                    const newSkills = data.skills || [];
-                    const merged = [...new Set([...(user.skills || []), ...newSkills])].slice(0, 30);
-                    await updateUser({ ...user, skills: merged });
-                    setPortfolioRawText('');
-                    setPortfolioProjects('');
-                    setPortfolioLinks('');
-                    Alert.alert(t('common.success'), t('profile.skillsExtracted'));
-                  } catch (err: any) {
-                    if (err.response?.status === 402) {
-                      setPaymentModalVisible(true);
-                      Alert.alert(
-                        t('profile.paymentRequiredAi') || 'AI credits needed',
-                        err.response?.data?.detail || (t('profile.paymentRequiredAi') || 'Add AI credits to continue.'),
-                        [{ text: t('common.ok') }],
-                      );
-                      return;
-                    }
-                    Alert.alert(t('common.error'), err.response?.data?.detail || err.message || 'Analysis failed');
-                  } finally {
-                    setAnalyzing(false);
-                  }
-                }}
-                loading={analyzing}
-                disabled={!portfolioRawText.trim() || analyzing}
-                style={styles.analyzeButton}
-              >
-                {analyzing ? t('profile.analyzing') : t('profile.improveWithAi')}
-              </Button>
+
+              {lastAnalysisResult && (
+                <View style={styles.analysisResultCard}>
+                  <Text variant="labelMedium" style={styles.analysisResultTitle}>
+                    {t('profile.lastAnalysis')}
+                  </Text>
+                  <View style={styles.analysisResultRow}>
+                    <Text variant="labelSmall" style={styles.analysisResultLabel}>{t('profile.profileScore')}</Text>
+                    <Text variant="bodySmall" style={styles.analysisResultValue}>{lastAnalysisResult.score}/100</Text>
+                  </View>
+                  <View style={styles.analysisResultRow}>
+                    <Text variant="labelSmall" style={styles.analysisResultLabel}>{t('profile.experience')}</Text>
+                    <Text variant="bodySmall" style={styles.analysisResultValue}>{lastAnalysisResult.experience}</Text>
+                  </View>
+                  <View style={styles.analysisResultRow}>
+                    <Text variant="labelSmall" style={styles.analysisResultLabel}>{t('profile.category')}</Text>
+                    <Text variant="bodySmall" style={styles.analysisResultValue}>{lastAnalysisResult.category}</Text>
+                  </View>
+                  {lastAnalysisResult.skills.length > 0 && (
+                    <View style={styles.analysisResultBlock}>
+                      <Text variant="labelSmall" style={styles.analysisResultLabel}>{t('profile.skillsAdded')}</Text>
+                      <View style={styles.chipContainer}>
+                        {lastAnalysisResult.skills.map((skill, i) => (
+                          <Chip key={i} style={styles.chip} textStyle={{ color: colors.text }}>
+                            {skill}
+                          </Chip>
+                        ))}
+                      </View>
+                    </View>
+                  )}
+                  {lastAnalysisResult.feedback ? (
+                    <View style={styles.analysisResultBlock}>
+                      <Text variant="labelSmall" style={styles.analysisResultLabel}>{t('profile.tips')}</Text>
+                      <Text variant="bodySmall" style={styles.analysisResultFeedback}>{lastAnalysisResult.feedback}</Text>
+                      <Text variant="bodySmall" style={styles.atsTipText}>{t('profile.atsTip')}</Text>
+                    </View>
+                  ) : null}
+                  {!lastAnalysisResult.feedback && (
+                    <Text variant="bodySmall" style={styles.atsTipText}>{t('profile.atsTip')}</Text>
+                  )}
+                  <TouchableOpacity style={styles.dismissAnalysisBtn} onPress={() => setLastAnalysisResult(null)}>
+                    <Text variant="labelSmall" style={{ color: colors.terracotta }}>{t('profile.dismiss')}</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+
+              {improveStep === 1 && (
+                <>
+                  <Text variant="labelSmall" style={styles.stepLabel}>{t('profile.step1Title')}</Text>
+                  <TextInput
+                    value={portfolioRawText}
+                    onChangeText={setPortfolioRawText}
+                    placeholder={t('profile.rawTextPlaceholder') || 'e.g. 2 years delivery experience, know Salt Lake area, Hindi and Bengali...'}
+                    multiline
+                    numberOfLines={4}
+                    style={styles.portfolioInput}
+                    textColor={colors.text}
+                    editable={!analyzing}
+                  />
+                  <View style={styles.stepButtons}>
+                    <Button mode="outlined" onPress={() => setImproveStep(2)} disabled={!portfolioRawText.trim()} style={styles.stepButton} textColor={colors.terracotta}>
+                      {t('profile.next')}
+                    </Button>
+                    <Button mode="text" onPress={() => setImproveStep(2)} style={styles.stepButtonText}>
+                      {t('profile.skip')}
+                    </Button>
+                  </View>
+                </>
+              )}
+
+              {improveStep === 2 && (
+                <>
+                  <Text variant="labelSmall" style={styles.stepLabel}>{t('profile.step2Title')}</Text>
+                  <TextInput
+                    value={portfolioProjects}
+                    onChangeText={setPortfolioProjects}
+                    placeholder={t('profile.projectsPlaceholder') || 'Projects (comma-separated)'}
+                    style={styles.portfolioInput}
+                    textColor={colors.text}
+                    editable={!analyzing}
+                  />
+                  <TextInput
+                    value={portfolioLinks}
+                    onChangeText={setPortfolioLinks}
+                    placeholder={t('profile.linksPlaceholder') || 'Links (comma-separated)'}
+                    style={styles.portfolioInput}
+                    textColor={colors.text}
+                    editable={!analyzing}
+                    autoCapitalize="none"
+                    keyboardType="url"
+                  />
+                  <View style={styles.stepButtons}>
+                    <Button mode="outlined" onPress={() => setImproveStep(1)} style={styles.stepButton} textColor={colors.terracotta}>
+                      {t('profile.back')}
+                    </Button>
+                    <Button mode="contained" onPress={() => setImproveStep(3)} style={styles.stepButton}>
+                      {t('profile.next')}
+                    </Button>
+                  </View>
+                </>
+              )}
+
+              {improveStep === 3 && (
+                <>
+                  <Text variant="labelSmall" style={styles.stepLabel}>{t('profile.step3Title')}</Text>
+                  <View style={styles.previewBox}>
+                    {portfolioRawText.trim() ? (
+                      <View style={styles.previewBlock}>
+                        <Text variant="labelSmall" style={styles.previewLabel}>{t('profile.previewExperience')}</Text>
+                        <Text variant="bodySmall" style={styles.previewText} numberOfLines={3}>
+                          {portfolioRawText.trim()}
+                        </Text>
+                      </View>
+                    ) : null}
+                    {portfolioProjects.trim() && (
+                      <View style={styles.previewBlock}>
+                        <Text variant="labelSmall" style={styles.previewLabel}>{t('profile.previewProjects')}</Text>
+                        <Text variant="bodySmall" style={styles.previewText}>
+                          {portfolioProjects.split(',').map((p) => p.trim()).filter(Boolean).join(', ')}
+                        </Text>
+                      </View>
+                    )}
+                    {portfolioLinks.trim() && (
+                      <View style={styles.previewBlock}>
+                        <Text variant="labelSmall" style={styles.previewLabel}>{t('profile.previewLinks')}</Text>
+                        <Text variant="bodySmall" style={styles.previewText} numberOfLines={2}>
+                          {portfolioLinks.split(',').map((l) => l.trim()).filter(Boolean).join(', ')}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                  <View style={styles.stepButtons}>
+                    <Button mode="outlined" onPress={() => setImproveStep(2)} style={styles.stepButton} textColor={colors.terracotta}>
+                      {t('profile.back')}
+                    </Button>
+                    <Button
+                      mode="contained"
+                      loading={analyzing}
+                      disabled={!portfolioRawText.trim() || analyzing}
+                      style={styles.stepButton}
+                      onPress={async () => {
+                        if (!portfolioRawText.trim() || !user?.id) return;
+                        setAnalyzing(true);
+                        try {
+                          const projects = portfolioProjects.split(',').map((p) => p.trim()).filter(Boolean);
+                          const links = portfolioLinks.split(',').map((l) => l.trim()).filter(Boolean);
+                          const { data } = await api.post('/ai/analyze-portfolio', { rawText: portfolioRawText.trim(), projects, links });
+                          const merged = Array.isArray(data.mergedSkills) ? data.mergedSkills : [...new Set([...(user.skills || []), ...(data.skills || [])])].slice(0, 30);
+                          await updateUser({ ...user, skills: merged });
+                          await fetchPortfolio();
+                          setLastAnalysisResult({
+                            skills: data.skills || [],
+                            experience: data.experience || 'Fresher',
+                            category: data.category || 'Other',
+                            score: typeof data.score === 'number' ? data.score : 0,
+                            feedback: data.feedback || '',
+                          });
+                          setPortfolioRawText('');
+                          setPortfolioProjects('');
+                          setPortfolioLinks('');
+                          setImproveStep(1);
+                          Alert.alert(t('common.success'), t('profile.skillsExtracted'));
+                        } catch (err: any) {
+                          if (err.response?.status === 402) {
+                            setPaymentModalVisible(true);
+                            Alert.alert(t('profile.paymentRequiredAi') || 'AI credits needed', err.response?.data?.detail || (t('profile.paymentRequiredAi') || 'Add AI credits to continue.'), [{ text: t('common.ok') }]);
+                            return;
+                          }
+                          Alert.alert(t('common.error'), err.response?.data?.detail || err.message || 'Analysis failed');
+                        } finally {
+                          setAnalyzing(false);
+                        }
+                      }}
+                    >
+                      {analyzing ? t('profile.analyzing') : t('profile.extractSkills')}
+                    </Button>
+                  </View>
+                </>
+              )}
             </GlassCard>
           )}
+
+          {isSeeker && suggestedSkills && (() => {
+            const addable = suggestedSkills.skills.filter((s) => !user?.skills?.includes(s)).slice(0, 18);
+            return addable.length > 0 ? (
+            <GlassCard style={styles.card} key="suggested-skills">
+              <Text variant="titleMedium" style={styles.sectionTitle}>
+                {t('profile.suggestedForCategory').replace('{{category}}', suggestedSkills.category)}
+              </Text>
+              <Text variant="bodySmall" style={styles.portfolioHint}>
+                {t('profile.tapToAdd')}
+              </Text>
+              <View style={styles.chipContainer}>
+                {addable.map((skill) => (
+                  <Chip
+                    key={skill}
+                    style={[styles.chip, styles.suggestedSkillChip]}
+                    textStyle={{ color: colors.text }}
+                    onPress={addingSkill === skill ? undefined : async () => {
+                      if (!user?.id || (user.skills?.length ?? 0) >= 30) return;
+                      setAddingSkill(skill);
+                      try {
+                        const next = [...(user.skills || []), skill].slice(0, 30);
+                        await api.put(`/users/${user.id}`, { ...user, skills: next });
+                        await updateUser({ ...user, skills: next });
+                        setSuggestedSkills((prev) => (prev ? { ...prev, skills: prev.skills.filter((s) => s !== skill) } : null));
+                      } catch {
+                        // ignore
+                      } finally {
+                        setAddingSkill(null);
+                      }
+                    }}
+                    disabled={addingSkill !== null}
+                  >
+                    {addingSkill === skill ? '...' : `+ ${skill}`}
+                  </Chip>
+                ))}
+              </View>
+            </GlassCard>
+            ) : null;
+          })()}
 
           <GlassCard style={styles.card}>
             <List.Item
@@ -492,7 +709,15 @@ export default function ProfileScreen() {
               right={(props) => <List.Icon {...props} icon="chevron-right" />}
               onPress={() => router.push('/edit-profile')}
             />
-
+            {isSeeker && (
+              <List.Item
+                title={t('profile.portfolio')}
+                description={t('profile.portfolioDesc')}
+                left={(props) => <List.Icon {...props} icon="file-document-outline" />}
+                right={(props) => <List.Icon {...props} icon="chevron-right" />}
+                onPress={() => router.push('/portfolio')}
+              />
+            )}
             {isEmployer && (
               <>
                 {/* <List.Item
@@ -666,6 +891,31 @@ function createStyles(colors: ThemeColors, isDark: boolean) {
       color: colors.textSecondary,
       marginBottom: 12,
     },
+    savedPortfolioSection: {
+      backgroundColor: colors.surface,
+      borderRadius: 8,
+      padding: 12,
+      marginBottom: 16,
+    },
+    savedPortfolioLabel: {
+      color: colors.terracotta,
+      marginBottom: 8,
+    },
+    savedPortfolioBlock: {
+      marginTop: 8,
+    },
+    savedPortfolioFieldLabel: {
+      color: colors.textSecondary,
+      marginBottom: 4,
+    },
+    savedPortfolioText: {
+      color: colors.text,
+    },
+    savedLink: {
+      textDecorationLine: 'underline',
+      color: colors.terracotta,
+      marginBottom: 2,
+    },
     portfolioInput: {
       marginBottom: 12,
       backgroundColor: colors.surface,
@@ -721,6 +971,105 @@ function createStyles(colors: ThemeColors, isDark: boolean) {
     progressBar: {
       marginTop: 8,
       borderRadius: 4,
+    },
+    profileStrengthRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginTop: 10,
+      gap: 6,
+    },
+    profileStrengthText: {
+      color: colors.textSecondary,
+    },
+    analysisResultCard: {
+      backgroundColor: colors.surface,
+      borderRadius: 8,
+      padding: 14,
+      marginBottom: 16,
+      borderLeftWidth: 4,
+      borderLeftColor: colors.terracotta,
+    },
+    analysisResultTitle: {
+      color: colors.terracotta,
+      marginBottom: 10,
+    },
+    analysisResultRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 6,
+    },
+    analysisResultLabel: {
+      color: colors.textSecondary,
+    },
+    analysisResultValue: {
+      color: colors.text,
+    },
+    analysisResultBlock: {
+      marginTop: 8,
+    },
+    analysisResultFeedback: {
+      color: colors.text,
+      fontStyle: 'italic',
+      marginTop: 2,
+    },
+    dismissAnalysisBtn: {
+      alignSelf: 'flex-end',
+      marginTop: 10,
+      paddingVertical: 4,
+      paddingHorizontal: 8,
+    },
+    atsTipText: {
+      color: colors.textSecondary,
+      marginTop: 8,
+      fontStyle: 'italic',
+    },
+    stepHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 4,
+    },
+    stepIndicator: {
+      color: colors.terracotta,
+    },
+    stepLabel: {
+      color: colors.textSecondary,
+      marginBottom: 6,
+    },
+    stepButtons: {
+      flexDirection: 'row',
+      gap: 12,
+      marginTop: 12,
+    },
+    stepButton: {
+      flex: 1,
+    },
+    stepButtonText: {
+      flex: 1,
+    },
+    previewBox: {
+      backgroundColor: colors.surface,
+      borderRadius: 8,
+      padding: 12,
+      marginBottom: 8,
+    },
+    previewBlock: {
+      marginBottom: 8,
+    },
+    previewLabel: {
+      color: colors.textSecondary,
+      marginBottom: 2,
+    },
+    previewText: {
+      color: colors.text,
+    },
+    suggestedSkillsSection: {
+      marginTop: 16,
+    },
+    suggestedSkillChip: {
+      marginRight: 4,
+      marginBottom: 4,
     },
   });
 }

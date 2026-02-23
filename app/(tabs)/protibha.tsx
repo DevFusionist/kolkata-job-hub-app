@@ -20,7 +20,7 @@ import {
 } from 'react-native';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import api from '../_lib/api';
 import { useAuth } from '../_contexts/AuthContext';
 import { useLanguage } from '../_contexts/LanguageContext';
@@ -308,6 +308,13 @@ export default function ProtibhaTabScreen() {
   useEffect(() => {
     refreshEntitlements();
   }, [refreshEntitlements]);
+
+  // Refresh credits when tab gains focus (e.g. after buying on Profile)
+  useFocusEffect(
+    useCallback(() => {
+      refreshEntitlements();
+    }, [refreshEntitlements])
+  );
 
   // Pagination state for chat history
   const [historyLoading, setHistoryLoading] = useState(false);

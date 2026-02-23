@@ -136,7 +136,7 @@ export function PaymentModal({
               ? 'Payment successful. Your AI credits have been added.'
               : 'Payment successful.';
       Alert.alert('Success', successMessage);
-      onSuccess();
+      await Promise.resolve(onSuccess());
       onClose();
     } catch (e: any) {
       if (e?.code === 0 || e?.code === 'dismissed' || e?.description === 'User closed the checkout form') {

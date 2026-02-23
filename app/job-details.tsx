@@ -506,8 +506,8 @@ function createStyles(colors: ThemeColors, isDark: boolean) {
     },
     scrollContent: {
       paddingHorizontal: screenPaddingHorizontal,
+      paddingTop: scale(16),
       paddingBottom: scale(10),
-      paddingTop:scale(10)
     },
     card: {
       marginBottom: 16,

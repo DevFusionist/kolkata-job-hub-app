@@ -77,6 +77,8 @@ export default function JobDetailsScreen() {
   const [applicationsModalVisible, setApplicationsModalVisible] = useState(false);
   const [applications, setApplications] = useState<Application[]>([]);
 
+  const [skillGap, setSkillGap] = useState<{ hasGap: boolean; missing: string[]; matched: string[]; matchPercent: number; message: string } | null>(null);
+  const [skillGapChecked, setSkillGapChecked] = useState(false);
   const isEmployer = user?.role === 'employer';
   const isMyJob = job?.employerId === user?.id;
   const { colors, isDark } = useTheme();
@@ -349,13 +351,62 @@ export default function JobDetailsScreen() {
           </Button>
           <Button
             mode="contained"
-            onPress={() => setApplyModalVisible(true)}
+            onPress={async () => {
+              if (!skillGapChecked && !hasApplied && jobId) {
+                try {
+                  const { data } = await api.post('/ai/copilot/skill-gap', { jobId });
+                  setSkillGap(data);
+                  setSkillGapChecked(true);
+                  if (data.hasGap) return;
+                } catch {
+                  // proceed without gap check
+                }
+              }
+              setApplyModalVisible(true);
+            }}
             style={[styles.footerButton, styles.footerButtonPrimary]}
             disabled={hasApplied || job.status !== 'active'}
             labelStyle={hasApplied ? styles.footerButtonDisabledLabel : undefined}
           >
             {hasApplied ? t('jobDetails.applied') : t('jobDetails.apply')}
           </Button>
+        </View>
+      )}
+
+      {/* Skill Gap Warning */}
+      {skillGap?.hasGap && skillGapChecked && !applyModalVisible && (
+        <View style={styles.skillGapBanner}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+            <MaterialCommunityIcons name="alert-circle" size={20} color="#FF9800" />
+            <Text variant="titleSmall" style={{ color: colors.text, fontWeight: '700', flex: 1 }}>
+              {t('copilot.skillGapTitle') || 'Skills gap detected'}
+            </Text>
+          </View>
+          <Text variant="bodySmall" style={{ color: colors.textSecondary, marginBottom: 8 }}>
+            {skillGap.message}
+          </Text>
+          <Text variant="bodySmall" style={{ color: colors.textSecondary, marginBottom: 4 }}>
+            {t('copilot.skillMatch') || 'Skill match'}: {skillGap.matchPercent}%
+          </Text>
+          <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
+            <Button
+              mode="outlined"
+              compact
+              onPress={() => router.push('/ai-copilot' as any)}
+              textColor={colors.terracotta}
+              style={{ flex: 1, borderColor: colors.terracotta }}
+            >
+              {t('copilot.improveNow') || 'Improve Profile'}
+            </Button>
+            <Button
+              mode="contained"
+              compact
+              onPress={() => { setSkillGap(null); setApplyModalVisible(true); }}
+              style={{ flex: 1, backgroundColor: colors.terracotta }}
+            >
+              {t('copilot.applyAnyway') || 'Apply Anyway'}
+            </Button>
+          </View>
         </View>
       )}
 
@@ -652,6 +703,12 @@ function createStyles(colors: ThemeColors, isDark: boolean) {
       gap: 8,
       marginTop: 12,
       flexWrap: 'wrap',
+    },
+    skillGapBanner: {
+      backgroundColor: isDark ? 'rgba(255,152,0,0.12)' : 'rgba(255,152,0,0.08)',
+      borderTopWidth: 1,
+      borderTopColor: '#FF9800',
+      padding: 16,
     },
   });
 }

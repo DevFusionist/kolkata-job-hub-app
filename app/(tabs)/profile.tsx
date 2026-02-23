@@ -16,8 +16,6 @@ import {
   List,
   Divider,
   Chip,
-  TextInput,
-  ActivityIndicator,
   Switch,
   ProgressBar,
 } from 'react-native-paper';
@@ -38,10 +36,6 @@ import type { ThemeColors } from '../_theme';
 export default function ProfileScreen() {
   const { user, logout, updateUser } = useAuth();
   const { colors, isDark, setThemeMode } = useTheme();
-  const [portfolioRawText, setPortfolioRawText] = useState('');
-  const [portfolioProjects, setPortfolioProjects] = useState('');
-  const [portfolioLinks, setPortfolioLinks] = useState('');
-  const [analyzing, setAnalyzing] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [portfolio, setPortfolio] = useState<{
@@ -64,16 +58,6 @@ export default function ProfileScreen() {
     subscriptionPlan?: string;
     subscriptionExpiresAt?: string | null;
   } | null>(null);
-  const [lastAnalysisResult, setLastAnalysisResult] = useState<{
-    skills: string[];
-    experience: string;
-    category: string;
-    score: number;
-    feedback: string;
-  } | null>(null);
-  const [improveStep, setImproveStep] = useState<1 | 2 | 3>(1);
-  const [suggestedSkills, setSuggestedSkills] = useState<{ skills: string[]; category: string } | null>(null);
-  const [addingSkill, setAddingSkill] = useState<string | null>(null);
   const { t } = useLanguage();
   const router = useRouter();
   const isEmployer = user?.role === 'employer';
@@ -128,20 +112,6 @@ export default function ProfileScreen() {
     fetchPortfolio();
   }, [fetchPortfolio]);
 
-  const suggestedCategory = user?.aiExtracted?.category || lastAnalysisResult?.category || 'Other';
-  const fetchSuggestedSkills = useCallback(async () => {
-    if (!isSeeker || !user?.id) return;
-    try {
-      const { data } = await api.get('/ai/suggested-skills', { params: { category: suggestedCategory } });
-      if (data?.skills?.length) setSuggestedSkills({ skills: data.skills, category: data.category || suggestedCategory });
-    } catch {
-      // ignore
-    }
-  }, [isSeeker, user?.id, suggestedCategory]);
-
-  useEffect(() => {
-    if (isSeeker) fetchSuggestedSkills();
-  }, [isSeeker, fetchSuggestedSkills]);
 
   const handleViewResume = useCallback(async (type: 'upload' | 'generated') => {
     setLoadingViewUrl(type);
@@ -202,15 +172,6 @@ export default function ProfileScreen() {
       if (data.aiAnalysis?.skills?.length) {
         const merged = Array.isArray(data.mergedSkills) ? data.mergedSkills : [...new Set([...(user?.skills || []), ...data.aiAnalysis.skills])].slice(0, 30);
         await updateUser({ ...user!, skills: merged });
-      }
-      if (data.aiAnalysis) {
-        setLastAnalysisResult({
-          skills: data.aiAnalysis.skills || [],
-          experience: data.aiAnalysis.experience || 'Fresher',
-          category: data.aiAnalysis.category || 'Other',
-          score: typeof data.aiAnalysis.score === 'number' ? data.aiAnalysis.score : 0,
-          feedback: data.aiAnalysis.feedback || '',
-        });
       }
 
       await fetchPortfolio();
@@ -456,239 +417,32 @@ export default function ProfileScreen() {
           )}
 
           {isSeeker && (
+            <Animated.View entering={enterFadeInDown}>
             <GlassCard style={styles.card}>
-              <View style={styles.stepHeader}>
-                <Text variant="titleMedium" style={styles.sectionTitle}>
-                  {t('profile.improveWithAi')}
-                </Text>
-                <Text variant="labelSmall" style={styles.stepIndicator}>
-                  {t('profile.step')} {improveStep}/3
-                </Text>
-              </View>
-              <Text variant="bodySmall" style={styles.portfolioHint}>
-                {improveStep === 1 ? t('profile.step1Hint') : improveStep === 2 ? t('profile.step2Hint') : t('profile.step3Hint')}
-              </Text>
-
-              {lastAnalysisResult && (
-                <View style={styles.analysisResultCard}>
-                  <Text variant="labelMedium" style={styles.analysisResultTitle}>
-                    {t('profile.lastAnalysis')}
-                  </Text>
-                  <View style={styles.analysisResultRow}>
-                    <Text variant="labelSmall" style={styles.analysisResultLabel}>{t('profile.profileScore')}</Text>
-                    <Text variant="bodySmall" style={styles.analysisResultValue}>{lastAnalysisResult.score}/100</Text>
-                  </View>
-                  <View style={styles.analysisResultRow}>
-                    <Text variant="labelSmall" style={styles.analysisResultLabel}>{t('profile.experience')}</Text>
-                    <Text variant="bodySmall" style={styles.analysisResultValue}>{lastAnalysisResult.experience}</Text>
-                  </View>
-                  <View style={styles.analysisResultRow}>
-                    <Text variant="labelSmall" style={styles.analysisResultLabel}>{t('profile.category')}</Text>
-                    <Text variant="bodySmall" style={styles.analysisResultValue}>{lastAnalysisResult.category}</Text>
-                  </View>
-                  {lastAnalysisResult.skills.length > 0 && (
-                    <View style={styles.analysisResultBlock}>
-                      <Text variant="labelSmall" style={styles.analysisResultLabel}>{t('profile.skillsAdded')}</Text>
-                      <View style={styles.chipContainer}>
-                        {lastAnalysisResult.skills.map((skill, i) => (
-                          <Chip key={i} style={styles.chip} textStyle={{ color: colors.text }}>
-                            {skill}
-                          </Chip>
-                        ))}
+              <TouchableOpacity onPress={() => router.push('/ai-copilot' as any)} activeOpacity={0.8}>
+                <View style={styles.copilotCtaRow}>
+                  <MaterialCommunityIcons name="rocket-launch" size={32} color={colors.terracotta} />
+                  <View style={{ flex: 1, marginLeft: 12 }}>
+                    <Text variant="titleMedium" style={styles.sectionTitle}>
+                      {t('copilot.title') || 'AI Career Copilot'}
+                    </Text>
+                    <Text variant="bodySmall" style={styles.portfolioHint}>
+                      {t('copilot.profileCta') || 'Audit your profile, add skills, rewrite experience, and unlock more jobs.'}
+                    </Text>
+                    {(user?.hireScore ?? 0) > 0 && (
+                      <View style={styles.hireScoreBadge}>
+                        <Text variant="labelSmall" style={{ color: colors.terracotta, fontWeight: '700' }}>
+                          {t('copilot.hireScore') || 'Hire Score'}: {user?.hireScore}%
+                        </Text>
                       </View>
-                    </View>
-                  )}
-                  {lastAnalysisResult.feedback ? (
-                    <View style={styles.analysisResultBlock}>
-                      <Text variant="labelSmall" style={styles.analysisResultLabel}>{t('profile.tips')}</Text>
-                      <Text variant="bodySmall" style={styles.analysisResultFeedback}>{lastAnalysisResult.feedback}</Text>
-                      <Text variant="bodySmall" style={styles.atsTipText}>{t('profile.atsTip')}</Text>
-                    </View>
-                  ) : null}
-                  {!lastAnalysisResult.feedback && (
-                    <Text variant="bodySmall" style={styles.atsTipText}>{t('profile.atsTip')}</Text>
-                  )}
-                  <TouchableOpacity style={styles.dismissAnalysisBtn} onPress={() => setLastAnalysisResult(null)}>
-                    <Text variant="labelSmall" style={{ color: colors.terracotta }}>{t('profile.dismiss')}</Text>
-                  </TouchableOpacity>
+                    )}
+                  </View>
+                  <MaterialCommunityIcons name="chevron-right" size={24} color={colors.terracotta} />
                 </View>
-              )}
-
-              {improveStep === 1 && (
-                <>
-                  <Text variant="labelSmall" style={styles.stepLabel}>{t('profile.step1Title')}</Text>
-                  <TextInput
-                    value={portfolioRawText}
-                    onChangeText={setPortfolioRawText}
-                    placeholder={t('profile.rawTextPlaceholder') || 'e.g. 2 years delivery experience, know Salt Lake area, Hindi and Bengali...'}
-                    multiline
-                    numberOfLines={4}
-                    style={styles.portfolioInput}
-                    textColor={colors.text}
-                    editable={!analyzing}
-                  />
-                  <View style={styles.stepButtons}>
-                    <Button mode="outlined" onPress={() => setImproveStep(2)} disabled={!portfolioRawText.trim()} style={styles.stepButton} textColor={colors.terracotta}>
-                      {t('profile.next')}
-                    </Button>
-                    <Button mode="text" onPress={() => setImproveStep(2)} style={styles.stepButtonText}>
-                      {t('profile.skip')}
-                    </Button>
-                  </View>
-                </>
-              )}
-
-              {improveStep === 2 && (
-                <>
-                  <Text variant="labelSmall" style={styles.stepLabel}>{t('profile.step2Title')}</Text>
-                  <TextInput
-                    value={portfolioProjects}
-                    onChangeText={setPortfolioProjects}
-                    placeholder={t('profile.projectsPlaceholder') || 'Projects (comma-separated)'}
-                    style={styles.portfolioInput}
-                    textColor={colors.text}
-                    editable={!analyzing}
-                  />
-                  <TextInput
-                    value={portfolioLinks}
-                    onChangeText={setPortfolioLinks}
-                    placeholder={t('profile.linksPlaceholder') || 'Links (comma-separated)'}
-                    style={styles.portfolioInput}
-                    textColor={colors.text}
-                    editable={!analyzing}
-                    autoCapitalize="none"
-                    keyboardType="url"
-                  />
-                  <View style={styles.stepButtons}>
-                    <Button mode="outlined" onPress={() => setImproveStep(1)} style={styles.stepButton} textColor={colors.terracotta}>
-                      {t('profile.back')}
-                    </Button>
-                    <Button mode="contained" onPress={() => setImproveStep(3)} style={styles.stepButton}>
-                      {t('profile.next')}
-                    </Button>
-                  </View>
-                </>
-              )}
-
-              {improveStep === 3 && (
-                <>
-                  <Text variant="labelSmall" style={styles.stepLabel}>{t('profile.step3Title')}</Text>
-                  <View style={styles.previewBox}>
-                    {portfolioRawText.trim() ? (
-                      <View style={styles.previewBlock}>
-                        <Text variant="labelSmall" style={styles.previewLabel}>{t('profile.previewExperience')}</Text>
-                        <Text variant="bodySmall" style={styles.previewText} numberOfLines={3}>
-                          {portfolioRawText.trim()}
-                        </Text>
-                      </View>
-                    ) : null}
-                    {portfolioProjects.trim() && (
-                      <View style={styles.previewBlock}>
-                        <Text variant="labelSmall" style={styles.previewLabel}>{t('profile.previewProjects')}</Text>
-                        <Text variant="bodySmall" style={styles.previewText}>
-                          {portfolioProjects.split(',').map((p) => p.trim()).filter(Boolean).join(', ')}
-                        </Text>
-                      </View>
-                    )}
-                    {portfolioLinks.trim() && (
-                      <View style={styles.previewBlock}>
-                        <Text variant="labelSmall" style={styles.previewLabel}>{t('profile.previewLinks')}</Text>
-                        <Text variant="bodySmall" style={styles.previewText} numberOfLines={2}>
-                          {portfolioLinks.split(',').map((l) => l.trim()).filter(Boolean).join(', ')}
-                        </Text>
-                      </View>
-                    )}
-                  </View>
-                  <View style={styles.stepButtons}>
-                    <Button mode="outlined" onPress={() => setImproveStep(2)} style={styles.stepButton} textColor={colors.terracotta}>
-                      {t('profile.back')}
-                    </Button>
-                    <Button
-                      mode="contained"
-                      loading={analyzing}
-                      disabled={!portfolioRawText.trim() || analyzing}
-                      style={styles.stepButton}
-                      onPress={async () => {
-                        if (!portfolioRawText.trim() || !user?.id) return;
-                        setAnalyzing(true);
-                        try {
-                          const projects = portfolioProjects.split(',').map((p) => p.trim()).filter(Boolean);
-                          const links = portfolioLinks.split(',').map((l) => l.trim()).filter(Boolean);
-                          const { data } = await api.post('/ai/analyze-portfolio', { rawText: portfolioRawText.trim(), projects, links });
-                          const merged = Array.isArray(data.mergedSkills) ? data.mergedSkills : [...new Set([...(user.skills || []), ...(data.skills || [])])].slice(0, 30);
-                          await updateUser({ ...user, skills: merged });
-                          await fetchPortfolio();
-                          setLastAnalysisResult({
-                            skills: data.skills || [],
-                            experience: data.experience || 'Fresher',
-                            category: data.category || 'Other',
-                            score: typeof data.score === 'number' ? data.score : 0,
-                            feedback: data.feedback || '',
-                          });
-                          setPortfolioRawText('');
-                          setPortfolioProjects('');
-                          setPortfolioLinks('');
-                          setImproveStep(1);
-                          Alert.alert(t('common.success'), t('profile.skillsExtracted'));
-                        } catch (err: any) {
-                          if (err.response?.status === 402) {
-                            setPaymentModalVisible(true);
-                            Alert.alert(t('profile.paymentRequiredAi') || 'AI credits needed', err.response?.data?.detail || (t('profile.paymentRequiredAi') || 'Add AI credits to continue.'), [{ text: t('common.ok') }]);
-                            return;
-                          }
-                          Alert.alert(t('common.error'), err.response?.data?.detail || err.message || 'Analysis failed');
-                        } finally {
-                          setAnalyzing(false);
-                        }
-                      }}
-                    >
-                      {analyzing ? t('profile.analyzing') : t('profile.extractSkills')}
-                    </Button>
-                  </View>
-                </>
-              )}
+              </TouchableOpacity>
             </GlassCard>
+            </Animated.View>
           )}
-
-          {isSeeker && suggestedSkills && (() => {
-            const addable = suggestedSkills.skills.filter((s) => !user?.skills?.includes(s)).slice(0, 18);
-            return addable.length > 0 ? (
-            <GlassCard style={styles.card} key="suggested-skills">
-              <Text variant="titleMedium" style={styles.sectionTitle}>
-                {t('profile.suggestedForCategory').replace('{{category}}', suggestedSkills.category)}
-              </Text>
-              <Text variant="bodySmall" style={styles.portfolioHint}>
-                {t('profile.tapToAdd')}
-              </Text>
-              <View style={styles.chipContainer}>
-                {addable.map((skill) => (
-                  <Chip
-                    key={skill}
-                    style={[styles.chip, styles.suggestedSkillChip]}
-                    textStyle={{ color: colors.text }}
-                    onPress={addingSkill === skill ? undefined : async () => {
-                      if (!user?.id || (user.skills?.length ?? 0) >= 30) return;
-                      setAddingSkill(skill);
-                      try {
-                        const next = [...(user.skills || []), skill].slice(0, 30);
-                        await api.put(`/users/${user.id}`, { ...user, skills: next });
-                        await updateUser({ ...user, skills: next });
-                        setSuggestedSkills((prev) => (prev ? { ...prev, skills: prev.skills.filter((s) => s !== skill) } : null));
-                      } catch {
-                        // ignore
-                      } finally {
-                        setAddingSkill(null);
-                      }
-                    }}
-                    disabled={addingSkill !== null}
-                  >
-                    {addingSkill === skill ? '...' : `+ ${skill}`}
-                  </Chip>
-                ))}
-              </View>
-            </GlassCard>
-            ) : null;
-          })()}
 
           <GlassCard style={styles.card}>
             <List.Item
@@ -916,14 +670,6 @@ function createStyles(colors: ThemeColors, isDark: boolean) {
       color: colors.terracotta,
       marginBottom: 2,
     },
-    portfolioInput: {
-      marginBottom: 12,
-      backgroundColor: colors.surface,
-    },
-    analyzeButton: {
-      backgroundColor: colors.terracotta,
-      borderRadius: 2,
-    },
     resumeSectionHeader: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -981,95 +727,17 @@ function createStyles(colors: ThemeColors, isDark: boolean) {
     profileStrengthText: {
       color: colors.textSecondary,
     },
-    analysisResultCard: {
-      backgroundColor: colors.surface,
-      borderRadius: 8,
-      padding: 14,
-      marginBottom: 16,
-      borderLeftWidth: 4,
-      borderLeftColor: colors.terracotta,
-    },
-    analysisResultTitle: {
-      color: colors.terracotta,
-      marginBottom: 10,
-    },
-    analysisResultRow: {
+    copilotCtaRow: {
       flexDirection: 'row',
-      justifyContent: 'space-between',
       alignItems: 'center',
-      marginBottom: 6,
     },
-    analysisResultLabel: {
-      color: colors.textSecondary,
-    },
-    analysisResultValue: {
-      color: colors.text,
-    },
-    analysisResultBlock: {
-      marginTop: 8,
-    },
-    analysisResultFeedback: {
-      color: colors.text,
-      fontStyle: 'italic',
-      marginTop: 2,
-    },
-    dismissAnalysisBtn: {
-      alignSelf: 'flex-end',
-      marginTop: 10,
-      paddingVertical: 4,
+    hireScoreBadge: {
+      marginTop: 6,
+      alignSelf: 'flex-start',
       paddingHorizontal: 8,
-    },
-    atsTipText: {
-      color: colors.textSecondary,
-      marginTop: 8,
-      fontStyle: 'italic',
-    },
-    stepHeader: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      marginBottom: 4,
-    },
-    stepIndicator: {
-      color: colors.terracotta,
-    },
-    stepLabel: {
-      color: colors.textSecondary,
-      marginBottom: 6,
-    },
-    stepButtons: {
-      flexDirection: 'row',
-      gap: 12,
-      marginTop: 12,
-    },
-    stepButton: {
-      flex: 1,
-    },
-    stepButtonText: {
-      flex: 1,
-    },
-    previewBox: {
-      backgroundColor: colors.surface,
-      borderRadius: 8,
-      padding: 12,
-      marginBottom: 8,
-    },
-    previewBlock: {
-      marginBottom: 8,
-    },
-    previewLabel: {
-      color: colors.textSecondary,
-      marginBottom: 2,
-    },
-    previewText: {
-      color: colors.text,
-    },
-    suggestedSkillsSection: {
-      marginTop: 16,
-    },
-    suggestedSkillChip: {
-      marginRight: 4,
-      marginBottom: 4,
+      paddingVertical: 3,
+      borderRadius: 6,
+      backgroundColor: isDark ? 'rgba(165,74,63,0.15)' : 'rgba(165,74,63,0.08)',
     },
   });
 }

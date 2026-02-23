@@ -38,6 +38,24 @@ export interface User {
     score: number;
   };
 
+  // AI Career Copilot
+  careerGoal?: string;
+  workType?: "" | "office" | "remote" | "hybrid" | "field";
+  hireScore?: number;
+  trustScore?: number;
+  profileScore?: number;
+  copilotAudit?: {
+    strengths: string[];
+    weaknesses: string[];
+    hiringProbability: number;
+    salaryPotential: string;
+    lastAuditAt: string | null;
+  };
+  photoVerified?: boolean;
+  phoneVerified?: boolean;
+  idVerified?: boolean;
+  aiOptimized?: boolean;
+
   createdAt: string;
   updatedAt: string;
 }

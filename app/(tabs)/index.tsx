@@ -44,6 +44,14 @@ interface Job {
   applicationsCount: number;
 }
 
+interface Nudge {
+  type: string;
+  title: string;
+  subtitle: string;
+  cta: string;
+  priority: number;
+}
+
 export default function HomeScreen() {
   const { user } = useAuth();
   const { t } = useLanguage();
@@ -56,6 +64,8 @@ export default function HomeScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [recommended, setRecommended] = useState<Job[]>([]);
   const [recLoading, setRecLoading] = useState(false);
+  const [nudges, setNudges] = useState<Nudge[]>([]);
+  const [dismissedNudge, setDismissedNudge] = useState<string | null>(null);
   const isEmployer = user?.role === 'employer';
   const isSeeker = user?.role === 'seeker';
 
@@ -66,9 +76,19 @@ export default function HomeScreen() {
       fetchJobs();
       if (isSeeker && user?.id) {
         fetchRecommended();
+        fetchNudges();
       }
     }, [isEmployer, isSeeker, user?.id])
   );
+
+  const fetchNudges = async () => {
+    try {
+      const { data } = await api.get('/ai/copilot/dashboard');
+      setNudges(data.nudges || []);
+    } catch {
+      // best-effort
+    }
+  };
 
   const fetchRecommended = async () => {
     try {
@@ -155,6 +175,33 @@ export default function HomeScreen() {
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.terracotta]} />
           }
         >
+        {/* AI Copilot Nudges */}
+        {isSeeker && nudges.length > 0 && !dismissedNudge && (
+          <Animated.View entering={enterFadeInDown} style={styles.nudgeContainer}>
+            {nudges.slice(0, 1).map(nudge => (
+              <TouchableOpacity
+                key={nudge.type}
+                style={styles.nudgeCard}
+                onPress={() => router.push('/ai-copilot' as any)}
+                activeOpacity={0.8}
+              >
+                <View style={styles.nudgeContent}>
+                  <MaterialCommunityIcons
+                    name={nudge.type === 'profile_incomplete' ? 'chart-arc' : nudge.type === 'low_trust' ? 'shield-alert' : nudge.type === 'jobs_unlocked' ? 'lock-open' : 'rocket-launch'}
+                    size={28}
+                    color={colors.terracotta}
+                  />
+                  <View style={styles.nudgeText}>
+                    <Text variant="titleSmall" style={styles.nudgeTitle}>{nudge.title}</Text>
+                    <Text variant="bodySmall" style={styles.nudgeSubtitle}>{nudge.subtitle}</Text>
+                  </View>
+                  <MaterialCommunityIcons name="chevron-right" size={20} color={colors.terracotta} />
+                </View>
+              </TouchableOpacity>
+            ))}
+          </Animated.View>
+        )}
+
         {/* AI Recommended Jobs for Seekers */}
         {isSeeker && recommended.length > 0 && (
           <Animated.View entering={enterFadeInDown} style={styles.recommendedSection}>
@@ -493,5 +540,22 @@ function createStyles(colors: ThemeColors, isDark: boolean) {
       marginBottom: 12,
       fontFamily: Platform.OS === 'ios' ? 'Kohinoor Bangla' : 'serif',
     },
+
+    nudgeContainer: { marginBottom: 16 },
+    nudgeCard: {
+      backgroundColor: isDark ? 'rgba(165,74,63,0.15)' : 'rgba(165,74,63,0.08)',
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: colors.terracotta,
+      padding: 14,
+    },
+    nudgeContent: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+    },
+    nudgeText: { flex: 1 },
+    nudgeTitle: { fontWeight: '700', color: colors.terracotta },
+    nudgeSubtitle: { color: colors.textSecondary, marginTop: 2 },
   });
 }

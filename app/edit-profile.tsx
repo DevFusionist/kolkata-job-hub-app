@@ -130,105 +130,106 @@ export default function EditProfileScreen() {
               showsVerticalScrollIndicator={false}
             >
               <Animated.View entering={enterFadeInDown}>
-              <GlassCard style={styles.card}>
-                <Text style={styles.sectionTitle}>{t('register.fullName')}</Text>
-                <TextInput
-                  label={t('register.fullName')}
-                  placeholder={t('register.fullNamePlaceholder')}
-                  value={name}
-                  onChangeText={setName}
-                  style={styles.input}
-                  mode="outlined"
-                />
+                <GlassCard style={styles.card}>
+                  <TextInput
+                    label={t('register.fullName')}
+                    placeholder={t('register.fullNamePlaceholder')}
+                    value={name}
+                    onChangeText={setName}
+                    style={styles.input}
+                    mode="outlined"
+                    outlineColor={colors.border}
+                    activeOutlineColor={colors.primary}
+                  />
 
-                <Text style={styles.sectionTitle}>{t('register.location')}</Text>
-                <LocationSelector value={location} onChange={setLocation} />
+                  <LocationSelector value={location} onChange={setLocation} />
 
-                {isEmployer && (
-                  <>
-                    <Text style={styles.sectionTitle}>{t('register.businessName')}</Text>
-                    <TextInput
-                      label={t('register.businessName')}
-                      placeholder={t('register.businessNamePlaceholder')}
-                      value={businessName}
-                      onChangeText={setBusinessName}
-                      style={styles.input}
-                      mode="outlined"
-                    />
-                  </>
-                )}
+                  {isEmployer && (
+                    <>
+                      <TextInput
+                        label={t('register.businessName')}
+                        placeholder={t('register.businessNamePlaceholder')}
+                        value={businessName}
+                        onChangeText={setBusinessName}
+                        style={styles.input}
+                        mode="outlined"
+                        outlineColor={colors.border}
+                        activeOutlineColor={colors.primary}
+                      />
+                    </>
+                  )}
 
-                {user?.role === 'seeker' && (
-                  <>
-                    <Text style={styles.sectionTitle}>{t('register.experience')}</Text>
-                    <View style={styles.chipRow}>
-                      {EXPERIENCE_RANGES.map((r) => (
-                        <Chip
-                          key={r}
-                          selected={experience === r}
-                          onPress={() => setExperience(r)}
-                          style={styles.chip}
-                          textStyle={{ color: colors.text }}
-                        >
-                          {r}
-                        </Chip>
-                      ))}
-                    </View>
-                  </>
-                )}
+                  {user?.role === 'seeker' && (
+                    <>
+                      <Text style={styles.sectionTitle}>{t('register.experience')}</Text>
+                      <View style={styles.chipRow}>
+                        {EXPERIENCE_RANGES.map((r) => (
+                          <Chip
+                            key={r}
+                            selected={experience === r}
+                            onPress={() => setExperience(r)}
+                            style={styles.chip}
+                            textStyle={{ color: colors.text }}
+                          >
+                            {r}
+                          </Chip>
+                        ))}
+                      </View>
+                    </>
+                  )}
 
-                <Text style={styles.sectionTitle}>{t('register.languages')}</Text>
-                <View style={styles.chipRow}>
-                  {LANG_OPTIONS.map((l) => (
-                    <Chip
-                      key={l}
-                      selected={selectedLanguages.includes(l)}
-                      onPress={() =>
-                        setSelectedLanguages((prev) =>
-                          prev.includes(l) ? prev.filter((i) => i !== l) : [...prev, l]
-                        )
-                      }
-                      style={styles.chip}
-                      textStyle={{ color: colors.text }}
-                    >
-                      {l}
-                    </Chip>
-                  ))}
-                </View>
+                  <Text style={styles.sectionTitle}>{t('register.languages')}</Text>
+                  <View style={styles.chipRow}>
+                    {LANG_OPTIONS.map((l) => (
+                      <Chip
+                        key={l}
+                        selected={selectedLanguages.includes(l)}
+                        onPress={() =>
+                          setSelectedLanguages((prev) =>
+                            prev.includes(l) ? prev.filter((i) => i !== l) : [...prev, l]
+                          )
+                        }
+                        style={styles.chip}
+                        textStyle={{ color: colors.text }}
+                      >
+                        {l}
+                      </Chip>
+                    ))}
+                  </View>
 
-                {user?.role === 'seeker' && (
-                  <>
-                    <Text style={styles.sectionTitle}>{t('register.skills')}</Text>
-                    <View style={styles.chipRow}>
-                      {COMMON_SKILLS.map((s) => (
-                        <Chip
-                          key={s}
-                          selected={selectedSkills.includes(s)}
-                          onPress={() =>
-                            setSelectedSkills((prev) =>
-                              prev.includes(s) ? prev.filter((i) => i !== s) : [...prev, s]
-                            )
-                          }
-                          style={styles.chip}
-                          textStyle={{ color: colors.text }}
-                        >
-                          {s}
-                        </Chip>
-                      ))}
-                    </View>
-                  </>
-                )}
+                  {user?.role === 'seeker' && (
+                    <>
+                      <Text style={styles.sectionTitle}>{t('register.skills')}</Text>
+                      <View style={styles.chipRow}>
+                        {COMMON_SKILLS.map((s) => (
+                          <Chip
+                            key={s}
+                            selected={selectedSkills.includes(s)}
+                            onPress={() =>
+                              setSelectedSkills((prev) =>
+                                prev.includes(s) ? prev.filter((i) => i !== s) : [...prev, s]
+                              )
+                            }
+                            style={styles.chip}
+                            textStyle={{ color: colors.text }}
+                          >
+                            {s}
+                          </Chip>
+                        ))}
+                      </View>
+                    </>
+                  )}
 
-                <Button
-                  mode="contained"
-                  onPress={handleSave}
-                  loading={saving}
-                  disabled={saving}
-                  style={styles.saveBtn}
-                >
-                  {t('common.save')}
-                </Button>
-              </GlassCard>
+                  <Button
+                    mode="contained"
+                    onPress={handleSave}
+                    loading={saving}
+                    disabled={saving}
+                    style={[styles.saveBtn, { backgroundColor: colors.primary }]}
+                  >
+                    {t('common.save')}
+                  </Button>
+                </GlassCard>
               </Animated.View>
             </ScrollView>
           </KeyboardAvoidingView>
@@ -256,7 +257,7 @@ function createStyles(colors: any) {
       marginTop: 12,
       color: colors.text,
     },
-    input: { marginBottom: 4 },
+    input: { marginBottom: 4, backgroundColor: colors.surface },
     chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 },
     chip: {
       backgroundColor: colors.surface,

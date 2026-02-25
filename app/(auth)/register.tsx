@@ -77,7 +77,7 @@ export default function RegisterScreen() {
       disabled: false,
     });
     return () => {
-      setBackOptions({ show: false, onBack: () => {}, disabled: false });
+      setBackOptions({ show: false, onBack: () => { }, disabled: false });
     };
   }, [setBackOptions, router]);
 
@@ -264,6 +264,9 @@ export default function RegisterScreen() {
               value={name}
               onChangeText={setName}
               style={styles.input}
+              mode="outlined"
+              outlineColor={colors.border}
+              activeOutlineColor={colors.terracotta}
             />
 
             <Button
@@ -324,6 +327,9 @@ export default function RegisterScreen() {
                 onChangeText={setExpectedSalary}
                 keyboardType="number-pad"
                 style={styles.input}
+                mode="outlined"
+                outlineColor={colors.border}
+                activeOutlineColor={colors.terracotta}
               />
 
               <Button
@@ -354,6 +360,9 @@ export default function RegisterScreen() {
               value={businessName}
               onChangeText={setBusinessName}
               style={styles.input}
+              mode="outlined"
+              outlineColor={colors.border}
+              activeOutlineColor={colors.terracotta}
             />
             <TextInput
               label={t('register.industry')}
@@ -361,6 +370,9 @@ export default function RegisterScreen() {
               value={industry}
               onChangeText={setIndustry}
               style={styles.input}
+              mode="outlined"
+              outlineColor={colors.border}
+              activeOutlineColor={colors.terracotta}
             />
 
             <Button
@@ -434,22 +446,22 @@ export default function RegisterScreen() {
               <>
                 <Text style={[styles.fieldHint, { marginTop: 8 }]}>{t('register.skills')}</Text>
                 <View style={styles.chipRow}>
-                {COMMON_SKILLS.map((s) => (
-                  <Chip
-                    key={s}
-                    selected={selectedSkills.includes(s)}
-                    onPress={() =>
-                      setSelectedSkills((prev) =>
-                        prev.includes(s)
-                          ? prev.filter((i) => i !== s)
-                          : [...prev, s]
-                      )
-                    }
-                    style={styles.chip}
-                  >
-                    {s}
-                  </Chip>
-                ))}
+                  {COMMON_SKILLS.map((s) => (
+                    <Chip
+                      key={s}
+                      selected={selectedSkills.includes(s)}
+                      onPress={() =>
+                        setSelectedSkills((prev) =>
+                          prev.includes(s)
+                            ? prev.filter((i) => i !== s)
+                            : [...prev, s]
+                        )
+                      }
+                      style={styles.chip}
+                    >
+                      {s}
+                    </Chip>
+                  ))}
                 </View>
               </>
             )}
@@ -479,6 +491,9 @@ export default function RegisterScreen() {
               secureTextEntry
               keyboardType="number-pad"
               style={styles.input}
+              mode="outlined"
+              outlineColor={colors.border}
+              activeOutlineColor={colors.terracotta}
             />
             <TextInput
               label={t('login.setMpinConfirm')}
@@ -488,6 +503,9 @@ export default function RegisterScreen() {
               secureTextEntry
               keyboardType="number-pad"
               style={styles.input}
+              mode="outlined"
+              outlineColor={colors.border}
+              activeOutlineColor={colors.terracotta}
             />
 
             <Button
@@ -506,34 +524,34 @@ export default function RegisterScreen() {
 
   return (
     <View style={styles.bg}>
-    <ImageBackground
-      source={require('../../assets/images/kolkata_street_nostalgia.png')}
-      style={styles.bg}
-      imageStyle={imageBackgroundStyle(colors)}
-    >
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={{ flex: 1 }}
+      <ImageBackground
+        source={require('../../assets/images/kolkata_street_nostalgia.png')}
+        style={styles.bg}
+        imageStyle={imageBackgroundStyle(colors)}
       >
-        <ScrollView contentContainerStyle={styles.scroll}>
-          <View style={styles.progress}>
-            <Animated.View style={[styles.progressFill, progressStyle]} />
-          </View>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={{ flex: 1 }}
+        >
+          <ScrollView contentContainerStyle={styles.scroll}>
+            <View style={styles.progress}>
+              <Animated.View style={[styles.progressFill, progressStyle]} />
+            </View>
 
-          <GlassCard>
-            <Animated.View
-              key={step}
-              entering={FadeInDown.springify()}
-              exiting={FadeOutUp}
-              layout={LinearTransition.springify()}
-            >
-              {renderStep()}
-            </Animated.View>
-          </GlassCard>
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </ImageBackground>
-    {loading && <LoadingScreen fullScreen overlay />}
+            <GlassCard>
+              <Animated.View
+                key={step}
+                entering={FadeInDown.springify()}
+                exiting={FadeOutUp}
+                layout={LinearTransition.springify()}
+              >
+                {renderStep()}
+              </Animated.View>
+            </GlassCard>
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </ImageBackground>
+      {loading && <LoadingScreen fullScreen overlay />}
     </View>
   );
 }
@@ -561,7 +579,7 @@ const createStyles = (colors: any) =>
     fieldHint: { fontSize: 14, fontWeight: '600', marginBottom: 6, color: colors.text },
     fieldHintSub: { fontSize: 12, marginBottom: 8, color: colors.textSecondary },
 
-    input: { marginBottom: 10 },
+    input: { marginBottom: 10, backgroundColor: colors.surface },
 
     mainBtn: { marginTop: 20 },
 

@@ -4,11 +4,10 @@ import {
   StyleSheet,
   TouchableOpacity,
   FlatList,
-  ImageBackground,
-  Platform,
   Alert,
   RefreshControl,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import Animated from 'react-native-reanimated';
 import {
   Text,
@@ -25,7 +24,7 @@ import { useTheme } from '../_contexts/ThemeContext';
 import { GlassCard } from '../_components/GlassCard';
 import { LoadingScreen } from '../_components/LoadingScreen';
 import type { ThemeColors } from '../_theme';
-import { scale, imageBackgroundStyle, screenPaddingHorizontal } from '../_design';
+import { scale, screenPaddingHorizontal } from '../_design';
 import { enterFadeInDownTiming, enterFadeInDownStaggerTiming } from '../_animations';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { safeFormatDate } from '../_lib/date';
@@ -43,12 +42,12 @@ interface Conversation {
 export default function MessagesScreen() {
   const { user } = useAuth();
   const { t } = useLanguage();
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
   const router = useRouter();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
   const { addMessageListener } = useSocket();
 
   useEffect(() => {
@@ -88,13 +87,13 @@ export default function MessagesScreen() {
 
   const renderConversation = ({ item, index }: { item: Conversation; index: number }) => (
     <Animated.View entering={enterFadeInDownStaggerTiming(index, 40)}>
-    <TouchableOpacity
-      onPress={() =>
-        router.push(`/chat?userId=${item.userId}&userName=${item.userName}`)
-      }
-      activeOpacity={0.7}
-    >
-      <GlassCard style={styles.conversationCard} contentStyle={styles.conversationContent}>
+      <TouchableOpacity
+        onPress={() =>
+          router.push(`/chat?userId=${item.userId}&userName=${item.userName}`)
+        }
+        activeOpacity={0.7}
+      >
+        <GlassCard style={styles.conversationCard} contentStyle={styles.conversationContent}>
           <Avatar.Text
             size={48}
             label={getInitials(item.userName)}
@@ -120,14 +119,14 @@ export default function MessagesScreen() {
               {!item.lastMessage.read && <Badge size={8} style={styles.badge} />}
             </View>
           </View>
-      </GlassCard>
-    </TouchableOpacity>
+        </GlassCard>
+      </TouchableOpacity>
     </Animated.View>
   );
 
   if (loading) {
     return (
-      <View style={[styles.container, styles.centerContainer, { backgroundColor: colors.background }]}>
+      <View style={[styles.container, { backgroundColor: colors.background, justifyContent: 'center', alignItems: 'center' }]}>
         <LoadingScreen message={t('messages.title')} />
       </View>
     );
@@ -135,145 +134,74 @@ export default function MessagesScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
-      <ImageBackground
-        source={require('../../assets/images/kolkata_street_nostalgia.png')}
-        style={styles.backgroundImage}
-        imageStyle={imageBackgroundStyle(colors)}
+      <LinearGradient
+        colors={isDark
+          ? [colors.surface, colors.background]
+          : [colors.gradientStart + '18', colors.background]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.header}
       >
-        <View style={styles.header}>
-          <Text variant="headlineMedium" style={styles.headerTitle}>
-            {t('messages.title')}
-          </Text>
-        </View>
+        <Text variant="headlineSmall" style={styles.headerTitle}>
+          {t('messages.title')}
+        </Text>
+      </LinearGradient>
 
-        {loading ? (
-          <View style={[styles.emptyContainer, { flex: 1 }]}>
-            <LoadingScreen fullScreen={false} message={t('messages.title')} />
-          </View>
-        ) : conversations.length === 0 ? (
-          <Animated.View entering={enterFadeInDownTiming} style={styles.emptyContainer}>
-            <MaterialCommunityIcons
-              name="message-outline"
-              size={64}
-              color={colors.muted}
+      {loading ? (
+        <View style={[styles.emptyContainer, { flex: 1 }]}>
+          <LoadingScreen fullScreen={false} message={t('messages.title')} />
+        </View>
+      ) : conversations.length === 0 ? (
+        <Animated.View entering={enterFadeInDownTiming} style={styles.emptyContainer}>
+          <LinearGradient colors={[colors.primary + '22', colors.secondary + '15']} style={styles.emptyIconBg}>
+            <MaterialCommunityIcons name="message-outline" size={40} color={colors.primary} />
+          </LinearGradient>
+          <Text variant="titleMedium" style={styles.emptyText}>{t('messages.empty')}</Text>
+          <Text variant="bodyMedium" style={styles.emptySubtext}>{t('messages.emptySubtext')}</Text>
+        </Animated.View>
+      ) : (
+        <FlatList
+          data={conversations}
+          renderItem={renderConversation}
+          keyExtractor={(item) => item.userId}
+          contentContainerStyle={styles.content}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={async () => { setRefreshing(true); await fetchConversations(); setRefreshing(false); }}
+              tintColor={colors.primary}
+              colors={[colors.primary]}
             />
-            <Text variant="titleMedium" style={styles.emptyText}>
-              {t('messages.empty')}
-            </Text>
-            <Text variant="bodyMedium" style={styles.emptySubtext}>
-              {t('messages.emptySubtext')}
-            </Text>
-          </Animated.View>
-        ) : (
-          <FlatList
-            data={conversations}
-            renderItem={renderConversation}
-            keyExtractor={(item) => item.userId}
-            contentContainerStyle={styles.content}
-            refreshControl={
-              <RefreshControl
-                refreshing={refreshing}
-                onRefresh={async () => {
-                  setRefreshing(true);
-                  await fetchConversations();
-                  setRefreshing(false);
-                }}
-                tintColor={colors.terracotta}
-                colors={[colors.terracotta]}
-              />
-            }
-          />
-        )}
-      </ImageBackground>
+          }
+        />
+      )}
     </SafeAreaView>
   );
 }
 
-function createStyles(colors: ThemeColors) {
+function createStyles(colors: ThemeColors, isDark: boolean) {
   return StyleSheet.create({
-    container: {
-      flex: 1,
-      backgroundColor: colors.background,
-    },
-    backgroundImage: {
-      flex: 1,
-      width: '100%',
-    },
-    centerContainer: {
-      flex: 1,
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
+    container: { flex: 1 },
     header: {
-      padding: scale(24),
-      borderBottomWidth: 1,
-      borderBottomColor: colors.border,
-    },
-    headerTitle: {
-      fontWeight: 'bold',
-      color: colors.terracotta,
-      fontFamily: Platform.OS === 'ios' ? 'Kohinoor Bangla' : 'serif',
-    },
-    content: {
-      paddingHorizontal: screenPaddingHorizontal,
+      paddingHorizontal: scale(20),
       paddingTop: scale(16),
-      paddingBottom: scale(120),
+      paddingBottom: scale(14),
     },
-    emptyContainer: {
-      alignItems: 'center',
-      marginTop: 64,
-    },
-    emptyText: {
-      marginTop: 16,
-      color: colors.textSecondary,
-      textAlign: 'center',
-    },
-    emptySubtext: {
-      marginTop: 8,
-      color: colors.textSecondary,
-      textAlign: 'center',
-    },
-    conversationCard: {
-      marginBottom: 12,
-      elevation: 2,
-    },
-    conversationContent: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      padding: 12,
-    },
-    avatar: {
-      marginRight: 12,
-      backgroundColor: colors.terracotta,
-    },
-    conversationDetails: {
-      flex: 1,
-    },
-    conversationHeader: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      marginBottom: 4,
-    },
-    userName: {
-      fontWeight: 'bold',
-      color: colors.text,
-    },
-    timestamp: {
-      color: colors.textSecondary,
-      fontStyle: 'italic',
-    },
-    messageRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-    },
-    lastMessage: {
-      flex: 1,
-      color: colors.text,
-      fontSize: 14,
-    },
-    badge: {
-      backgroundColor: colors.terracotta,
-    },
+    headerTitle: { fontWeight: '800', color: colors.text, letterSpacing: -0.3 },
+    content: { paddingHorizontal: screenPaddingHorizontal, paddingTop: scale(12), paddingBottom: scale(120) },
+    emptyContainer: { alignItems: 'center', marginTop: 64, gap: 14 },
+    emptyIconBg: { width: 88, height: 88, borderRadius: 44, alignItems: 'center', justifyContent: 'center' },
+    emptyText: { color: colors.textSecondary, textAlign: 'center' },
+    emptySubtext: { color: colors.muted, textAlign: 'center', fontSize: 13 },
+    conversationCard: { marginBottom: 10 },
+    conversationContent: { flexDirection: 'row', alignItems: 'center', padding: 12 },
+    avatar: { marginRight: 12, backgroundColor: colors.primary },
+    conversationDetails: { flex: 1 },
+    conversationHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
+    userName: { fontWeight: '700', color: colors.text },
+    timestamp: { color: colors.textSecondary, fontSize: 12 },
+    messageRow: { flexDirection: 'row', alignItems: 'center' },
+    lastMessage: { flex: 1, color: colors.textSecondary, fontSize: 13 },
+    badge: { backgroundColor: colors.primary },
   });
 }

@@ -429,6 +429,9 @@ export default function JobDetailsScreen() {
             numberOfLines={6}
             style={styles.textArea}
             placeholder={t('jobDetails.coverLetterPlaceholder')}
+            mode="outlined"
+            outlineColor={colors.border}
+            activeOutlineColor={colors.terracotta}
           />
           <View style={styles.modalButtons}>
             <Button

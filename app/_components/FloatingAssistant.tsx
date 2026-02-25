@@ -1,167 +1,136 @@
-import React, { useEffect, useCallback } from 'react';
-import { View, StyleSheet, Pressable, Platform } from 'react-native';
+import React, { useEffect, useRef } from 'react';
+import { View, StyleSheet, TouchableOpacity, Platform } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withRepeat,
-  withTiming,
   withSequence,
   withSpring,
+  withTiming,
   Easing,
 } from 'react-native-reanimated';
-import { useRouter, usePathname } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { useTheme } from '../_contexts/ThemeContext';
-import { useLanguage } from '../_contexts/LanguageContext';
-import { LinearGradient } from 'expo-linear-gradient';
-
-const ICON_SIZE = 54;
-const GLOW_SIZE = 72;
-const FLOAT_RANGE = 5;
-
-const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+import LottieView from 'lottie-react-native';
 
 export function FloatingAssistant() {
   const router = useRouter();
-  const pathname = usePathname();
   const { colors, isDark } = useTheme();
-  const { t } = useLanguage();
-  const isOnProtibha = pathname?.includes('protibha');
+  const lottieRef = useRef<LottieView>(null);
 
-  const floatY = useSharedValue(0);
-  const glowOpacity = useSharedValue(isDark ? 0.45 : 0.35);
+  // Warm pulsing glow ring
+  const ringScale = useSharedValue(1);
   const pressScale = useSharedValue(1);
 
   useEffect(() => {
-    floatY.value = withRepeat(
+    ringScale.value = withRepeat(
       withSequence(
-        withTiming(FLOAT_RANGE, { duration: 1800, easing: Easing.inOut(Easing.ease) }),
-        withTiming(-FLOAT_RANGE, { duration: 1800, easing: Easing.inOut(Easing.ease) })
+        withTiming(1.12, { duration: 1200, easing: Easing.inOut(Easing.ease) }),
+        withTiming(1, { duration: 1200, easing: Easing.inOut(Easing.ease) })
       ),
       -1,
       true
     );
-    glowOpacity.value = withRepeat(
-      withSequence(
-        withTiming(isDark ? 0.7 : 0.55, { duration: 2200, easing: Easing.inOut(Easing.ease) }),
-        withTiming(isDark ? 0.45 : 0.35, { duration: 2200, easing: Easing.inOut(Easing.ease) })
-      ),
-      -1,
-      true
-    );
-  }, [isDark]);
-
-  const onPressIn = useCallback(() => {
-    pressScale.value = withSpring(0.88, { damping: 15, stiffness: 300 });
   }, []);
 
-  const onPressOut = useCallback(() => {
-    pressScale.value = withSpring(1, { damping: 12, stiffness: 200 });
-  }, []);
-
-  const onPress = useCallback(() => {
-    router.push('/(tabs)/protibha');
-  }, [router]);
-
-  const floatStyle = useAnimatedStyle(() => ({
-    transform: [
-      { translateY: floatY.value },
-      { scale: pressScale.value },
-    ],
+  const ringStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: ringScale.value }],
+    opacity: 2 - ringScale.value,
   }));
 
-  const glowStyle = useAnimatedStyle(() => ({
-    opacity: glowOpacity.value,
+  const fabStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: pressScale.value }],
   }));
 
-  if (isOnProtibha) return null;
+  const handlePressIn = () => {
+    pressScale.value = withSpring(0.88, { damping: 10, stiffness: 300 });
+  };
+  const handlePressOut = () => {
+    pressScale.value = withSpring(1, { damping: 10, stiffness: 300 });
+  };
 
   return (
-    <AnimatedPressable
-      style={[styles.fabWrapper, floatStyle]}
-      onPress={onPress}
-      onPressIn={onPressIn}
-      onPressOut={onPressOut}
-      accessibilityLabel={t('tabs.protibha') ? `Open ${t('tabs.protibha')} assistant` : 'Open assistant'}
-      accessibilityRole="button"
-    >
-      {/* Outer neon glow ring */}
-      <Animated.View style={[styles.glowRing, glowStyle, { borderColor: colors.gold }]}>
+    <View style={styles.wrap}>
+      {/* Warm glow ring */}
+      <Animated.View
+        style={[
+          styles.ring,
+          {
+            backgroundColor: colors.primary + '20',
+            borderColor: colors.primary + '30',
+          },
+          ringStyle,
+        ]}
+      />
+
+      <TouchableOpacity
+        activeOpacity={0.9}
+        onPress={() => router.push('/(tabs)/protibha')}
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
+      >
         <Animated.View
           style={[
-            styles.glowRingInner,
-            glowStyle,
+            styles.fab,
             {
-              borderColor: colors.terracotta,
+              backgroundColor: colors.primary,
               ...Platform.select({
                 ios: {
-                  shadowColor: colors.terracotta,
-                  shadowOffset: { width: 0, height: 0 },
-                  shadowOpacity: 0.8,
+                  shadowColor: colors.primary,
+                  shadowOffset: { width: 0, height: 6 },
+                  shadowOpacity: 0.35,
                   shadowRadius: 14,
                 },
-                android: {},
+                android: { elevation: 8 },
               }),
             },
+            fabStyle,
           ]}
-        />
-      </Animated.View>
-
-      {/* Main button with gradient */}
-      <LinearGradient
-        colors={[colors.terracotta, colors.gold]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={[
-          styles.fab,
-          Platform.select({
-            ios: {
-              shadowColor: colors.terracotta,
-              shadowOffset: { width: 0, height: 4 },
-              shadowOpacity: 0.5,
-              shadowRadius: 10,
-            },
-            android: { elevation: 10 },
-          }),
-        ]}
-      >
-        <MaterialCommunityIcons name="robot-happy-outline" size={26} color="#fff" />
-      </LinearGradient>
-    </AnimatedPressable>
+        >
+          {Platform.OS !== 'web' ? (
+            <LottieView
+              ref={lottieRef}
+              source={require('../../assets/lottie/loading.json')}
+              autoPlay
+              loop
+              style={styles.lottie}
+              renderMode="AUTOMATIC"
+            />
+          ) : (
+            <MaterialCommunityIcons name="robot-happy" size={28} color="#FFF" />
+          )}
+        </Animated.View>
+      </TouchableOpacity>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  fabWrapper: {
+  wrap: {
     position: 'absolute',
-    right: 16,
-    bottom: 80,
-    width: GLOW_SIZE + 10,
-    height: GLOW_SIZE + 10,
+    bottom: 90,
+    right: 20,
+    width: 64,
+    height: 64,
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 100,
   },
-  glowRing: {
-    position: 'absolute',
-    width: GLOW_SIZE + 6,
-    height: GLOW_SIZE + 6,
-    borderRadius: (GLOW_SIZE + 6) / 2,
+  ring: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: 32,
     borderWidth: 2,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  glowRingInner: {
-    width: GLOW_SIZE,
-    height: GLOW_SIZE,
-    borderRadius: GLOW_SIZE / 2,
-    borderWidth: 1.5,
   },
   fab: {
-    width: ICON_SIZE,
-    height: ICON_SIZE,
-    borderRadius: ICON_SIZE / 2,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  lottie: {
+    width: 36,
+    height: 36,
   },
 });

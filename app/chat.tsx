@@ -275,6 +275,9 @@ export default function ChatScreen() {
               textColor={colors.text}
               multiline
               maxLength={1000}
+              mode="outlined"
+              outlineColor={colors.border}
+              activeOutlineColor={colors.terracotta}
             />
             <IconButton
               icon="send"

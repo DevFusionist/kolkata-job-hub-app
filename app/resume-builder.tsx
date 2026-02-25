@@ -125,8 +125,8 @@ export default function ResumeBuilderScreen() {
         location,
         skills,
         languages,
-        experience: experience[0]?.title ? 
-          (experience[0].duration || user?.aiExtracted?.experience || 'Fresher') : 
+        experience: experience[0]?.title ?
+          (experience[0].duration || user?.aiExtracted?.experience || 'Fresher') :
           (user?.aiExtracted?.experience || 'Fresher'),
         portfolioText,
       });
@@ -304,6 +304,8 @@ export default function ResumeBuilderScreen() {
                   style={styles.input}
                   textColor={colors.text}
                   mode="outlined"
+                  outlineColor={colors.border}
+                  activeOutlineColor={colors.terracotta}
                 />
                 <TextInput
                   label={t('resume.phone') || 'Phone'}
@@ -312,6 +314,8 @@ export default function ResumeBuilderScreen() {
                   style={styles.input}
                   textColor={colors.text}
                   mode="outlined"
+                  outlineColor={colors.border}
+                  activeOutlineColor={colors.terracotta}
                   keyboardType="phone-pad"
                 />
                 <Text variant="bodySmall" style={[styles.hint, { marginTop: 4 }]}>
@@ -345,6 +349,8 @@ export default function ResumeBuilderScreen() {
                     textColor={colors.text}
                     mode="outlined"
                     dense
+                    outlineColor={colors.border}
+                    activeOutlineColor={colors.terracotta}
                     onSubmitEditing={addSkill}
                   />
                   <IconButton
@@ -390,6 +396,8 @@ export default function ResumeBuilderScreen() {
                       textColor={colors.text}
                       mode="outlined"
                       dense
+                      outlineColor={colors.border}
+                      activeOutlineColor={colors.terracotta}
                     />
                     <TextInput
                       label={t('resume.company') || 'Company / Employer'}
@@ -399,6 +407,8 @@ export default function ResumeBuilderScreen() {
                       textColor={colors.text}
                       mode="outlined"
                       dense
+                      outlineColor={colors.border}
+                      activeOutlineColor={colors.terracotta}
                     />
                     <TextInput
                       label={t('resume.duration') || 'Duration (e.g., 2 years)'}
@@ -408,6 +418,8 @@ export default function ResumeBuilderScreen() {
                       textColor={colors.text}
                       mode="outlined"
                       dense
+                      outlineColor={colors.border}
+                      activeOutlineColor={colors.terracotta}
                     />
                     <TextInput
                       label={t('resume.achievements') || 'Key achievements (one per line)'}
@@ -418,6 +430,8 @@ export default function ResumeBuilderScreen() {
                       mode="outlined"
                       multiline
                       numberOfLines={3}
+                      outlineColor={colors.border}
+                      activeOutlineColor={colors.terracotta}
                       dense
                     />
                   </View>
@@ -450,6 +464,8 @@ export default function ResumeBuilderScreen() {
                       textColor={colors.text}
                       mode="outlined"
                       dense
+                      outlineColor={colors.border}
+                      activeOutlineColor={colors.terracotta}
                     />
                     <TextInput
                       label={t('resume.institution') || 'School / Institution'}
@@ -459,6 +475,8 @@ export default function ResumeBuilderScreen() {
                       textColor={colors.text}
                       mode="outlined"
                       dense
+                      outlineColor={colors.border}
+                      activeOutlineColor={colors.terracotta}
                     />
                     <TextInput
                       label={t('resume.year') || 'Year'}
@@ -468,6 +486,8 @@ export default function ResumeBuilderScreen() {
                       textColor={colors.text}
                       mode="outlined"
                       dense
+                      outlineColor={colors.border}
+                      activeOutlineColor={colors.terracotta}
                       keyboardType="numeric"
                     />
                   </View>
@@ -485,6 +505,8 @@ export default function ResumeBuilderScreen() {
                   style={styles.input}
                   textColor={colors.text}
                   mode="outlined"
+                  outlineColor={colors.border}
+                  activeOutlineColor={colors.terracotta}
                   multiline
                   numberOfLines={4}
                 />
@@ -670,7 +692,7 @@ function createStyles(colors: ThemeColors, isDark: boolean) {
     card: { marginBottom: 16 },
     cardTitle: { color: colors.text, fontWeight: 'bold', marginBottom: 4 },
     hint: { color: colors.textSecondary, marginBottom: 12 },
-    input: { marginBottom: 10, backgroundColor: 'transparent' },
+    input: { marginBottom: 10, backgroundColor: isDark ? colors.surfaceElevated : colors.surface },
     chipContainer: {
       flexDirection: 'row',
       flexWrap: 'wrap',
@@ -682,7 +704,7 @@ function createStyles(colors: ThemeColors, isDark: boolean) {
       flexDirection: 'row',
       alignItems: 'center',
     },
-    addSkillInput: { flex: 1, backgroundColor: 'transparent' },
+    addSkillInput: { flex: 1, backgroundColor: isDark ? colors.surfaceElevated : colors.surface },
     nextButton: {
       backgroundColor: colors.terracotta,
       borderRadius: 8,

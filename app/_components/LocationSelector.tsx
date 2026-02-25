@@ -39,7 +39,7 @@ export const LocationSelector = ({ value, onChange, colors: colorsProp, inputPro
       }
 
       let current = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
-      
+
       const camera = {
         center: { latitude: current.coords.latitude, longitude: current.coords.longitude },
         pitch: 0, heading: 0, altitude: 1000, zoom: 17 // Zoomed in tighter for "Elite" feel
@@ -78,7 +78,7 @@ export const LocationSelector = ({ value, onChange, colors: colorsProp, inputPro
   };
 
   const reverseGeocode = async (lat: number, lon: number) => {
-    if (isTyping) return; 
+    if (isTyping) return;
     setAddressLoading(true);
     try {
       const [place] = await Location.reverseGeocodeAsync({ latitude: lat, longitude: lon });
@@ -86,7 +86,12 @@ export const LocationSelector = ({ value, onChange, colors: colorsProp, inputPro
         const formatted = [place.name, place.district, place.city].filter(Boolean).join(', ');
         setDisplayAddress(formatted);
       }
-    } finally { setAddressLoading(false); }
+    } catch {
+      // Geocoding can fail on emulators (UNAVAILABLE), without Play Services, or no network
+      setDisplayAddress((prev) => prev || `${lat.toFixed(4)}, ${lon.toFixed(4)}`);
+    } finally {
+      setAddressLoading(false);
+    }
   };
 
   const handleConfirm = () => {
@@ -98,28 +103,31 @@ export const LocationSelector = ({ value, onChange, colors: colorsProp, inputPro
   return (
     <View style={styles.container}>
       <View>
-        <TextInput 
-          {...inputProps} 
-          label="Location / Locality" 
-          value={value} 
-          editable={false} 
+        <TextInput
+          {...inputProps}
+          label="Location / Locality"
+          value={value}
+          editable={false}
           multiline={true}
           numberOfLines={2}
-          right={<TextInput.Icon icon="map-marker-radius" color={colors.ink} />} 
-          style={[inputProps.style, { minHeight: 65, paddingVertical: 8 }]} 
+          right={<TextInput.Icon icon="map-marker-radius" color={colors.ink} />}
+          style={[inputProps.style, { minHeight: 65, paddingVertical: 8, backgroundColor: themeColors.surface }]}
+          mode="outlined"
+          outlineColor={themeColors.border}
+          activeOutlineColor={themeColors.terracotta}
         />
-        <TouchableOpacity 
-          onPress={() => setModalVisible(true)} 
-          style={StyleSheet.absoluteFill} 
+        <TouchableOpacity
+          onPress={() => setModalVisible(true)}
+          style={StyleSheet.absoluteFill}
         />
       </View>
 
-      <Modal 
-        visible={modalVisible} 
-        animationType="slide" 
-        onShow={() => { 
-          setDisplayAddress(value); 
-          setTimeout(moveToCurrentLocation, 800); 
+      <Modal
+        visible={modalVisible}
+        animationType="slide"
+        onShow={() => {
+          setDisplayAddress(value);
+          setTimeout(moveToCurrentLocation, 800);
         }}
       >
         <View style={{ flex: 1, backgroundColor: colors.background }}>
@@ -133,22 +141,24 @@ export const LocationSelector = ({ value, onChange, colors: colorsProp, inputPro
               style={[styles.searchInput, { backgroundColor: colors.surface }]}
               onSubmitEditing={handleSearch}
               right={<TextInput.Icon icon="magnify" onPress={handleSearch} />}
+              underlineColor={themeColors.border}
+              activeUnderlineColor={themeColors.terracotta}
             />
           </View>
 
-          <MapView 
+          <MapView
             ref={mapRef}
-            style={styles.map} 
-            initialRegion={region} 
+            style={styles.map}
+            initialRegion={region}
             onPanDrag={() => setIsTyping(false)}
-            onRegionChangeComplete={(r) => { 
-              setRegion(r); 
-              reverseGeocode(r.latitude, r.longitude); 
+            onRegionChangeComplete={(r) => {
+              setRegion(r);
+              reverseGeocode(r.latitude, r.longitude);
             }}
           />
-          
+
           <View style={styles.markerFixed} pointerEvents="none">
-            <Text style={{fontSize: 40, marginBottom: 40}}>📍</Text>
+            <Text style={{ fontSize: 40, marginBottom: 40 }}>📍</Text>
           </View>
 
           {/* FIXED GPS BUTTON CONTAINER */}
@@ -173,9 +183,10 @@ export const LocationSelector = ({ value, onChange, colors: colorsProp, inputPro
               multiline
               numberOfLines={3}
               style={[styles.manualInput, { backgroundColor: colors.surface }]}
+              outlineColor={themeColors.border}
               activeOutlineColor={colors.ink}
             />
-            {addressLoading && !isTyping && <ActivityIndicator size="small" color={colors.ink} style={{marginBottom: 10}} />}
+            {addressLoading && !isTyping && <ActivityIndicator size="small" color={colors.ink} style={{ marginBottom: 10 }} />}
             <Button mode="contained" onPress={handleConfirm} style={[styles.confirmBtn, { backgroundColor: colors.ink }]} labelStyle={{ color: colors.cream, fontWeight: 'bold' }}>
               Confirm Location
             </Button>
@@ -215,15 +226,15 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 4,
   },
-  bottomSheet: { 
-    padding: 20, 
-    borderTopLeftRadius: 15, 
-    borderTopRightRadius: 15, 
-    position: 'absolute', 
-    bottom: 0, 
-    width: '100%', 
-    elevation: 25, 
-    paddingBottom: 30 
+  bottomSheet: {
+    padding: 20,
+    borderTopLeftRadius: 15,
+    borderTopRightRadius: 15,
+    position: 'absolute',
+    bottom: 0,
+    width: '100%',
+    elevation: 25,
+    paddingBottom: 30
   },
   label: { fontSize: 10, fontWeight: 'bold', textTransform: 'uppercase', color: '#888', marginBottom: 8 },
   manualInput: { marginBottom: 15, fontSize: 14, fontFamily: 'serif', minHeight: 80 },

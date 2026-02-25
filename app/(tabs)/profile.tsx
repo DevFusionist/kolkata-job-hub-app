@@ -4,11 +4,10 @@ import {
   StyleSheet,
   ScrollView,
   Alert,
-  ImageBackground,
-  Platform,
-  Linking,
   TouchableOpacity,
+  Linking,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import Animated from 'react-native-reanimated';
 import {
   Text,
@@ -28,7 +27,7 @@ import { useLanguage } from '../_contexts/LanguageContext';
 import { useTheme } from '../_contexts/ThemeContext';
 import { GlassCard } from '../_components/GlassCard';
 import { PaymentModal } from '../_components/PaymentModal';
-import { scale, imageBackgroundStyle, screenPaddingHorizontal } from '../_design';
+import { scale, screenPaddingHorizontal } from '../_design';
 import { enterFadeInDown } from '../_animations';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import type { ThemeColors } from '../_theme';
@@ -216,39 +215,50 @@ export default function ProfileScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
-      <ImageBackground
-        source={require('../../assets/images/kolkata_street_nostalgia.png')}
-        style={styles.backgroundImage}
-        imageStyle={imageBackgroundStyle(colors)}
+      <LinearGradient
+        colors={isDark
+          ? [colors.surface, colors.background]
+          : [colors.gradientStart + '18', colors.background]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.header}
       >
-        <View style={styles.header}>
-          <Text variant="headlineMedium" style={styles.headerTitle}>
-            {t('profile.title')}
-          </Text>
-        </View>
+        <Text variant="headlineSmall" style={styles.headerTitle}>
+          {t('profile.title')}
+        </Text>
+      </LinearGradient>
 
-        <ScrollView
-          style={styles.content}
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-        >
-          <Animated.View entering={enterFadeInDown}>
-          <GlassCard style={styles.card}>
+      <ScrollView
+        style={styles.content}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        <Animated.View entering={enterFadeInDown}>
+          <GlassCard style={styles.card} glow>
             <View style={styles.profileHeader}>
-              <MaterialCommunityIcons
-                name={isEmployer ? 'briefcase' : 'account'}
-                size={64}
-                color={colors.terracotta}
-              />
+              <LinearGradient
+                colors={[colors.gradientStart, colors.gradientEnd, colors.secondary]}
+                style={styles.avatarRing}
+              >
+                <View style={[styles.avatarInner, { backgroundColor: colors.surface }]}>
+                  <MaterialCommunityIcons
+                    name={isEmployer ? 'briefcase' : 'account'}
+                    size={44}
+                    color={colors.primary}
+                  />
+                </View>
+              </LinearGradient>
               <Text variant="headlineSmall" style={styles.name}>
                 {user?.name}
               </Text>
-              <Chip mode="outlined" style={styles.roleChip} textStyle={{ color: colors.text }}>
-                {isEmployer ? t('profile.employer') : t('profile.jobSeeker')}
-              </Chip>
+              <View style={[styles.roleChip, { backgroundColor: colors.primary + '22', borderColor: colors.primary + '55' }]}>
+                <Text style={[styles.roleChipText, { color: colors.primary }]}>
+                  {isEmployer ? t('profile.employer') : t('profile.jobSeeker')}
+                </Text>
+              </View>
               {isSeeker && (
                 <View style={styles.profileStrengthRow}>
-                  <MaterialCommunityIcons name="chart-donut" size={18} color={colors.terracotta} />
+                  <MaterialCommunityIcons name="chart-donut" size={18} color={colors.secondary} />
                   <Text variant="bodySmall" style={styles.profileStrengthText}>
                     {t('profile.profileStrength')}: {profileStrength.score}% — {t(`profile.strength.${profileStrength.label}`)}
                   </Text>
@@ -316,9 +326,9 @@ export default function ProfileScreen() {
               </View>
             )}
           </GlassCard>
-          </Animated.View>
+        </Animated.View>
 
-          {isSeeker && (
+        {isSeeker && (
           <Animated.View entering={enterFadeInDown}>
             <GlassCard style={styles.card}>
               <View style={styles.resumeSectionHeader}>
@@ -411,13 +421,13 @@ export default function ProfileScreen() {
                   color={colors.terracotta}
                   style={styles.progressBar}
                 />
-            )}
-          </GlassCard>
+              )}
+            </GlassCard>
           </Animated.View>
-          )}
+        )}
 
-          {isSeeker && (
-            <Animated.View entering={enterFadeInDown}>
+        {isSeeker && (
+          <Animated.View entering={enterFadeInDown}>
             <GlassCard style={styles.card}>
               <TouchableOpacity onPress={() => router.push('/ai-copilot' as any)} activeOpacity={0.8}>
                 <View style={styles.copilotCtaRow}>
@@ -441,105 +451,104 @@ export default function ProfileScreen() {
                 </View>
               </TouchableOpacity>
             </GlassCard>
-            </Animated.View>
-          )}
+          </Animated.View>
+        )}
 
-          <GlassCard style={styles.card}>
-            <List.Item
-              title={t('profile.appearance')}
-              description={isDark ? t('profile.darkMode') : t('profile.lightMode')}
-              left={(props) => <List.Icon {...props} icon="theme-light-dark" />}
-              right={() => (
-                <Switch
-                  value={isDark}
-                  onValueChange={(v) => setThemeMode(v ? 'dark' : 'light')}
-                  color={colors.terracotta}
-                />
-              )}
-            />
-            <List.Item
-              title={t('profile.editProfile')}
-              left={(props) => <List.Icon {...props} icon="pencil" />}
-              right={(props) => <List.Icon {...props} icon="chevron-right" />}
-              onPress={() => router.push('/edit-profile')}
-            />
-            {isSeeker && (
-              <List.Item
-                title={t('profile.portfolio')}
-                description={t('profile.portfolioDesc')}
-                left={(props) => <List.Icon {...props} icon="file-document-outline" />}
-                right={(props) => <List.Icon {...props} icon="chevron-right" />}
-                onPress={() => router.push('/portfolio')}
+        <GlassCard style={styles.card}>
+          <List.Item
+            title={t('profile.appearance')}
+            description={isDark ? t('profile.darkMode') : t('profile.lightMode')}
+            left={(props) => <List.Icon {...props} icon="theme-light-dark" color={colors.primary} />}
+            right={() => (
+              <Switch
+                value={isDark}
+                onValueChange={(v) => setThemeMode(v ? 'dark' : 'light')}
+                color={colors.primary}
               />
             )}
-            {isEmployer && (
-              <>
-                {/* <List.Item
+          />
+          <List.Item
+            title={t('profile.editProfile')}
+            left={(props) => <List.Icon {...props} icon="pencil" />}
+            right={(props) => <List.Icon {...props} icon="chevron-right" />}
+            onPress={() => router.push('/edit-profile')}
+          />
+          {isSeeker && (
+            <List.Item
+              title={t('profile.portfolio')}
+              description={t('profile.portfolioDesc')}
+              left={(props) => <List.Icon {...props} icon="file-document-outline" />}
+              right={(props) => <List.Icon {...props} icon="chevron-right" />}
+              onPress={() => router.push('/portfolio')}
+            />
+          )}
+          {isEmployer && (
+            <>
+              {/* <List.Item
                   title={t('profile.purchaseJobPosts')}
                   description={t('profile.perPost')}
                   left={(props) => <List.Icon {...props} icon="cart" />}
                   right={(props) => <List.Icon {...props} icon="chevron-right" />}
                   onPress={() => router.push('/(tabs)/post-job')}
                 /> */}
-                <List.Item
-                  title={t('profile.jobCreditsSubscription')}
-                  titleNumberOfLines={2}
-                  titleEllipsizeMode="clip"
-                  description={t('profile.jobCreditsDesc')
-                    ?.replace('{free}', String(entitlements?.freeJobsRemaining ?? user?.freeJobsRemaining ?? 0))
-                    ?.replace('{paid}', String(entitlements?.paidJobsRemaining ?? user?.paidJobsRemaining ?? 0))
-                    ?.replace('{sub}', entitlements?.subscriptionActive ? '✓ Subscription' : 'Free')
-                    ?? `Free: ${entitlements?.freeJobsRemaining ?? user?.freeJobsRemaining ?? 0} · Paid: ${entitlements?.paidJobsRemaining ?? user?.paidJobsRemaining ?? 0}`}
-                  descriptionNumberOfLines={10}
-                  descriptionEllipsizeMode="clip"
-                  left={(props) => <List.Icon {...props} icon="briefcase" />}
-                  right={(props) => <List.Icon {...props} icon="chevron-right" />}
-                  onPress={() => { setPaymentModalFilter('job'); setPaymentModalVisible(true); }}
-                />
-              </>
-            )}
+              <List.Item
+                title={t('profile.jobCreditsSubscription')}
+                titleNumberOfLines={2}
+                titleEllipsizeMode="clip"
+                description={t('profile.jobCreditsDesc')
+                  ?.replace('{free}', String(entitlements?.freeJobsRemaining ?? user?.freeJobsRemaining ?? 0))
+                  ?.replace('{paid}', String(entitlements?.paidJobsRemaining ?? user?.paidJobsRemaining ?? 0))
+                  ?.replace('{sub}', entitlements?.subscriptionActive ? '✓ Subscription' : 'Free')
+                  ?? `Free: ${entitlements?.freeJobsRemaining ?? user?.freeJobsRemaining ?? 0} · Paid: ${entitlements?.paidJobsRemaining ?? user?.paidJobsRemaining ?? 0}`}
+                descriptionNumberOfLines={10}
+                descriptionEllipsizeMode="clip"
+                left={(props) => <List.Icon {...props} icon="briefcase" />}
+                right={(props) => <List.Icon {...props} icon="chevron-right" />}
+                onPress={() => { setPaymentModalFilter('job'); setPaymentModalVisible(true); }}
+              />
+            </>
+          )}
 
-            <List.Item
-              title={t('profile.aiCredits') || 'AI credits'}
-              description={`${t('profile.aiCreditsDesc') || 'For chat, resume analysis & AI builder'} — ${(entitlements?.aiFreeTokensRemaining ?? user?.aiFreeTokensRemaining ?? 0) + (entitlements?.aiPaidTokensRemaining ?? user?.aiPaidTokensRemaining ?? 0)} ${t('profile.creditsRemaining') || 'remaining'}`}
-              descriptionNumberOfLines={10}
-              descriptionEllipsizeMode="clip"
-              left={(props) => <List.Icon {...props} icon="robot" />}
-              right={(props) => <List.Icon {...props} icon="chevron-right" />}
-              onPress={() => { setPaymentModalFilter('ai'); setPaymentModalVisible(true); }}
-            />
+          <List.Item
+            title={t('profile.aiCredits') || 'AI credits'}
+            description={`${t('profile.aiCreditsDesc') || 'For chat, resume analysis & AI builder'} — ${(entitlements?.aiFreeTokensRemaining ?? user?.aiFreeTokensRemaining ?? 0) + (entitlements?.aiPaidTokensRemaining ?? user?.aiPaidTokensRemaining ?? 0)} ${t('profile.creditsRemaining') || 'remaining'}`}
+            descriptionNumberOfLines={10}
+            descriptionEllipsizeMode="clip"
+            left={(props) => <List.Icon {...props} icon="robot" />}
+            right={(props) => <List.Icon {...props} icon="chevron-right" />}
+            onPress={() => { setPaymentModalFilter('ai'); setPaymentModalVisible(true); }}
+          />
 
-            <List.Item
-              title={t('profile.helpSupport')}
-              left={(props) => <List.Icon {...props} icon="help-circle" />}
-              right={(props) => <List.Icon {...props} icon="chevron-right" />}
-              onPress={() => Alert.alert(t('profile.helpSupport'), t('profile.supportContact'))}
-            />
+          <List.Item
+            title={t('profile.helpSupport')}
+            left={(props) => <List.Icon {...props} icon="help-circle" />}
+            right={(props) => <List.Icon {...props} icon="chevron-right" />}
+            onPress={() => Alert.alert(t('profile.helpSupport'), t('profile.supportContact'))}
+          />
 
-            <List.Item
-              title={t('profile.about')}
-              left={(props) => <List.Icon {...props} icon="information" />}
-              right={(props) => <List.Icon {...props} icon="chevron-right" />}
-              onPress={() =>
-                Alert.alert(
-                  t('profile.about'),
-                  `${t('profile.aboutText')}\n\n${t('profile.version')}`
-                )
-              }
-            />
-          </GlassCard>
+          <List.Item
+            title={t('profile.about')}
+            left={(props) => <List.Icon {...props} icon="information" />}
+            right={(props) => <List.Icon {...props} icon="chevron-right" />}
+            onPress={() =>
+              Alert.alert(
+                t('profile.about'),
+                `${t('profile.aboutText')}\n\n${t('profile.version')}`
+              )
+            }
+          />
+        </GlassCard>
 
-          <Button
-            mode="outlined"
-            onPress={handleLogout}
-            style={styles.logoutButton}
-            icon="logout"
-            textColor={colors.bengaliRed}
-          >
-            {t('profile.logout')}
-          </Button>
-        </ScrollView>
-      </ImageBackground>
+        <Button
+          mode="outlined"
+          onPress={handleLogout}
+          style={styles.logoutButton}
+          icon="logout"
+          textColor={colors.accent}
+        >
+          {t('profile.logout')}
+        </Button>
+      </ScrollView>
       <PaymentModal
         visible={paymentModalVisible}
         onClose={() => setPaymentModalVisible(false)}
@@ -567,30 +576,19 @@ export default function ProfileScreen() {
         subtitle={paymentModalFilter === 'job' ? (t('profile.addJobCreditsSubtitle') || 'Buy job credits or monthly unlimited posting.') : (t('profile.addAiCreditsSubtitle') || 'Buy AI credits for Kormo chat, resume analysis, and AI resume builder.')}
         filter={paymentModalFilter}
       />
-    </SafeAreaView>
+    </SafeAreaView >
   );
 }
 
 function createStyles(colors: ThemeColors, isDark: boolean) {
   return StyleSheet.create({
-    container: {
-      flex: 1,
-      backgroundColor: colors.background,
-    },
-    backgroundImage: {
-      flex: 1,
-      width: '100%',
-    },
+    container: { flex: 1 },
     header: {
-      padding: scale(24),
-      borderBottomWidth: 1,
-      borderBottomColor: colors.border,
+      paddingHorizontal: scale(20),
+      paddingTop: scale(16),
+      paddingBottom: scale(14),
     },
-    headerTitle: {
-      fontWeight: 'bold',
-      color: colors.terracotta,
-      fontFamily: Platform.OS === 'ios' ? 'Kohinoor Bangla' : 'serif',
-    },
+    headerTitle: { fontWeight: '800', color: colors.text, letterSpacing: -0.3 },
     content: {
       flex: 1,
     },
@@ -613,8 +611,30 @@ function createStyles(colors: ThemeColors, isDark: boolean) {
     },
     roleChip: {
       marginTop: 8,
-      backgroundColor: isDark ? colors.surface : colors.cream,
-      borderColor: colors.border,
+      paddingHorizontal: 12,
+      paddingVertical: 5,
+      borderRadius: 12,
+      borderWidth: 1,
+    },
+    roleChipText: {
+      fontSize: 12,
+      fontWeight: '700',
+    },
+    avatarRing: {
+      width: 88,
+      height: 88,
+      borderRadius: 44,
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: 3,
+      marginBottom: 12,
+    },
+    avatarInner: {
+      width: 82,
+      height: 82,
+      borderRadius: 41,
+      alignItems: 'center',
+      justifyContent: 'center',
     },
     divider: {
       marginVertical: 16,
@@ -639,7 +659,7 @@ function createStyles(colors: ThemeColors, isDark: boolean) {
     },
     logoutButton: {
       marginVertical: 16,
-      borderColor: colors.bengaliRed,
+      borderColor: colors.accent,
     },
     portfolioHint: {
       color: colors.textSecondary,

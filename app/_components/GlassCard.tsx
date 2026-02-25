@@ -1,37 +1,58 @@
 import React from 'react';
 import { View, StyleSheet, Platform, ViewStyle, StyleProp } from 'react-native';
-import { BlurView } from 'expo-blur';
 import { useTheme } from '../_contexts/ThemeContext';
 
 type GlassCardProps = {
   children: React.ReactNode;
   style?: StyleProp<ViewStyle>;
   contentStyle?: StyleProp<ViewStyle>;
-  /** Optional left accent (gold) border */
+  /** Show top-left accent blob (default: true) */
   accent?: boolean;
+  /** Show warm glow shadow */
+  glow?: boolean;
 };
 
-export function GlassCard({ children, style, contentStyle, accent = true }: GlassCardProps) {
+export function GlassCard({
+  children,
+  style,
+  contentStyle,
+  accent = true,
+  glow = false,
+}: GlassCardProps) {
   const { colors, isDark } = useTheme();
-  const cardStyle = [
+
+  const containerStyle = [
     styles.card,
-    { borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.28)' },
-    accent && { borderLeftWidth: 4, borderLeftColor: colors.gold },
+    {
+      backgroundColor: colors.surface,
+      borderColor: colors.border,
+      borderWidth: 1,
+    },
+    // Warm soft shadow
+    Platform.select({
+      ios: {
+        shadowColor: colors.primary,
+        shadowOffset: { width: 0, height: glow ? 8 : 4 },
+        shadowOpacity: glow ? 0.2 : 0.1,
+        shadowRadius: glow ? 20 : 12,
+      },
+      android: { elevation: glow ? 8 : 4 },
+    }),
     style,
   ];
-  const fallbackBg = isDark ? 'rgba(37,47,59,0.85)' : 'rgba(255,255,255,0.82)';
 
   return (
-    <View style={cardStyle}>
-      {Platform.OS === 'web' ? (
-        <View style={[StyleSheet.absoluteFill, styles.fallback, { backgroundColor: fallbackBg }]} />
-      ) : (
-        <BlurView
-          intensity={Platform.OS === 'ios' ? (isDark ? 40 : 70) : (isDark ? 35 : 60)}
-          tint={isDark ? 'dark' : 'light'}
-          style={StyleSheet.absoluteFill}
+    <View style={containerStyle}>
+      {/* Playful accent blob (top-left corner) */}
+      {accent && (
+        <View
+          style={[
+            styles.accentBlob,
+            { backgroundColor: isDark ? colors.primary + '18' : colors.primary + '12' },
+          ]}
         />
       )}
+
       <View style={[styles.content, contentStyle]}>{children}</View>
     </View>
   );
@@ -39,12 +60,19 @@ export function GlassCard({ children, style, contentStyle, accent = true }: Glas
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: 16,
+    borderRadius: 24,
     overflow: 'hidden',
-    borderWidth: 1,
+    position: 'relative',
   },
-  fallback: {},
+  accentBlob: {
+    position: 'absolute',
+    left: -12,
+    top: -12,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+  },
   content: {
-    padding: 16,
+    padding: 18,
   },
 });

@@ -286,6 +286,9 @@ export default function PostJobScreen() {
                 onChangeText={setTitle}
                 style={styles.input}
                 placeholder="e.g., Sales Executive"
+                mode="outlined"
+                outlineColor={colors.border}
+                activeOutlineColor={colors.terracotta}
               />
 
               <Text variant="titleMedium" style={styles.sectionTitle}>
@@ -314,6 +317,9 @@ export default function PostJobScreen() {
                 numberOfLines={4}
                 style={styles.input}
                 placeholder="Describe the role, responsibilities, requirements..."
+                mode="outlined"
+                outlineColor={colors.border}
+                activeOutlineColor={colors.terracotta}
               />
 
               <TextInput
@@ -322,6 +328,9 @@ export default function PostJobScreen() {
                 onChangeText={setSalary}
                 style={styles.input}
                 placeholder="e.g., ₹15,000 - ₹20,000/month"
+                mode="outlined"
+                outlineColor={colors.border}
+                activeOutlineColor={colors.terracotta}
               />
 
               <Text variant="titleMedium" style={styles.sectionTitle}>

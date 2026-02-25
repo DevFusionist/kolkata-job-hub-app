@@ -50,16 +50,17 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     const base = isDark ? MD3DarkTheme : MD3LightTheme;
     return {
       ...base,
+      roundness: 8,
       colors: {
         ...base.colors,
-        primary: colors.terracotta,
-        primaryContainer: isDark ? '#3D2522' : '#F5E0DE',
-        secondary: colors.gold,
+        primary: colors.primary,
+        primaryContainer: isDark ? '#3D2520' : '#FFF0E8',
+        secondary: colors.secondary,
         background: colors.background,
         surface: colors.surface,
-        surfaceVariant: isDark ? colors.white : colors.cream,
+        surfaceVariant: isDark ? colors.cream : colors.cream,
         outline: colors.border,
-        error: colors.bengaliRed,
+        error: colors.accent,
         onPrimary: '#FFF',
         onSecondary: '#FFF',
         onBackground: colors.text,
@@ -67,6 +68,8 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
         onSurfaceVariant: colors.textSecondary,
         onError: '#FFF',
         outlineVariant: colors.border,
+        onSurfaceDisabled: colors.textSecondary,
+        surfaceDisabled: colors.border,
       },
     };
   }, [isDark, colors.terracotta, colors.gold, colors.background, colors.surface, colors.border, colors.bengaliRed, colors.text, colors.textSecondary, colors.white, colors.cream]);

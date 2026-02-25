@@ -6,9 +6,8 @@ import {
   RefreshControl,
   TouchableOpacity,
   Alert,
-  ImageBackground,
-  Platform,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import Animated from 'react-native-reanimated';
 import {
   Text,
@@ -23,7 +22,7 @@ import { useTheme } from '../_contexts/ThemeContext';
 import { GlassCard } from '../_components/GlassCard';
 import { LoadingScreen } from '../_components/LoadingScreen';
 import type { ThemeColors } from '../_theme';
-import { scale, imageBackgroundStyleTabs, screenPaddingHorizontal } from '../_design';
+import { scale, screenPaddingHorizontal } from '../_design';
 import { enterFadeInDown, enterFadeInDownStagger } from '../_animations';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { safeFormatDate } from '../_lib/date';
@@ -49,10 +48,10 @@ interface Job {
 export default function ApplicationsScreen() {
   const { user } = useAuth();
   const { t } = useLanguage();
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
   const router = useRouter();
   const [applications, setApplications] = useState<Application[]>([]);
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
   const [jobs, setJobs] = useState<{ [key: string]: Job }>({});
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -101,20 +100,16 @@ export default function ApplicationsScreen() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'pending':
-        return colors.gold;
-      case 'shortlisted':
-        return colors.terracotta;
-      case 'rejected':
-        return colors.bengaliRed;
-      default:
-        return colors.muted;
+      case 'pending': return colors.secondary;
+      case 'shortlisted': return colors.primary;
+      case 'rejected': return colors.accent;
+      default: return colors.muted;
     }
   };
 
   if (loading) {
     return (
-      <View style={[styles.container, styles.centerContainer, { backgroundColor: colors.background }]}>
+      <View style={[styles.container, { backgroundColor: colors.background, justifyContent: 'center', alignItems: 'center' }]}>
         <LoadingScreen message={t('applications.title')} />
       </View>
     );
@@ -122,204 +117,108 @@ export default function ApplicationsScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
-      <ImageBackground
-        source={require('../../assets/images/kolkata_tram_nostalgia.png')}
-        style={styles.backgroundImage}
-        imageStyle={imageBackgroundStyleTabs(colors)}
+      <LinearGradient
+        colors={isDark
+          ? [colors.surface, colors.background]
+          : [colors.gradientStart + '18', colors.background]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.headerGrad}
       >
         <View style={styles.header}>
-          <Text variant="headlineMedium" style={styles.headerTitle}>
+          <Text variant="headlineSmall" style={styles.headerTitle}>
             {t('applications.title')}
           </Text>
-          <Text variant="bodyMedium" style={styles.headerSubtitle}>
-            {applications.length} {t('applications.totalApplications')}
-          </Text>
+          <View style={[styles.countBadge, { backgroundColor: colors.primary + '22', borderColor: colors.primary + '55' }]}>
+            <Text style={[styles.countText, { color: colors.primary }]}>
+              {applications.length} {t('applications.totalApplications')}
+            </Text>
+          </View>
         </View>
+      </LinearGradient>
 
-        <ScrollView
-          style={styles.content}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.terracotta]} />
-          }
-        >
+      <ScrollView
+        style={styles.content}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} tintColor={colors.primary} />
+        }
+        showsVerticalScrollIndicator={false}
+      >
         {applications.length === 0 ? (
           <Animated.View entering={enterFadeInDown} style={styles.emptyContainer}>
-            <MaterialCommunityIcons
-              name="file-document-outline"
-              size={64}
-              color={colors.muted}
-            />
-            <Text variant="titleMedium" style={styles.emptyText}>
-              {t('applications.empty')}
-            </Text>
-            <Text variant="bodyMedium" style={styles.emptySubtext}>
-              {t('applications.emptySubtext')}
-            </Text>
+            <LinearGradient colors={[colors.primary + '22', colors.secondary + '15']} style={styles.emptyIconBg}>
+              <MaterialCommunityIcons name="file-document-outline" size={40} color={colors.primary} />
+            </LinearGradient>
+            <Text variant="titleMedium" style={styles.emptyText}>{t('applications.empty')}</Text>
+            <Text variant="bodyMedium" style={styles.emptySubtext}>{t('applications.emptySubtext')}</Text>
           </Animated.View>
         ) : (
           applications.map((app, index) => {
             const job = jobs[app.jobId];
             if (!job) return null;
-
             return (
               <Animated.View key={app.id} entering={enterFadeInDownStagger(index, 50)}>
-              <TouchableOpacity
-                onPress={() => router.push(`/job-details?id=${app.jobId}`)}
-                activeOpacity={0.7}
-              >
-                <GlassCard style={styles.applicationCard}>
-                  <View style={styles.cardHeader}>
-                      <Text variant="titleLarge" style={styles.jobTitle}>
+                <TouchableOpacity onPress={() => router.push(`/job-details?id=${app.jobId}`)} activeOpacity={0.75}>
+                  <GlassCard style={styles.applicationCard}>
+                    <View style={styles.cardHeader}>
+                      <Text variant="titleMedium" style={styles.jobTitle} numberOfLines={2}>
                         {job.title}
                       </Text>
-                      <Chip
-                        mode="flat"
-                        style={{
-                          backgroundColor: getStatusColor(app.status),
-                        }}
-                        textStyle={{ color: colors.cream }}
-                      >
-                        {app.status}
-                      </Chip>
+                      <View style={[styles.statusBadge, { backgroundColor: getStatusColor(app.status) + '25', borderColor: getStatusColor(app.status) + '80' }]}>
+                        <Text style={[styles.statusText, { color: getStatusColor(app.status) }]}>{app.status}</Text>
+                      </View>
                     </View>
-
-                    <View style={styles.jobInfo}>
-                      <MaterialCommunityIcons
-                        name="office-building"
-                        size={16}
-                        color={colors.terracotta}
-                      />
-                      <Text variant="bodyMedium" style={styles.jobInfoText}>
-                        {job.businessName || job.employerName}
-                      </Text>
-                    </View>
-
-                    <View style={styles.jobInfo}>
-                      <MaterialCommunityIcons
-                        name="map-marker"
-                        size={16}
-                        color={colors.terracotta}
-                      />
-                      <Text variant="bodyMedium" style={styles.jobInfoText}>
-                        {job.location}
-                      </Text>
-                    </View>
-
-                    <View style={styles.jobInfo}>
-                      <MaterialCommunityIcons
-                        name="currency-inr"
-                        size={16}
-                        color={colors.terracotta}
-                      />
-                      <Text variant="bodyMedium" style={styles.jobInfoText}>
-                        {job.salary}
-                      </Text>
-                    </View>
-
+                    <View style={styles.jobInfo}><MaterialCommunityIcons name="office-building-outline" size={14} color={colors.primary} /><Text variant="bodySmall" style={styles.jobInfoText}>{job.businessName || job.employerName}</Text></View>
+                    <View style={styles.jobInfo}><MaterialCommunityIcons name="map-marker-outline" size={14} color={colors.secondary} /><Text variant="bodySmall" style={styles.jobInfoText}>{job.location}</Text></View>
+                    <View style={styles.jobInfo}><MaterialCommunityIcons name="currency-inr" size={14} color={colors.secondary} /><Text variant="bodySmall" style={[styles.jobInfoText, { color: colors.secondary, fontWeight: '700' }]}>{job.salary}</Text></View>
                     <View style={styles.footer}>
-                      <Text variant="bodySmall" style={styles.dateText}>
-                        Applied on {safeFormatDate(app.appliedDate, 'MMM dd, yyyy')}
-                      </Text>
+                      <Text variant="bodySmall" style={styles.dateText}>Applied {safeFormatDate(app.appliedDate, 'MMM dd, yyyy')}</Text>
                     </View>
-                </GlassCard>
-              </TouchableOpacity>
+                  </GlassCard>
+                </TouchableOpacity>
               </Animated.View>
             );
           })
         )}
         <View style={{ height: 40 }} />
-        </ScrollView>
-      </ImageBackground>
+      </ScrollView>
     </SafeAreaView>
   );
 }
 
-function createStyles(colors: ThemeColors) {
+function createStyles(colors: ThemeColors, isDark: boolean) {
   return StyleSheet.create({
-    container: {
-      flex: 1,
-      backgroundColor: colors.background,
-    },
-    backgroundImage: {
-      flex: 1,
-      width: '100%',
-    },
-    centerContainer: {
-      flex: 1,
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
+    container: { flex: 1 },
+    headerGrad: {},
     header: {
-      padding: scale(24),
-      borderBottomWidth: 1,
-      borderBottomColor: colors.border,
-    },
-    headerTitle: {
-      fontWeight: 'bold',
-      color: colors.terracotta,
-      fontFamily: Platform.OS === 'ios' ? 'Kohinoor Bangla' : 'serif',
-    },
-    headerSubtitle: {
-      marginTop: 4,
-      color: colors.text,
-      fontSize: 16,
-      opacity: 0.8,
-    },
-    content: {
-      flex: 1,
-      paddingHorizontal: screenPaddingHorizontal,
-      paddingBottom: scale(120),
-    },
-    emptyContainer: {
-      alignItems: 'center',
-      marginTop: 64,
-    },
-    emptyText: {
-      marginTop: 16,
-      color: colors.textSecondary,
-      textAlign: 'center',
-    },
-    emptySubtext: {
-      marginTop: 8,
-      color: colors.textSecondary,
-      textAlign: 'center',
-    },
-    applicationCard: {
-      marginBottom: 16,
-      elevation: 2,
-    },
-    cardHeader: {
       flexDirection: 'row',
       justifyContent: 'space-between',
-      alignItems: 'flex-start',
-      marginBottom: 12,
-    },
-    jobTitle: {
-      flex: 1,
-      fontWeight: 'bold',
-      marginRight: 8,
-      color: colors.text,
-      fontFamily: Platform.OS === 'ios' ? 'Kohinoor Bangla' : 'serif',
-    },
-    jobInfo: {
-      flexDirection: 'row',
       alignItems: 'center',
-      marginBottom: 8,
+      paddingHorizontal: scale(20),
+      paddingTop: scale(16),
+      paddingBottom: scale(12),
     },
-    jobInfoText: {
-      marginLeft: 10,
-      color: colors.text,
-      fontSize: 14,
+    headerTitle: { fontWeight: '800', color: colors.text, letterSpacing: -0.3 },
+    countBadge: {
+      paddingHorizontal: 10,
+      paddingVertical: 4,
+      borderRadius: 10,
+      borderWidth: 1,
     },
-    footer: {
-      marginTop: 12,
-      paddingTop: 12,
-      borderTopWidth: 0.5,
-      borderTopColor: colors.border,
-    },
-    dateText: {
-      color: colors.textSecondary,
-      fontStyle: 'italic',
-    },
+    countText: { fontSize: 12, fontWeight: '700' },
+    content: { flex: 1, paddingHorizontal: screenPaddingHorizontal },
+    emptyContainer: { alignItems: 'center', marginTop: 64, gap: 14 },
+    emptyIconBg: { width: 88, height: 88, borderRadius: 44, alignItems: 'center', justifyContent: 'center' },
+    emptyText: { color: colors.textSecondary, textAlign: 'center' },
+    emptySubtext: { color: colors.muted, textAlign: 'center', fontSize: 13 },
+    applicationCard: { marginBottom: 14 },
+    cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10, gap: 8 },
+    jobTitle: { flex: 1, fontWeight: '700', color: colors.text },
+    statusBadge: { paddingHorizontal: 9, paddingVertical: 4, borderRadius: 10, borderWidth: 1 },
+    statusText: { fontSize: 11, fontWeight: '700', textTransform: 'capitalize' },
+    jobInfo: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 5 },
+    jobInfoText: { color: colors.textSecondary, fontSize: 13 },
+    footer: { marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: colors.border },
+    dateText: { color: colors.muted, fontStyle: 'italic', fontSize: 12 },
   });
 }

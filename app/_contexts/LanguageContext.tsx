@@ -1,86 +1,83 @@
-import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+"use client";
 
-const LOCALE_KEY = '@app_locale';
+import React, { createContext, useContext, useEffect, useState } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
-type Locale = 'en' | 'bn';
+const LOCALE_KEY = "@app_locale";
+export type Locale = "en" | "bn";
 
-type Translations = Record<string, Record<string, string>>;
+type Translations = Record<string, string | Record<string, string>>;
 
-const en = require('../../locales/en.json') as Translations;
-const bn = require('../../locales/bn.json') as Translations;
-
-const translations: Record<Locale, Translations> = { en, bn };
-
-function getNested(obj: Record<string, unknown>, path: string): string | undefined {
-  const parts = path.split('.');
-  let current: unknown = obj;
-  for (const p of parts) {
-    if (current == null || typeof current !== 'object') return undefined;
-    current = (current as Record<string, unknown>)[p];
-  }
-  return typeof current === 'string' ? current : undefined;
-}
-
-interface LanguageContextType {
+interface LanguageContextValue {
   locale: Locale;
   setLocale: (locale: Locale) => Promise<void>;
   t: (key: string) => string;
-  isBengali: boolean;
+  translations: { en: Translations; bn: Translations };
 }
 
-const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
+const LanguageContext = createContext<LanguageContextValue | null>(null);
 
-export function LanguageProvider({ children }: { children: React.ReactNode }) {
-  const [locale, setLocaleState] = useState<Locale>('en');
-  const [ready, setReady] = useState(false);
+function resolveKey(obj: Translations, path: string): string | undefined {
+  const parts = path.split(".");
+  let current: unknown = obj;
+  for (const p of parts) {
+    if (current == null || typeof current !== "object") return undefined;
+    current = (current as Record<string, unknown>)[p];
+  }
+  return typeof current === "string" ? current : undefined;
+}
+
+export function LanguageProvider({
+  children,
+  translations,
+}: {
+  children: React.ReactNode;
+  translations: { en: Translations; bn: Translations };
+}) {
+  const [locale, setLocaleState] = useState<Locale>("en");
 
   useEffect(() => {
+    let cancelled = false;
     (async () => {
       try {
-        const saved = await AsyncStorage.getItem(LOCALE_KEY);
-        if (saved === 'en' || saved === 'bn') {
-          setLocaleState(saved);
-        }
-      } catch (_) {}
-      setReady(true);
+        const stored = await AsyncStorage.getItem(LOCALE_KEY);
+        if (cancelled) return;
+        if (stored === "bn" || stored === "en") setLocaleState(stored);
+      } catch {
+        if (cancelled) return;
+      }
     })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  const setLocale = useCallback(async (newLocale: Locale) => {
-    setLocaleState(newLocale);
-    try {
-      await AsyncStorage.setItem(LOCALE_KEY, newLocale);
-    } catch (_) {}
-  }, []);
+  const setLocale = async (next: Locale) => {
+    setLocaleState(next);
+    await AsyncStorage.setItem(LOCALE_KEY, next);
+  };
 
-  const t = useCallback(
-    (key: string): string => {
-      if (!ready) return key;
-      const dict = translations[locale];
-      return getNested(dict as Record<string, unknown>, key) ?? getNested(en as Record<string, unknown>, key) ?? key;
-    },
-    [locale, ready]
-  );
+  const t = (key: string): string => {
+    const val = resolveKey(translations[locale], key);
+    if (val != null) return val;
+    const enVal = resolveKey(translations.en, key);
+    return enVal ?? key;
+  };
 
-  const value: LanguageContextType = {
+  const value: LanguageContextValue = {
     locale,
     setLocale,
     t,
-    isBengali: locale === 'bn',
+    translations,
   };
 
   return (
-    <LanguageContext.Provider value={value}>
-      {children}
-    </LanguageContext.Provider>
+    <LanguageContext.Provider value={value}>{children}</LanguageContext.Provider>
   );
 }
 
 export function useLanguage() {
   const ctx = useContext(LanguageContext);
-  if (ctx === undefined) {
-    throw new Error('useLanguage must be used within LanguageProvider');
-  }
+  if (!ctx) throw new Error("useLanguage must be used within LanguageProvider");
   return ctx;
 }

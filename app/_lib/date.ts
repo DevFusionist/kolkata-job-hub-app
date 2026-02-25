@@ -1,14 +1,26 @@
-import { format } from 'date-fns';
-
 /**
- * Format a timestamp for display. Returns fallback if the value is missing or invalid.
+ * Date formatting utilities for job dates, chat timestamps, etc.
  */
-export function safeFormatDate(
-  value: string | number | Date | null | undefined,
-  formatStr: string,
-  fallback = '--'
-): string {
-  if (value == null || value === '') return fallback;
-  const d = value instanceof Date ? value : new Date(value);
-  return Number.isNaN(d.getTime()) ? fallback : format(d, formatStr);
+
+export function formatRelative(dateStr: string): string {
+  const date = new Date(dateStr);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  const diffDays = Math.floor(diffMs / 86400000);
+
+  if (diffMins < 1) return "Just now";
+  if (diffMins < 60) return `${diffMins}m ago`;
+  if (diffHours < 24) return `${diffHours}h ago`;
+  if (diffDays < 7) return `${diffDays}d ago`;
+  return date.toLocaleDateString();
+}
+
+export function formatDate(dateStr: string): string {
+  return new Date(dateStr).toLocaleDateString(undefined, {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
 }

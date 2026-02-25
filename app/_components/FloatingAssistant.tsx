@@ -1,136 +1,70 @@
-import React, { useEffect, useRef } from 'react';
-import { View, StyleSheet, TouchableOpacity, Platform } from 'react-native';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withRepeat,
-  withSequence,
-  withSpring,
-  withTiming,
-  Easing,
-} from 'react-native-reanimated';
-import { useRouter } from 'expo-router';
-import { useTheme } from '../_contexts/ThemeContext';
-import LottieView from 'lottie-react-native';
+import { useRef, useEffect } from "react";
+import { Pressable, Text, Animated } from "react-native";
+import { useRouter } from "expo-router";
+import { LinearGradient } from "expo-linear-gradient";
+import { elevation } from "../_theme/tokens";
 
 export function FloatingAssistant() {
   const router = useRouter();
-  const { colors, isDark } = useTheme();
-  const lottieRef = useRef<LottieView>(null);
-
-  // Warm pulsing glow ring
-  const ringScale = useSharedValue(1);
-  const pressScale = useSharedValue(1);
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+  const scaleAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
-    ringScale.value = withRepeat(
-      withSequence(
-        withTiming(1.12, { duration: 1200, easing: Easing.inOut(Easing.ease) }),
-        withTiming(1, { duration: 1200, easing: Easing.inOut(Easing.ease) })
-      ),
-      -1,
-      true
-    );
-  }, []);
-
-  const ringStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: ringScale.value }],
-    opacity: 2 - ringScale.value,
-  }));
-
-  const fabStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: pressScale.value }],
-  }));
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, { toValue: 1.08, duration: 1500, useNativeDriver: true }),
+        Animated.timing(pulseAnim, { toValue: 1, duration: 1500, useNativeDriver: true }),
+      ]),
+    ).start();
+  }, [pulseAnim]);
 
   const handlePressIn = () => {
-    pressScale.value = withSpring(0.88, { damping: 10, stiffness: 300 });
+    Animated.spring(scaleAnim, { toValue: 0.9, useNativeDriver: true, damping: 15, stiffness: 200 }).start();
   };
   const handlePressOut = () => {
-    pressScale.value = withSpring(1, { damping: 10, stiffness: 300 });
+    Animated.spring(scaleAnim, { toValue: 1, useNativeDriver: true, damping: 12, stiffness: 180 }).start();
   };
 
-  return (
-    <View style={styles.wrap}>
-      {/* Warm glow ring */}
-      <Animated.View
-        style={[
-          styles.ring,
-          {
-            backgroundColor: colors.primary + '20',
-            borderColor: colors.primary + '30',
-          },
-          ringStyle,
-        ]}
-      />
+  const combinedScale = Animated.multiply(pulseAnim, scaleAnim);
 
-      <TouchableOpacity
-        activeOpacity={0.9}
-        onPress={() => router.push('/(tabs)/protibha')}
+  return (
+    <Animated.View
+      style={{
+        position: "absolute",
+        bottom: 88,
+        right: 20,
+        width: 60,
+        height: 60,
+        borderRadius: 30,
+        transform: [{ scale: combinedScale }],
+        ...elevation.float,
+      }}
+    >
+      <Pressable
+        onPress={() => router.push("/(tabs)/protibha")}
         onPressIn={handlePressIn}
         onPressOut={handlePressOut}
+        style={{ flex: 1 }}
       >
-        <Animated.View
-          style={[
-            styles.fab,
-            {
-              backgroundColor: colors.primary,
-              ...Platform.select({
-                ios: {
-                  shadowColor: colors.primary,
-                  shadowOffset: { width: 0, height: 6 },
-                  shadowOpacity: 0.35,
-                  shadowRadius: 14,
-                },
-                android: { elevation: 8 },
-              }),
-            },
-            fabStyle,
-          ]}
+        <LinearGradient
+          colors={["#E76F51", "#F4A261"]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={{
+            flex: 1,
+            borderRadius: 30,
+            justifyContent: "center",
+            alignItems: "center",
+          }}
         >
-          {Platform.OS !== 'web' ? (
-            <LottieView
-              ref={lottieRef}
-              source={require('../../assets/lottie/loading.json')}
-              autoPlay
-              loop
-              style={styles.lottie}
-              renderMode="AUTOMATIC"
-            />
-          ) : (
-            <MaterialCommunityIcons name="robot-happy" size={28} color="#FFF" />
-          )}
-        </Animated.View>
-      </TouchableOpacity>
-    </View>
+          <Text style={{ color: "#FFFFFF", fontSize: 13, fontFamily: "Poppins_600SemiBold", letterSpacing: 0.5 }}>
+            AI
+          </Text>
+          <Text style={{ color: "rgba(255,255,255,0.7)", fontSize: 8, fontFamily: "Poppins_500Medium", marginTop: -2 }}>
+            প্রতিভা
+          </Text>
+        </LinearGradient>
+      </Pressable>
+    </Animated.View>
   );
 }
-
-const styles = StyleSheet.create({
-  wrap: {
-    position: 'absolute',
-    bottom: 90,
-    right: 20,
-    width: 64,
-    height: 64,
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 100,
-  },
-  ring: {
-    ...StyleSheet.absoluteFillObject,
-    borderRadius: 32,
-    borderWidth: 2,
-  },
-  fab: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  lottie: {
-    width: 36,
-    height: 36,
-  },
-});

@@ -1,144 +1,131 @@
-import React, { createContext, useState, useContext, useEffect } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+"use client";
 
-export interface User {
-  id: string;
-  phone: string;
-  role: "seeker" | "employer";
-  name: string;
+import React, { createContext, useContext, useEffect, useState } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import type { User } from "../_types";
 
-  businessName?: string;
+const USER_KEY = "user";
+const TOKEN_KEY = "authToken";
 
-  location: string;
-
-  skills: string[];
-  languages: string[];
-
-  experience: string;
-
-  freeJobsRemaining: number;
-  paidJobsRemaining?: number;
-  subscriptionPlan?: "none" | "monthly_unlimited";
-  subscriptionExpiresAt?: string | null;
-  aiFreeTokensRemaining?: number;
-  aiPaidTokensRemaining?: number;
-  canUseAi?: boolean;
-
-  preferredLanguage: "en" | "bn";
-
-  preferredSalary: {
-    min: number;
-    max: number;
-  };
-
-  aiExtracted: {
-    skills: string[];
-    experience: string;
-    category: string;
-    score: number;
-  };
-
-  // AI Career Copilot
-  careerGoal?: string;
-  workType?: "" | "office" | "remote" | "hybrid" | "field";
-  hireScore?: number;
-  trustScore?: number;
-  profileScore?: number;
-  copilotAudit?: {
-    strengths: string[];
-    weaknesses: string[];
-    hiringProbability: number;
-    salaryPotential: string;
-    lastAuditAt: string | null;
-  };
-  photoVerified?: boolean;
-  phoneVerified?: boolean;
-  idVerified?: boolean;
-  aiOptimized?: boolean;
-
-  createdAt: string;
-  updatedAt: string;
-}
-
-
-interface AuthContextType {
+interface AuthState {
   user: User | null;
-  loading: boolean;
-  login: (userData: User, token?: string) => Promise<void>;
-  logout: () => Promise<void>;
-  updateUser: (userData: User) => Promise<void>;
+  token: string | null;
+  isLoading: boolean;
+  isAuthenticated: boolean;
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+interface AuthContextValue extends AuthState {
+  login: (user: User, token: string) => Promise<void>;
+  logout: () => Promise<void>;
+  updateUser: (user: User) => Promise<void>;
+  refreshFromStorage: () => Promise<void>;
+}
+
+const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [state, setState] = useState<AuthState>({
+    user: null,
+    token: null,
+    isLoading: true,
+    isAuthenticated: false,
+  });
 
-  useEffect(() => {
-    loadUser();
-  }, []);
-
-  const loadUser = async () => {
-    try {
-      const [userData, token] = await Promise.all([
-        AsyncStorage.getItem('user'),
-        AsyncStorage.getItem('authToken'),
-      ]);
-      if (userData && token) {
-        setUser(JSON.parse(userData));
-      } else if (userData && !token) {
-        // Legacy session without token - clear it
-        await AsyncStorage.removeItem('user');
-      }
-    } catch (error) {
-      console.error('Error loading user:', error);
-    } finally {
-      setLoading(false);
-    }
+  const persist = async (user: User, token: string) => {
+    await AsyncStorage.multiSet([
+      [USER_KEY, JSON.stringify(user)],
+      [TOKEN_KEY, token],
+    ]);
+    setState({
+      user,
+      token,
+      isLoading: false,
+      isAuthenticated: true,
+    });
   };
 
-  const login = async (userData: User, token?: string) => {
-    try {
-      await AsyncStorage.setItem('user', JSON.stringify(userData));
-      if (token) {
-        await AsyncStorage.setItem('authToken', token);
-      }
-      setUser(userData);
-    } catch (error) {
-      console.error('Error saving user:', error);
-    }
+  const login = async (user: User, token: string) => {
+    await persist(user, token);
   };
 
   const logout = async () => {
+    await AsyncStorage.multiRemove([USER_KEY, TOKEN_KEY]);
+    setState({
+      user: null,
+      token: null,
+      isLoading: false,
+      isAuthenticated: false,
+    });
+  };
+
+  const updateUser = async (user: User) => {
+    await AsyncStorage.setItem(USER_KEY, JSON.stringify(user));
+    setState((prev) => (prev.user ? { ...prev, user } : prev));
+  };
+
+  const refreshFromStorage = async () => {
     try {
-      await AsyncStorage.multiRemove(['user', 'authToken']);
-      setUser(null);
-    } catch (error) {
-      console.error('Error logging out:', error);
+      const [userJson, token] = await AsyncStorage.multiGet([USER_KEY, TOKEN_KEY]);
+      const user = userJson[1] ? (JSON.parse(userJson[1]) as User) : null;
+      const t = token[1];
+      setState({
+        user,
+        token: t,
+        isLoading: false,
+        isAuthenticated: !!(user && t),
+      });
+    } catch {
+      setState({
+        user: null,
+        token: null,
+        isLoading: false,
+        isAuthenticated: false,
+      });
     }
   };
 
-  const updateUser = async (userData: User) => {
-    try {
-      await AsyncStorage.setItem('user', JSON.stringify(userData));
-      setUser(userData);
-    } catch (error) {
-      console.error('Error updating user:', error);
-    }
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const [userJson, token] = await AsyncStorage.multiGet([USER_KEY, TOKEN_KEY]);
+        if (cancelled) return;
+        const user = userJson[1] ? (JSON.parse(userJson[1]) as User) : null;
+        const t = token[1];
+        setState({
+          user,
+          token: t,
+          isLoading: false,
+          isAuthenticated: !!(user && t),
+        });
+      } catch {
+        if (cancelled) return;
+        setState({
+          user: null,
+          token: null,
+          isLoading: false,
+          isAuthenticated: false,
+        });
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const value: AuthContextValue = {
+    ...state,
+    login,
+    logout,
+    updateUser,
+    refreshFromStorage,
   };
 
-  return (
-    <AuthContext.Provider value={{ user, loading, login, logout, updateUser }}>
-      {children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
+  const ctx = useContext(AuthContext);
+  if (!ctx) throw new Error("useAuth must be used within AuthProvider");
+  return ctx;
 }

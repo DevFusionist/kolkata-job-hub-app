@@ -1,53 +1,37 @@
 {
   "expo": {
     "name": "Kormo",
-    "slug": "frontend",
+    "slug": "kolkata-job-hub-app",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
-    "scheme": "protibha",
+    "scheme": "kormo",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
+    "splash": {
+      "resizeMode": "contain",
+      "backgroundColor": "#FFF8E7"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.protibha.jobhunter"
+      "bundleIdentifier": "in.protibha.kormo"
     },
     "android": {
-      "package": "com.protibha.jobhunter",
-      "adaptiveIcon": {
-        "foregroundImage": "./assets/images/adaptive-icon.png",
-        "backgroundColor": "#1C1C1C"
-      },
-      "edgeToEdgeEnabled": true
-    },
-    "web": {
-      "bundler": "metro",
-      "output": "static",
-      "favicon": "./assets/images/favicon.png"
+      "package": "in.protibha.kormo"
     },
     "plugins": [
-      "expo-router",
       [
-        "expo-splash-screen",
+        "expo-router",
         {
-          "image": "./assets/images/splash-image.png",
-          "imageWidth": 400,
-          "resizeMode": "contain",
-          "backgroundColor": "#1C1C1C"
+          "asyncRoutes": {
+            "web": true,
+            "default": "development"
+          }
         }
       ],
-      "expo-font"
-    ],
-    "experiments": {
-      "typedRoutes": true
-    },
-    "extra": {
-      "appName": "Protibha",
-      "apiBaseUrl": "https://api.protibha.in",
-      "router": {},
-      "eas": {
-        "projectId": "0a343a37-7a66-4f12-91fa-bf4c77a458ae"
-      }
-    }
+      "expo-font",
+      "expo-asset"
+    ]
   }
 }

@@ -1,772 +1,229 @@
-import React, { useState, useMemo, useCallback, useEffect } from 'react';
-import {
-  View,
-  StyleSheet,
-  ScrollView,
-  Alert,
-  Platform,
-  KeyboardAvoidingView,
-  Dimensions,
-} from 'react-native';
-import {
-  Text,
-  Button,
-  TextInput,
-  Chip,
-  ActivityIndicator,
-  IconButton,
-  ProgressBar,
-} from 'react-native-paper';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
-import { WebView } from 'react-native-webview';
-import * as Sharing from 'expo-sharing';
-import { File, Paths } from 'expo-file-system';
-import api from './_lib/api';
-import { useAuth } from './_contexts/AuthContext';
-import { useLanguage } from './_contexts/LanguageContext';
-import { useTheme } from './_contexts/ThemeContext';
-import Animated from 'react-native-reanimated';
-import { GlassCard } from './_components/GlassCard';
-import { LocationSelector } from './_components/LocationSelector';
-import { PaymentModal } from './_components/PaymentModal';
-import { enterFadeInDown } from './_animations';
-import { scale, screenPaddingHorizontal } from './_design';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
-import type { ThemeColors } from './_theme';
+import { useState } from "react";
+import { View, Text, ScrollView, Alert } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Input, InputField } from "@gluestack-ui/themed";
+import { LinearGradient } from "expo-linear-gradient";
+import { aiService } from "./_services/aiService";
+import { useAuth } from "./_contexts/AuthContext";
+import { useLanguage } from "./_contexts/LanguageContext";
+import { ErrorBoundary } from "./_components/ErrorBoundary";
+import { BlobShape } from "./_components/ui/BlobShape";
+import { WarmButton } from "./_components/ui/WarmButton";
+import { IllustrationPlaceholder } from "./_components/ui/IllustrationPlaceholder";
+import { elevation } from "./_theme/tokens";
 
-type Step = 'review' | 'details' | 'preview';
-
-interface ExperienceEntry {
-  title: string;
-  company: string;
-  duration: string;
-  achievements: string[];
-}
-
-interface EducationEntry {
-  degree: string;
-  institution: string;
-  year: string;
-}
+type Step = 1 | 2 | 3;
 
 export default function ResumeBuilderScreen() {
-  const { user, updateUser } = useAuth();
-  const { colors, isDark } = useTheme();
+  const insets = useSafeAreaInsets();
   const { t } = useLanguage();
-  const router = useRouter();
-  const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
+  const { user } = useAuth();
 
-  // Step state
-  const [step, setStep] = useState<Step>('review');
+  const [step, setStep] = useState<Step>(1);
+  const [experience, setExperience] = useState(user?.experience ?? "");
+  const [education, setEducation] = useState("");
+  const [additional, setAdditional] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [generatedUrl, setGeneratedUrl] = useState<string | null>(null);
 
-  // Step 1: Review info
-  const [name, setName] = useState(user?.name || '');
-  const [phone, setPhone] = useState(user?.phone || '');
-  const [location, setLocation] = useState(user?.location || '');
-  const [skills, setSkills] = useState<string[]>(user?.skills || []);
-  const [newSkill, setNewSkill] = useState('');
-  const [languages, setLanguages] = useState<string[]>(user?.languages || ['Bengali', 'Hindi', 'English']);
-
-  // Step 2: Details
-  const [experience, setExperience] = useState<ExperienceEntry[]>([
-    { title: '', company: '', duration: '', achievements: [''] },
-  ]);
-  const [education, setEducation] = useState<EducationEntry[]>([
-    { degree: '', institution: '', year: '' },
-  ]);
-  const [additionalInfo, setAdditionalInfo] = useState('');
-
-  // Step 3: Preview
-  const [generating, setGenerating] = useState(false);
-  const [resumeHtml, setResumeHtml] = useState<string | null>(null);
-  const [resumeUrl, setResumeUrl] = useState<string | null>(null);
-  const [sharing, setSharing] = useState(false);
-  const [savedToProfile, setSavedToProfile] = useState(false);
-  const [paymentModalVisible, setPaymentModalVisible] = useState(false);
-
-  // Hydrate user info on mount
-  useEffect(() => {
-    if (user) {
-      setName(user.name || '');
-      setPhone(user.phone || '');
-      setLocation(user.location || '');
-      setSkills(user.skills || []);
-      setLanguages(user.languages || ['Bengali', 'Hindi', 'English']);
-    }
-  }, [user]);
-
-  const addSkill = useCallback(() => {
-    const s = newSkill.trim();
-    if (s && !skills.includes(s)) {
-      setSkills((prev) => [...prev, s]);
-    }
-    setNewSkill('');
-  }, [newSkill, skills]);
-
-  const removeSkill = useCallback((skill: string) => {
-    setSkills((prev) => prev.filter((s) => s !== skill));
-  }, []);
-
-  const handleGenerateResume = useCallback(async () => {
-    setGenerating(true);
-    setSavedToProfile(false);
+  const handleGenerate = async () => {
+    if (!user?.id) return;
+    setLoading(true);
     try {
-      const portfolioText = [
-        additionalInfo,
-        ...experience.map((e) =>
-          `${e.title} at ${e.company} (${e.duration}): ${e.achievements.filter(Boolean).join('. ')}`
-        ),
-      ].filter(Boolean).join('\n');
-
-      const { data } = await api.post('/portfolios/build-resume', {
-        name,
-        phone,
-        location,
-        skills,
-        languages,
-        experience: experience[0]?.title ?
-          (experience[0].duration || user?.aiExtracted?.experience || 'Fresher') :
-          (user?.aiExtracted?.experience || 'Fresher'),
-        portfolioText,
+      const result = await aiService.generateResume({
+        userId: user.id,
+        experience: experience.trim(),
+        education: education.trim(),
       });
-
-      if (data.html) {
-        setResumeHtml(data.html);
+      if (result?.url) {
+        setGeneratedUrl(result.url);
+        Alert.alert(t("common.done"), t("resume.generateSuccess"));
+      } else {
+        Alert.alert(t("common.done"), t("resume.generateDone"));
       }
-      if (data.generatedResumeUrl) {
-        setResumeUrl(data.generatedResumeUrl);
-      }
-      setStep('preview');
-    } catch (err: any) {
-      if (err.response?.status === 402) {
-        setPaymentModalVisible(true);
-        Alert.alert(
-          t('resume.creditsRequired') || 'AI credits needed',
-          err.response?.data?.detail || (t('resume.creditsRequiredDesc') || 'Add AI credits to generate your resume.'),
-          [{ text: t('common.ok') }],
-        );
-        return;
-      }
-      Alert.alert(
-        t('common.error'),
-        err.response?.data?.detail || err.message || 'Resume generation failed',
-      );
+    } catch (e: unknown) {
+      Alert.alert(t("common.error"), (e as Error)?.message ?? t("resume.generateFailed"));
     } finally {
-      setGenerating(false);
+      setLoading(false);
     }
-  }, [name, phone, location, skills, languages, experience, additionalInfo, user, t]);
-
-  const handleShare = useCallback(async () => {
-    if (!resumeHtml) return;
-    setSharing(true);
-    try {
-      const isAvailable = await Sharing.isAvailableAsync();
-      if (!isAvailable) {
-        Alert.alert('Sharing not available on this device');
-        return;
-      }
-
-      const file = new File(Paths.cache, `resume_${Date.now()}.html`);
-      file.write(resumeHtml);
-      await Sharing.shareAsync(file.uri, {
-        mimeType: 'text/html',
-        dialogTitle: 'Share Resume',
-      });
-    } catch (err: any) {
-      Alert.alert(t('common.error'), err.message || 'Sharing failed');
-    } finally {
-      setSharing(false);
-    }
-  }, [resumeHtml]);
-
-  const handleSaveToProfile = useCallback(() => {
-    if (!resumeUrl) {
-      Alert.alert(
-        t('common.error'),
-        t('resume.noResumeUrl') || 'Resume PDF could not be saved. Please try regenerating.',
-      );
-      return;
-    }
-    setSavedToProfile(true);
-    Alert.alert(
-      t('common.success'),
-      t('resume.savedToProfile') || 'Your AI resume has been saved to your profile! Employers can now view it.',
-      [
-        {
-          text: t('resume.stayHere') || 'Stay Here',
-          style: 'cancel',
-        },
-        {
-          text: t('resume.goToProfile') || 'Go to Profile',
-          onPress: () => router.replace('/(tabs)/profile'),
-        },
-      ],
-    );
-  }, [resumeUrl, router]);
-
-  const updateExperience = (index: number, field: keyof ExperienceEntry, value: any) => {
-    setExperience((prev) => {
-      const updated = [...prev];
-      (updated[index] as any)[field] = value;
-      return updated;
-    });
   };
 
-  const addExperience = () => {
-    setExperience((prev) => [...prev, { title: '', company: '', duration: '', achievements: [''] }]);
+  const handleRegenerate = () => {
+    setGeneratedUrl(null);
+    handleGenerate();
   };
 
-  const updateEducation = (index: number, field: keyof EducationEntry, value: string) => {
-    setEducation((prev) => {
-      const updated = [...prev];
-      updated[index][field] = value;
-      return updated;
-    });
+  const inputContainerStyle = {
+    backgroundColor: "#FFF5E6",
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 4,
+    borderWidth: 1.5,
+    borderColor: "#E8DDD0",
+    marginBottom: 20,
   };
-
-  const stepLabels = {
-    review: t('resume.stepReview') || 'Review Info',
-    details: t('resume.stepDetails') || 'Add Details',
-    preview: t('resume.stepPreview') || 'Preview',
-  };
-
-  const stepNumber = step === 'review' ? 1 : step === 'details' ? 2 : 3;
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'bottom']}>
-      <KeyboardAvoidingView
-        style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
-        {/* Header */}
-        <View style={styles.header}>
-          <IconButton
-            icon="arrow-left"
-            size={24}
-            onPress={() => router.back()}
-            iconColor={colors.text}
-          />
-          <Text variant="titleLarge" style={styles.headerTitle}>
-            {t('resume.title') || 'AI Resume Builder'}
+    <ErrorBoundary>
+      <View style={{ flex: 1, backgroundColor: "#FFF8E7" }}>
+        <BlobShape color="#2A9D8F" size={200} opacity={0.05} variant={3} style={{ top: -50, right: -50 }} />
+        <BlobShape color="#E9C46A" size={160} opacity={0.06} variant={1} style={{ bottom: 40, left: -40 }} />
+
+        <ScrollView
+          contentContainerStyle={{ padding: 20, paddingTop: insets.top + 16, paddingBottom: 40 }}
+          keyboardShouldPersistTaps="handled"
+        >
+          {/* Step progress */}
+          <View style={{ flexDirection: "row", gap: 8, marginBottom: 24 }}>
+            {([1, 2, 3] as const).map((s) => (
+              <View key={s} style={{ flex: 1, height: 6, borderRadius: 3, overflow: "hidden" }}>
+                {step >= s ? (
+                  <LinearGradient
+                    colors={["#E76F51", "#F4A261"]}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={{ flex: 1, borderRadius: 3 }}
+                  />
+                ) : (
+                  <View style={{ flex: 1, backgroundColor: "#E8DDD0", borderRadius: 3 }} />
+                )}
+              </View>
+            ))}
+          </View>
+
+          <View style={{ alignItems: "center", marginBottom: 16 }}>
+            <IllustrationPlaceholder scene="resume" size={120} />
+          </View>
+
+          <Text style={{ fontSize: 26, fontFamily: "Poppins_600SemiBold", color: "#2D1B0E", textAlign: "center", marginBottom: 4 }}>
+            {t("resume.title")}
           </Text>
-          <View style={{ width: 40 }} />
-        </View>
+          <Text style={{ fontSize: 13, fontFamily: "Poppins_400Regular", color: "#8C7A6D", textAlign: "center", marginBottom: 24 }}>
+            Step {step} of 3: {step === 1 ? t("resume.stepReview") : step === 2 ? t("resume.stepDetails") : t("resume.stepPreview")}
+          </Text>
 
-        {/* Step indicator */}
-        <View style={styles.stepIndicator}>
-          {(['review', 'details', 'preview'] as Step[]).map((s, i) => (
-            <View key={s} style={styles.stepItem}>
-              <View
-                style={[
-                  styles.stepCircle,
-                  stepNumber > i && styles.stepCircleActive,
-                  step === s && styles.stepCircleCurrent,
-                ]}
-              >
-                <Text style={[
-                  styles.stepNum,
-                  (stepNumber > i || step === s) && styles.stepNumActive,
-                ]}>
-                  {i + 1}
-                </Text>
-              </View>
-              <Text style={[styles.stepLabel, step === s && styles.stepLabelActive]}>
-                {stepLabels[s]}
-              </Text>
-            </View>
-          ))}
-        </View>
-
-        <ProgressBar
-          progress={stepNumber / 3}
-          color={colors.terracotta}
-          style={styles.progressBar}
-        />
-
-        <ScrollView style={styles.content} keyboardShouldPersistTaps="handled">
-          {/* STEP 1: Review Your Info */}
-          {step === 'review' && (
-            <Animated.View key="review" entering={enterFadeInDown}>
-              <GlassCard style={styles.card}>
-                <Text variant="titleMedium" style={styles.cardTitle}>
-                  <MaterialCommunityIcons name="account-check" size={20} color={colors.terracotta} />
-                  {'  '}{t('resume.reviewTitle') || 'Your Information'}
-                </Text>
-                <Text variant="bodySmall" style={styles.hint}>
-                  {t('resume.reviewHint') || 'Review and edit your details before generating'}
-                </Text>
-
-                <TextInput
-                  label={t('resume.name') || 'Full Name'}
-                  value={name}
-                  onChangeText={setName}
-                  style={styles.input}
-                  textColor={colors.text}
-                  mode="outlined"
-                  outlineColor={colors.border}
-                  activeOutlineColor={colors.terracotta}
-                />
-                <TextInput
-                  label={t('resume.phone') || 'Phone'}
-                  value={phone}
-                  onChangeText={setPhone}
-                  style={styles.input}
-                  textColor={colors.text}
-                  mode="outlined"
-                  outlineColor={colors.border}
-                  activeOutlineColor={colors.terracotta}
-                  keyboardType="phone-pad"
-                />
-                <Text variant="bodySmall" style={[styles.hint, { marginTop: 4 }]}>
-                  {t('resume.location') || 'Location'}
-                </Text>
-                <LocationSelector value={location} onChange={setLocation} />
-              </GlassCard>
-
-              <GlassCard style={styles.card}>
-                <Text variant="titleMedium" style={styles.cardTitle}>
-                  {t('resume.skills') || 'Skills'}
-                </Text>
-                <View style={styles.chipContainer}>
-                  {skills.map((skill) => (
-                    <Chip
-                      key={skill}
-                      onClose={() => removeSkill(skill)}
-                      style={styles.chip}
-                      textStyle={{ color: colors.text }}
-                    >
-                      {skill}
-                    </Chip>
-                  ))}
+          {step === 1 && (
+            <View style={[elevation.card, { backgroundColor: "#FFFFFF", borderRadius: 24, padding: 20 }]}>
+              <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 16 }}>
+                <View style={{ width: 40, height: 40, borderRadius: 14, backgroundColor: "#D4F0EC", justifyContent: "center", alignItems: "center", marginRight: 12 }}>
+                  <Text style={{ fontSize: 18 }}>👤</Text>
                 </View>
-                <View style={styles.addSkillRow}>
-                  <TextInput
-                    value={newSkill}
-                    onChangeText={setNewSkill}
-                    placeholder={t('resume.addSkill') || 'Add skill...'}
-                    style={styles.addSkillInput}
-                    textColor={colors.text}
-                    mode="outlined"
-                    dense
-                    outlineColor={colors.border}
-                    activeOutlineColor={colors.terracotta}
-                    onSubmitEditing={addSkill}
-                  />
-                  <IconButton
-                    icon="plus-circle"
-                    size={28}
-                    iconColor={colors.terracotta}
-                    onPress={addSkill}
-                  />
-                </View>
-              </GlassCard>
-
-              <Button
-                mode="contained"
-                onPress={() => setStep('details')}
-                style={styles.nextButton}
-                icon="arrow-right"
-                contentStyle={styles.nextButtonContent}
-              >
-                {t('resume.next') || 'Next: Add Details'}
-              </Button>
-            </Animated.View>
-          )}
-
-          {/* STEP 2: Add Details */}
-          {step === 'details' && (
-            <Animated.View key="details" entering={enterFadeInDown}>
-              <GlassCard style={styles.card}>
-                <Text variant="titleMedium" style={styles.cardTitle}>
-                  <MaterialCommunityIcons name="briefcase-outline" size={20} color={colors.terracotta} />
-                  {'  '}{t('resume.experience') || 'Work Experience'}
-                </Text>
-                <Text variant="bodySmall" style={styles.hint}>
-                  {t('resume.experienceHint') || 'Add your work experience (optional for freshers)'}
-                </Text>
-
-                {experience.map((exp, idx) => (
-                  <View key={idx} style={styles.entryBlock}>
-                    <TextInput
-                      label={t('resume.jobTitle') || 'Job Title'}
-                      value={exp.title}
-                      onChangeText={(v) => updateExperience(idx, 'title', v)}
-                      style={styles.input}
-                      textColor={colors.text}
-                      mode="outlined"
-                      dense
-                      outlineColor={colors.border}
-                      activeOutlineColor={colors.terracotta}
-                    />
-                    <TextInput
-                      label={t('resume.company') || 'Company / Employer'}
-                      value={exp.company}
-                      onChangeText={(v) => updateExperience(idx, 'company', v)}
-                      style={styles.input}
-                      textColor={colors.text}
-                      mode="outlined"
-                      dense
-                      outlineColor={colors.border}
-                      activeOutlineColor={colors.terracotta}
-                    />
-                    <TextInput
-                      label={t('resume.duration') || 'Duration (e.g., 2 years)'}
-                      value={exp.duration}
-                      onChangeText={(v) => updateExperience(idx, 'duration', v)}
-                      style={styles.input}
-                      textColor={colors.text}
-                      mode="outlined"
-                      dense
-                      outlineColor={colors.border}
-                      activeOutlineColor={colors.terracotta}
-                    />
-                    <TextInput
-                      label={t('resume.achievements') || 'Key achievements (one per line)'}
-                      value={exp.achievements.join('\n')}
-                      onChangeText={(v) => updateExperience(idx, 'achievements', v.split('\n'))}
-                      style={styles.input}
-                      textColor={colors.text}
-                      mode="outlined"
-                      multiline
-                      numberOfLines={3}
-                      outlineColor={colors.border}
-                      activeOutlineColor={colors.terracotta}
-                      dense
-                    />
-                  </View>
-                ))}
-
-                <Button
-                  mode="text"
-                  onPress={addExperience}
-                  icon="plus"
-                  textColor={colors.terracotta}
-                  compact
-                >
-                  {t('resume.addMore') || 'Add Another'}
-                </Button>
-              </GlassCard>
-
-              <GlassCard style={styles.card}>
-                <Text variant="titleMedium" style={styles.cardTitle}>
-                  <MaterialCommunityIcons name="school-outline" size={20} color={colors.terracotta} />
-                  {'  '}{t('resume.education') || 'Education'}
-                </Text>
-
-                {education.map((edu, idx) => (
-                  <View key={idx} style={styles.entryBlock}>
-                    <TextInput
-                      label={t('resume.degree') || 'Degree / Qualification'}
-                      value={edu.degree}
-                      onChangeText={(v) => updateEducation(idx, 'degree', v)}
-                      style={styles.input}
-                      textColor={colors.text}
-                      mode="outlined"
-                      dense
-                      outlineColor={colors.border}
-                      activeOutlineColor={colors.terracotta}
-                    />
-                    <TextInput
-                      label={t('resume.institution') || 'School / Institution'}
-                      value={edu.institution}
-                      onChangeText={(v) => updateEducation(idx, 'institution', v)}
-                      style={styles.input}
-                      textColor={colors.text}
-                      mode="outlined"
-                      dense
-                      outlineColor={colors.border}
-                      activeOutlineColor={colors.terracotta}
-                    />
-                    <TextInput
-                      label={t('resume.year') || 'Year'}
-                      value={edu.year}
-                      onChangeText={(v) => updateEducation(idx, 'year', v)}
-                      style={styles.input}
-                      textColor={colors.text}
-                      mode="outlined"
-                      dense
-                      outlineColor={colors.border}
-                      activeOutlineColor={colors.terracotta}
-                      keyboardType="numeric"
-                    />
-                  </View>
-                ))}
-              </GlassCard>
-
-              <GlassCard style={styles.card}>
-                <Text variant="titleMedium" style={styles.cardTitle}>
-                  {t('resume.additional') || 'Additional Info'}
-                </Text>
-                <TextInput
-                  label={t('resume.additionalHint') || 'Anything else the AI should know?'}
-                  value={additionalInfo}
-                  onChangeText={setAdditionalInfo}
-                  style={styles.input}
-                  textColor={colors.text}
-                  mode="outlined"
-                  outlineColor={colors.border}
-                  activeOutlineColor={colors.terracotta}
-                  multiline
-                  numberOfLines={4}
-                />
-              </GlassCard>
-
-              <View style={styles.buttonRow}>
-                <Button
-                  mode="outlined"
-                  onPress={() => setStep('review')}
-                  style={styles.backButton}
-                  icon="arrow-left"
-                  textColor={colors.text}
-                >
-                  {t('resume.back') || 'Back'}
-                </Button>
-                <Button
-                  mode="contained"
-                  onPress={handleGenerateResume}
-                  loading={generating}
-                  disabled={generating}
-                  style={styles.generateButton}
-                  icon="robot"
-                >
-                  {generating
-                    ? (t('resume.generating') || 'Generating...')
-                    : (t('resume.generate') || 'Generate Resume')}
-                </Button>
-              </View>
-            </Animated.View>
-          )}
-
-          {/* STEP 3: Preview */}
-          {step === 'preview' && (
-            <Animated.View key="preview" entering={enterFadeInDown}>
-              {resumeHtml ? (
-                <View style={styles.previewContainer}>
-                  <GlassCard style={styles.previewCard}>
-                    <WebView
-                      originWhitelist={['*']}
-                      source={{ html: resumeHtml }}
-                      style={styles.webview}
-                      scrollEnabled={true}
-                      scalesPageToFit={true}
-                    />
-                  </GlassCard>
-
-                  <View style={styles.buttonRow}>
-                    <Button
-                      mode="outlined"
-                      onPress={() => setStep('details')}
-                      style={styles.backButton}
-                      icon="arrow-left"
-                      textColor={colors.text}
-                    >
-                      {t('resume.editAgain') || 'Edit'}
-                    </Button>
-                    <Button
-                      mode="contained"
-                      onPress={handleShare}
-                      loading={sharing}
-                      disabled={sharing}
-                      style={styles.shareButton}
-                      icon="share-variant"
-                    >
-                      {t('resume.share') || 'Share'}
-                    </Button>
-                  </View>
-
-                  <Button
-                    mode="contained"
-                    onPress={handleSaveToProfile}
-                    disabled={savedToProfile || !resumeUrl}
-                    style={[
-                      styles.saveToProfileButton,
-                      savedToProfile && styles.savedButton,
-                    ]}
-                    icon={savedToProfile ? 'check-circle' : 'content-save'}
-                  >
-                    {savedToProfile
-                      ? (t('resume.saved') || 'Saved to Profile')
-                      : (t('resume.saveToProfile') || 'Save to Profile')}
-                  </Button>
-
-                  <Button
-                    mode="contained"
-                    onPress={handleGenerateResume}
-                    loading={generating}
-                    disabled={generating}
-                    style={styles.regenerateButton}
-                    icon="refresh"
-                  >
-                    {t('resume.regenerate') || 'Regenerate'}
-                  </Button>
-                </View>
-              ) : (
-                <View style={styles.loadingContainer}>
-                  <ActivityIndicator size="large" color={colors.terracotta} />
-                  <Text style={styles.loadingText}>
-                    {t('resume.generatingResume') || 'Creating your ATS-optimized resume...'}
+                <View>
+                  <Text style={{ fontSize: 13, fontFamily: "Poppins_500Medium", color: "#8C7A6D" }}>Name</Text>
+                  <Text style={{ fontSize: 17, fontFamily: "Poppins_600SemiBold", color: "#2D1B0E" }}>
+                    {user?.name ?? "—"}
                   </Text>
                 </View>
-              )}
-            </Animated.View>
+              </View>
+
+              <View style={{ backgroundColor: "#FFF5E6", borderRadius: 16, padding: 16, marginBottom: 20 }}>
+                <Text style={{ fontSize: 12, fontFamily: "Poppins_500Medium", color: "#8C7A6D", marginBottom: 6 }}>
+                  Current experience (from profile)
+                </Text>
+                <Text style={{ fontSize: 14, fontFamily: "Poppins_400Regular", color: "#5C4A3D", lineHeight: 20 }} numberOfLines={4}>
+                  {user?.experience?.trim() || t("resume.notSet")}
+                </Text>
+              </View>
+
+              <WarmButton label={`${t("common.next")}: ${t("resume.stepDetails")}`} onPress={() => setStep(2)} size="lg" fullWidth />
+            </View>
+          )}
+
+          {step === 2 && (
+            <View style={[elevation.card, { backgroundColor: "#FFFFFF", borderRadius: 24, padding: 20 }]}>
+              <Text style={{ fontSize: 13, fontFamily: "Poppins_500Medium", color: "#5C4A3D", marginBottom: 6 }}>
+                Experience (paste or type)
+              </Text>
+              <View style={[inputContainerStyle, { minHeight: 100 }]}>
+                <Input variant="underlined" size="lg" style={{ borderBottomWidth: 0 }}>
+                  <InputField
+                    placeholder={t("resume.experiencePlaceholder")}
+                    value={experience}
+                    onChangeText={setExperience}
+                    multiline
+                    style={{ fontFamily: "Poppins_400Regular", fontSize: 14, color: "#2D1B0E" }}
+                  />
+                </Input>
+              </View>
+
+              <Text style={{ fontSize: 13, fontFamily: "Poppins_500Medium", color: "#5C4A3D", marginBottom: 6 }}>
+                Education
+              </Text>
+              <View style={inputContainerStyle}>
+                <Input variant="underlined" size="lg" style={{ borderBottomWidth: 0 }}>
+                  <InputField
+                    placeholder={t("resume.educationPlaceholder")}
+                    value={education}
+                    onChangeText={setEducation}
+                    style={{ fontFamily: "Poppins_500Medium", fontSize: 16, color: "#2D1B0E" }}
+                  />
+                </Input>
+              </View>
+
+              <Text style={{ fontSize: 13, fontFamily: "Poppins_500Medium", color: "#5C4A3D", marginBottom: 6 }}>
+                Additional (certifications, etc.)
+              </Text>
+              <View style={[inputContainerStyle, { minHeight: 80 }]}>
+                <Input variant="underlined" size="lg" style={{ borderBottomWidth: 0 }}>
+                  <InputField
+                    placeholder={t("resume.additionalPlaceholder")}
+                    value={additional}
+                    onChangeText={setAdditional}
+                    multiline
+                    style={{ fontFamily: "Poppins_400Regular", fontSize: 14, color: "#2D1B0E" }}
+                  />
+                </Input>
+              </View>
+
+              <View style={{ flexDirection: "row", gap: 12 }}>
+                <View style={{ flex: 1 }}>
+                  <WarmButton label="Back" onPress={() => setStep(1)} variant="outline" size="md" fullWidth />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <WarmButton label={t("resume.nextPreview")} onPress={() => setStep(3)} size="md" fullWidth />
+                </View>
+              </View>
+            </View>
+          )}
+
+          {step === 3 && (
+            <>
+              <View style={[elevation.card, { backgroundColor: "#FFFFFF", borderRadius: 24, padding: 20, marginBottom: 20 }]}>
+                <Text style={{ fontSize: 17, fontFamily: "Poppins_600SemiBold", color: "#2D1B0E", marginBottom: 12 }}>
+                  Summary
+                </Text>
+                <View style={{ backgroundColor: "#FFF5E6", borderRadius: 14, padding: 14, marginBottom: 8, gap: 6 }}>
+                  <Text style={{ fontSize: 13, fontFamily: "Poppins_400Regular", color: "#5C4A3D" }}>
+                    <Text style={{ fontFamily: "Poppins_600SemiBold" }}>Experience:</Text> {experience.trim().slice(0, 80)}{experience.length > 80 ? "…" : ""}
+                  </Text>
+                  <Text style={{ fontSize: 13, fontFamily: "Poppins_400Regular", color: "#5C4A3D" }}>
+                    <Text style={{ fontFamily: "Poppins_600SemiBold" }}>Education:</Text> {education.trim() || "—"}
+                  </Text>
+                </View>
+                {generatedUrl && (
+                  <View style={{ backgroundColor: "#D4F0EC", borderRadius: 14, padding: 12, marginTop: 4 }}>
+                    <Text style={{ color: "#1E7A6F", fontSize: 13, fontFamily: "Poppins_500Medium" }}>
+                      ✓ Resume generated. Check profile to download.
+                    </Text>
+                  </View>
+                )}
+              </View>
+
+              <View style={{ gap: 12 }}>
+                <WarmButton
+                  label={loading ? "..." : generatedUrl ? t("resume.regenerateBtn") : t("resume.generateBtn")}
+                  onPress={generatedUrl ? handleRegenerate : handleGenerate}
+                  disabled={loading}
+                  size="lg"
+                  fullWidth
+                  variant="teal"
+                />
+                <WarmButton label={t("resume.backToEdit")} onPress={() => setStep(2)} variant="outline" size="md" fullWidth />
+              </View>
+            </>
           )}
         </ScrollView>
-      </KeyboardAvoidingView>
-      <PaymentModal
-        visible={paymentModalVisible}
-        onClose={() => setPaymentModalVisible(false)}
-        onSuccess={async () => {
-          try {
-            const { data } = await api.get('/payments/entitlements');
-            if (data && user) {
-              await updateUser({
-                ...user,
-                aiFreeTokensRemaining: data.aiFreeTokensRemaining ?? user.aiFreeTokensRemaining,
-                aiPaidTokensRemaining: data.aiPaidTokensRemaining ?? user.aiPaidTokensRemaining,
-                canUseAi: data.canUseAi ?? user.canUseAi,
-              });
-            }
-          } finally {
-            setPaymentModalVisible(false);
-          }
-        }}
-        title={t('resume.addAiCredits') || 'Add AI credits'}
-        subtitle={t('resume.addAiCreditsSubtitle') || 'Buy AI credits to generate your resume with AI.'}
-        filter="ai"
-      />
-    </SafeAreaView>
+      </View>
+    </ErrorBoundary>
   );
-}
-
-function createStyles(colors: ThemeColors, isDark: boolean) {
-  const screenHeight = Dimensions.get('window').height;
-  return StyleSheet.create({
-    container: { flex: 1 },
-    flex: { flex: 1 },
-    header: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      paddingHorizontal: 4,
-      paddingVertical: 8,
-      borderBottomWidth: 1,
-      borderBottomColor: colors.border,
-    },
-    headerTitle: {
-      fontWeight: 'bold',
-      color: colors.terracotta,
-      fontFamily: Platform.OS === 'ios' ? 'Kohinoor Bangla' : 'serif',
-    },
-    stepIndicator: {
-      flexDirection: 'row',
-      justifyContent: 'center',
-      alignItems: 'center',
-      paddingVertical: 12,
-      gap: 20,
-    },
-    stepItem: { alignItems: 'center', gap: 4 },
-    stepCircle: {
-      width: 28,
-      height: 28,
-      borderRadius: 14,
-      borderWidth: 2,
-      borderColor: colors.border,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    stepCircleActive: {
-      backgroundColor: colors.terracotta,
-      borderColor: colors.terracotta,
-    },
-    stepCircleCurrent: {
-      borderColor: colors.terracotta,
-      borderWidth: 2.5,
-    },
-    stepNum: { fontSize: 12, fontWeight: 'bold', color: colors.textSecondary },
-    stepNumActive: { color: colors.cream },
-    stepLabel: { fontSize: 10, color: colors.textSecondary },
-    stepLabelActive: { color: colors.terracotta, fontWeight: '600' },
-    progressBar: { marginHorizontal: 16 },
-    content: { flex: 1, padding: screenPaddingHorizontal, paddingBottom: scale(120) },
-    card: { marginBottom: 16 },
-    cardTitle: { color: colors.text, fontWeight: 'bold', marginBottom: 4 },
-    hint: { color: colors.textSecondary, marginBottom: 12 },
-    input: { marginBottom: 10, backgroundColor: isDark ? colors.surfaceElevated : colors.surface },
-    chipContainer: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      gap: 6,
-      marginBottom: 8,
-    },
-    chip: { marginBottom: 2, backgroundColor: isDark ? colors.surface : colors.cream, borderColor: colors.border },
-    addSkillRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-    },
-    addSkillInput: { flex: 1, backgroundColor: isDark ? colors.surfaceElevated : colors.surface },
-    nextButton: {
-      backgroundColor: colors.terracotta,
-      borderRadius: 8,
-      marginBottom: 24,
-    },
-    nextButtonContent: { flexDirection: 'row-reverse' },
-    entryBlock: {
-      marginBottom: 16,
-      paddingBottom: 12,
-      borderBottomWidth: 1,
-      borderBottomColor: colors.border,
-    },
-    buttonRow: {
-      flexDirection: 'row',
-      gap: 12,
-      marginBottom: 12,
-    },
-    backButton: {
-      flex: 1,
-      borderColor: colors.border,
-      borderRadius: 8,
-    },
-    generateButton: {
-      flex: 2,
-      backgroundColor: colors.terracotta,
-      borderRadius: 8,
-    },
-    previewContainer: { marginBottom: 24 },
-    previewCard: {
-      padding: 0,
-      overflow: 'hidden',
-      borderRadius: 8,
-    },
-    webview: {
-      height: screenHeight * 0.55,
-      backgroundColor: colors.surface,
-    },
-    shareButton: {
-      flex: 2,
-      backgroundColor: colors.terracotta,
-      borderRadius: 8,
-    },
-    saveToProfileButton: {
-      backgroundColor: colors.gold,
-      borderRadius: 8,
-      marginBottom: 10,
-    },
-    savedButton: {
-      backgroundColor: colors.gold,
-    },
-    regenerateButton: {
-      backgroundColor: isDark ? colors.surface : colors.cream,
-      borderRadius: 8,
-    },
-    loadingContainer: {
-      alignItems: 'center',
-      paddingVertical: 60,
-      gap: 16,
-    },
-    loadingText: {
-      color: colors.textSecondary,
-      textAlign: 'center',
-    },
-  });
 }

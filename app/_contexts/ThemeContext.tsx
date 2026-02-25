@@ -1,98 +1,66 @@
-import React, { createContext, useState, useContext, useEffect, useMemo } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { MD3DarkTheme, MD3LightTheme } from 'react-native-paper';
-import type { ThemeMode, ThemeColors } from '../_theme';
-import { LIGHT_COLORS, DARK_COLORS } from '../_theme';
+"use client";
 
-const THEME_STORAGE_KEY = '@app_theme';
+import React, { createContext, useContext, useEffect, useState } from "react";
+import { useColorScheme } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { lightColors, darkColors, type ColorScheme } from "../_theme/colors";
 
-type ThemeModeValue = ThemeMode;
+const THEME_KEY = "@app_theme";
+export type ThemeMode = "light" | "dark" | "system";
 
-interface ThemeContextType {
-  themeMode: ThemeModeValue;
-  setThemeMode: (mode: ThemeModeValue) => Promise<void>;
-  colors: ThemeColors;
+interface ThemeContextValue {
+  mode: ThemeMode;
+  setMode: (mode: ThemeMode) => Promise<void>;
   isDark: boolean;
-  /** For PaperProvider */
-  paperTheme: typeof MD3LightTheme;
+  colors: ColorScheme;
 }
 
-const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
+const ThemeContext = createContext<ThemeContextValue | null>(null);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [themeMode, setThemeModeState] = useState<ThemeModeValue>('light');
+  const systemDark = useColorScheme() === "dark";
+  const [mode, setModeState] = useState<ThemeMode>("system");
+
+  const isDark = mode === "system" ? systemDark : mode === "dark";
+  const colors = isDark ? darkColors : lightColors;
+
   useEffect(() => {
+    let cancelled = false;
     (async () => {
       try {
-        const stored = await AsyncStorage.getItem(THEME_STORAGE_KEY);
-        if (stored === 'dark' || stored === 'light') {
-          setThemeModeState(stored);
+        const stored = await AsyncStorage.getItem(THEME_KEY);
+        if (cancelled) return;
+        if (stored === "light" || stored === "dark" || stored === "system") {
+          setModeState(stored);
         }
       } catch {
-        // ignore
+        if (cancelled) return;
       }
     })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  const setThemeMode = async (mode: ThemeModeValue) => {
-    setThemeModeState(mode);
-    try {
-      await AsyncStorage.setItem(THEME_STORAGE_KEY, mode);
-    } catch {
-      // ignore
-    }
+  const setMode = async (next: ThemeMode) => {
+    setModeState(next);
+    await AsyncStorage.setItem(THEME_KEY, next);
   };
 
-  const colors = themeMode === 'dark' ? DARK_COLORS : LIGHT_COLORS;
-  const isDark = themeMode === 'dark';
-
-  const paperTheme = useMemo(() => {
-    const base = isDark ? MD3DarkTheme : MD3LightTheme;
-    return {
-      ...base,
-      roundness: 8,
-      colors: {
-        ...base.colors,
-        primary: colors.primary,
-        primaryContainer: isDark ? '#3D2520' : '#FFF0E8',
-        secondary: colors.secondary,
-        background: colors.background,
-        surface: colors.surface,
-        surfaceVariant: isDark ? colors.cream : colors.cream,
-        outline: colors.border,
-        error: colors.accent,
-        onPrimary: '#FFF',
-        onSecondary: '#FFF',
-        onBackground: colors.text,
-        onSurface: colors.text,
-        onSurfaceVariant: colors.textSecondary,
-        onError: '#FFF',
-        outlineVariant: colors.border,
-        onSurfaceDisabled: colors.textSecondary,
-        surfaceDisabled: colors.border,
-      },
-    };
-  }, [isDark, colors.terracotta, colors.gold, colors.background, colors.surface, colors.border, colors.bengaliRed, colors.text, colors.textSecondary, colors.white, colors.cream]);
-
-  const value: ThemeContextType = {
-    themeMode,
-    setThemeMode,
-    colors,
+  const value: ThemeContextValue = {
+    mode,
+    setMode,
     isDark,
-    paperTheme,
+    colors,
   };
 
   return (
-    <ThemeContext.Provider value={value}>
-      {children}
-    </ThemeContext.Provider>
+    <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>
   );
 }
 
 export function useTheme() {
   const ctx = useContext(ThemeContext);
-  if (ctx === undefined) {
-    throw new Error('useTheme must be used within a ThemeProvider');
-  }
+  if (!ctx) throw new Error("useTheme must be used within ThemeProvider");
   return ctx;
 }

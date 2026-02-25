@@ -1,607 +1,365 @@
-import React, { useState, useMemo, useEffect } from 'react';
-import {
-  View,
-  StyleSheet,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  Alert,
-  TouchableOpacity,
-  ImageBackground,
-} from 'react-native';
-import { Text, TextInput, Button, Chip } from 'react-native-paper';
-import { useRouter, useLocalSearchParams } from 'expo-router';
-import Animated, {
-  FadeInDown,
-  FadeOutUp,
-  LinearTransition,
-  useSharedValue,
-  useAnimatedStyle,
-  withSpring,
-  withTiming,
-} from 'react-native-reanimated';
+import { useState } from "react";
+import { View, Text, KeyboardAvoidingView, Platform, Alert, ScrollView, Pressable } from "react-native";
+import { useRouter, useLocalSearchParams } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Input, InputField } from "@gluestack-ui/themed";
+import { useAuth } from "../_contexts/AuthContext";
+import { useLanguage } from "../_contexts/LanguageContext";
+import { authService } from "../_services/authService";
+import { BlobShape } from "../_components/ui/BlobShape";
+import { KormoMascot } from "../_components/ui/KormoMascot";
+import { WarmButton } from "../_components/ui/WarmButton";
+import { AnimatedPressable } from "../_components/ui/AnimatedPressable";
+import { elevation } from "../_theme/tokens";
+import type { UserRole } from "../_types";
 
-import api from '../_lib/api';
-import { useAuth } from '../_contexts/AuthContext';
-import { useAuthBack } from '../_contexts/AuthBackContext';
-import { useLanguage } from '../_contexts/LanguageContext';
-import { useTheme } from '../_contexts/ThemeContext';
-import { GlassCard } from '../_components/GlassCard';
-import { LocationSelector } from '../_components/LocationSelector';
-import { LoadingScreen } from '../_components/LoadingScreen';
-import { scale, imageBackgroundStyle, screenPaddingHorizontal } from '../_design';
-
-/* ---------- CONSTANTS ---------- */
-
-const LANG_OPTIONS = ['Bengali', 'Hindi', 'English'];
-const COMMON_SKILLS = [
-  'Sales',
-  'Customer Service',
-  'Driving',
-  'Cooking',
-  'Computer',
-  'Accounting',
-  'Warehouse',
-  'Delivery',
-  'Cleaning',
-  'Security',
-];
-const EDUCATION_LEVELS = [
-  'Below 10th',
-  '10th Pass',
-  '12th Pass',
-  'Graduate',
-  'Post Graduate',
-];
-const EXPERIENCE_RANGES = [
-  'Fresher',
-  '0-1 years',
-  '1-3 years',
-  '3-5 years',
-  '5-10 years',
-  '10+ years',
-];
+type Step = "phone" | "otp" | "profile" | "mpin";
 
 export default function RegisterScreen() {
-  const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
+  const router = useRouter();
+  const params = useLocalSearchParams<{ phone?: string }>();
   const { t } = useLanguage();
   const { login } = useAuth();
-  const { setBackOptions } = useAuthBack();
-  const router = useRouter();
-  const params = useLocalSearchParams();
 
-  useEffect(() => {
-    setBackOptions({
-      show: true,
-      onBack: () => router.back(),
-      disabled: false,
-    });
-    return () => {
-      setBackOptions({ show: false, onBack: () => { }, disabled: false });
-    };
-  }, [setBackOptions, router]);
-
-  const phone = Array.isArray(params.phone) ? params.phone[0] : params.phone;
-  const registrationToken = Array.isArray(params.registrationToken)
-    ? params.registrationToken[0]
-    : params.registrationToken;
-
-  /* ---------- STATE ---------- */
-
-  const [step, setStep] = useState(0);
-  const [role, setRole] = useState<'seeker' | 'employer'>('seeker');
-  const [roleWidth, setRoleWidth] = useState(0);
-
-  const [name, setName] = useState('');
-  const [location, setLocation] = useState('');
-  const [education, setEducation] = useState('10th Pass');
-  const [experience, setExperience] = useState('');
-  const [expectedSalary, setExpectedSalary] = useState('');
-
-  const [selectedLanguages, setSelectedLanguages] = useState<string[]>([
-    'Bengali',
-  ]);
-  const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
-
-  const [businessName, setBusinessName] = useState('');
-  const [industry, setIndustry] = useState('');
-
-  const [mpin, setMpin] = useState('');
-  const [mpinConfirm, setMpinConfirm] = useState('');
-
-  const [userToLogin, setUserToLogin] = useState<any>(null);
+  const [step, setStep] = useState<Step>("phone");
+  const [phone, setPhone] = useState(params.phone ?? "");
+  const [otp, setOtp] = useState("");
+  const [registrationToken, setRegistrationToken] = useState<string | null>(null);
+  const [name, setName] = useState("");
+  const [role, setRole] = useState<UserRole>("seeker");
+  const [businessName, setBusinessName] = useState("");
+  const [location, setLocation] = useState("");
+  const [mpin, setMpin] = useState("");
   const [loading, setLoading] = useState(false);
 
-  /* ---------- ANIMATION ---------- */
-
-  const progress = useSharedValue(0);
-
-  useEffect(() => {
-    progress.value = withTiming((step + 1) / 5, { duration: 350 });
-  }, [step]);
-
-  const progressStyle = useAnimatedStyle(() => ({
-    width: `${progress.value * 100}%`,
-  }));
-
-  /* ---------- ROLE SLIDER ---------- */
-
-  const roleX = useSharedValue(0);
-
-  useEffect(() => {
-    roleX.value = withSpring(role === 'seeker' ? 0 : 1);
-  }, [role]);
-
-  const roleSlider = useAnimatedStyle(() => ({
-    transform: [{ translateX: roleX.value * roleWidth }],
-  }));
-
-  const styles = useMemo(() => createStyles(colors), [colors]);
-
-  /* ---------- REGISTER ---------- */
-
-  const handleRegister = async () => {
-    if (!name?.trim()) {
-      return Alert.alert(t('common.error'), t('register.errorFullName'));
+  const handleSendOtp = async () => {
+    if (!phone.trim() || phone.length < 10) {
+      Alert.alert(t("common.error"), "Please enter a valid 10-digit phone number");
+      return;
     }
-    if (!location?.trim()) {
-      return Alert.alert(t('common.error'), t('register.errorLocation'));
-    }
-    if (selectedLanguages.length === 0) {
-      return Alert.alert(t('common.error'), t('register.errorSelectLanguage'));
-    }
-    if (role === 'seeker' && selectedSkills.length === 0) {
-      return Alert.alert(t('common.error'), t('register.errorSelectSkill'));
-    }
-    if (role === 'employer' && !businessName?.trim()) {
-      return Alert.alert(t('common.error'), t('register.errorBusinessName'));
-    }
-    if (role === 'employer' && !industry?.trim()) {
-      return Alert.alert(t('common.error'), t('register.errorIndustry'));
-    }
-
     setLoading(true);
     try {
-      const payload = {
-        phone,
-        registrationToken,
-        role,
-        name,
-        location,
-        education,
-        experience,
-        expectedSalary,
-        skills: selectedSkills,
-        languages: selectedLanguages,
-        businessName,
-        industry,
-      };
-
-      const { data } = await api.post('/users', payload);
-      setUserToLogin(data);
-      setStep(4);
-    } catch {
-      Alert.alert(t('common.error'), t('register.errorRegister'));
+      await authService.sendOtp(phone.trim(), "register");
+      setStep("otp");
+      setOtp("");
+    } catch (e: unknown) {
+      const msg = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail ?? (e as Error)?.message ?? "Failed to send OTP";
+      Alert.alert(t("common.error"), msg);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleSetMpin = async () => {
-    if (mpin.length < 4) {
-      return Alert.alert(t('common.error'), t('login.errorInvalidMpin'));
+  const handleVerifyOtp = async () => {
+    if (!otp.trim() || otp.length < 6) {
+      Alert.alert(t("common.error"), "Please enter the 6-digit OTP");
+      return;
     }
-    if (mpin !== mpinConfirm) {
-      return Alert.alert(t('common.error'), t('login.errorMpinMismatch'));
-    }
-
-    await api.post(
-      '/auth/set-mpin',
-      { mpin },
-      {
-        headers: { Authorization: `Bearer ${userToLogin.token}` },
+    setLoading(true);
+    try {
+      const res = await authService.verifyOtp(phone.trim(), otp.trim(), "register");
+      if (!res.isNewUser || !("registrationToken" in res)) {
+        Alert.alert(t("common.error"), "Invalid response. Try again.");
+        return;
       }
-    );
-
-    await login(userToLogin, userToLogin.token);
-    router.replace('/(tabs)');
+      setRegistrationToken(res.registrationToken);
+      setStep("profile");
+    } catch (e: unknown) {
+      const msg = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail ?? (e as Error)?.message ?? "Invalid OTP";
+      Alert.alert(t("common.error"), msg);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  /* ---------- STEPS ---------- */
+  const handleRegister = async () => {
+    if (!name.trim()) {
+      Alert.alert(t("common.error"), "Please enter your name");
+      return;
+    }
+    if (role === "employer" && !businessName.trim()) {
+      Alert.alert(t("common.error"), "Please enter business name");
+      return;
+    }
+    if (!mpin.trim() || mpin.length < 4) {
+      Alert.alert(t("common.error"), "Please set a 4–6 digit MPIN");
+      return;
+    }
+    if (!registrationToken) {
+      Alert.alert(t("common.error"), "Session expired. Please start again.");
+      router.replace("/(auth)/register");
+      return;
+    }
+    setLoading(true);
+    try {
+      const payload = {
+        phone: phone.trim(),
+        registrationToken,
+        name: name.trim(),
+        role,
+        location: location.trim() || "Kolkata",
+      };
+      if (role === "employer") (payload as Record<string, unknown>).businessName = businessName.trim();
+      const { user, token } = await authService.register(payload);
+      await authService.setMpin(mpin.trim(), { authToken: token });
+      await login(user, token);
+      router.replace("/(tabs)");
+    } catch (e: unknown) {
+      const msg = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail ?? (e as Error)?.message ?? "Registration failed";
+      Alert.alert(t("common.error"), msg);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  const renderStep = () => {
-    switch (step) {
-      case 0:
-        return (
-          <>
-            <Text style={styles.title}>Who are you?</Text>
+  const inputContainerStyle = {
+    backgroundColor: "#FFF5E6",
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 4,
+    borderWidth: 1.5,
+    borderColor: "#E8DDD0",
+    marginBottom: 16,
+  };
 
-            <View
-              style={styles.roleBox}
-              onLayout={(e) => {
-                const w = e.nativeEvent.layout.width;
-                setRoleWidth(w / 2);
-              }}
-            >
-              <Animated.View
-                style={[
-                  styles.roleSlider,
-                  roleSlider,
-                  { width: roleWidth },
-                ]}
-              />
+  const steps: Step[] = ["phone", "otp", "profile", "mpin"];
+  const stepIndex = steps.indexOf(step);
 
-              <TouchableOpacity
-                style={styles.roleBtn}
-                onPress={() => setRole('seeker')}
-              >
-                <Text
-                  style={{
-                    color: role === 'seeker' ? '#000' : '#888',
-                  }}
-                >
-                  Job Seeker
-                </Text>
-              </TouchableOpacity>
+  return (
+    <View style={{ flex: 1, backgroundColor: "#FFF8E7" }}>
+      <BlobShape color="#2A9D8F" size={260} opacity={0.05} variant={2} style={{ top: -80, left: -60 }} />
+      <BlobShape color="#E76F51" size={200} opacity={0.06} variant={4} style={{ bottom: -30, right: -50 }} />
+      <BlobShape color="#E9C46A" size={160} opacity={0.07} variant={1} style={{ top: 300, right: -30 }} />
 
-              <TouchableOpacity
-                style={styles.roleBtn}
-                onPress={() => setRole('employer')}
-              >
-                <Text
-                  style={{
-                    color: role === 'employer' ? '#000' : '#888',
-                  }}
-                >
-                  Employer
-                </Text>
-              </TouchableOpacity>
-            </View>
+      <KeyboardAvoidingView
+        style={{ flex: 1, paddingTop: insets.top }}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+      >
+        <ScrollView
+          contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 24, paddingBottom: 40 }}
+          keyboardShouldPersistTaps="handled"
+        >
+          <View style={{ alignItems: "center", marginTop: 32, marginBottom: 16 }}>
+            <KormoMascot size={90} mood={step === "mpin" ? "celebrating" : "happy"} />
+          </View>
 
-            <TextInput
-              label={t('register.fullName')}
-              placeholder={t('register.fullNamePlaceholder')}
-              value={name}
-              onChangeText={setName}
-              style={styles.input}
-              mode="outlined"
-              outlineColor={colors.border}
-              activeOutlineColor={colors.terracotta}
-            />
+          <Text style={{ fontSize: 26, fontFamily: "Poppins_600SemiBold", color: "#2D1B0E", textAlign: "center", marginBottom: 4 }}>
+            {t("auth.register")}
+          </Text>
+          <Text style={{ fontSize: 13, fontFamily: "Poppins_400Regular", color: "#8C7A6D", textAlign: "center", marginBottom: 28 }}>
+            {step === "phone" && "Verify your phone with OTP"}
+            {step === "otp" && "Enter the code we sent"}
+            {step === "profile" && "Tell us about yourself"}
+            {step === "mpin" && "Set your quick-access PIN"}
+          </Text>
 
-            <Button
-              mode="contained"
-              onPress={() => {
-                if (!name?.trim()) {
-                  Alert.alert(t('common.error'), t('register.errorFullName'));
-                  return;
-                }
-                setStep(1);
-              }}
-              style={styles.mainBtn}
-            >
-              Continue
-            </Button>
-          </>
-        );
-
-      case 1:
-        return role === 'seeker' ? (
-          <>
-            <Text style={styles.title}>Your experience</Text>
-
-            <ScrollView>
-              <Text style={styles.fieldHint}>{t('register.education')}</Text>
-              <View style={styles.chipRow}>
-                {EDUCATION_LEVELS.map((e) => (
-                  <Chip
-                    key={e}
-                    selected={education === e}
-                    onPress={() => setEducation(e)}
-                    style={styles.chip}
-                  >
-                    {e}
-                  </Chip>
-                ))}
-              </View>
-
-              <Text style={[styles.fieldHint, { marginTop: 12 }]}>{t('register.experience')}</Text>
-              <Text style={styles.fieldHintSub}>{t('register.experienceRange')}</Text>
-              <View style={styles.chipRow}>
-                {EXPERIENCE_RANGES.map((r) => (
-                  <Chip
-                    key={r}
-                    selected={experience === r}
-                    onPress={() => setExperience(r)}
-                    style={styles.chip}
-                  >
-                    {r}
-                  </Chip>
-                ))}
-              </View>
-
-              <TextInput
-                label={t('register.expectedSalary')}
-                placeholder={t('register.expectedSalaryPlaceholder')}
-                value={expectedSalary}
-                onChangeText={setExpectedSalary}
-                keyboardType="number-pad"
-                style={styles.input}
-                mode="outlined"
-                outlineColor={colors.border}
-                activeOutlineColor={colors.terracotta}
-              />
-
-              <Button
-                mode="contained"
-                onPress={() => {
-                  if (!experience?.trim()) {
-                    Alert.alert(t('common.error'), t('register.errorExperience'));
-                    return;
-                  }
-                  if (!expectedSalary?.trim()) {
-                    Alert.alert(t('common.error'), t('register.errorExpectedSalary'));
-                    return;
-                  }
-                  setStep(2);
+          <View style={{ flexDirection: "row", justifyContent: "center", gap: 6, marginBottom: 24 }}>
+            {steps.map((s, i) => (
+              <View
+                key={s}
+                style={{
+                  width: step === s ? 24 : 8,
+                  height: 8,
+                  borderRadius: 4,
+                  backgroundColor: step === s ? "#E76F51" : i < stepIndex ? "#2A9D8F" : "#E8DDD0",
                 }}
-                style={styles.mainBtn}
-              >
-                Continue
-              </Button>
-            </ScrollView>
-          </>
-        ) : (
-          <>
-            <Text style={styles.title}>Business Info</Text>
-            <TextInput
-              label={t('register.businessName')}
-              placeholder={t('register.businessNamePlaceholder')}
-              value={businessName}
-              onChangeText={setBusinessName}
-              style={styles.input}
-              mode="outlined"
-              outlineColor={colors.border}
-              activeOutlineColor={colors.terracotta}
-            />
-            <TextInput
-              label={t('register.industry')}
-              placeholder={t('register.industryPlaceholder')}
-              value={industry}
-              onChangeText={setIndustry}
-              style={styles.input}
-              mode="outlined"
-              outlineColor={colors.border}
-              activeOutlineColor={colors.terracotta}
-            />
+              />
+            ))}
+          </View>
 
-            <Button
-              mode="contained"
-              onPress={() => {
-                if (!businessName?.trim()) {
-                  Alert.alert(t('common.error'), t('register.errorBusinessName'));
-                  return;
-                }
-                if (!industry?.trim()) {
-                  Alert.alert(t('common.error'), t('register.errorIndustry'));
-                  return;
-                }
-                setStep(2);
-              }}
-              style={styles.mainBtn}
-            >
-              Continue
-            </Button>
-          </>
-        );
-
-      case 2:
-        return (
-          <>
-            <Text style={styles.title}>Location</Text>
-            <Text style={styles.fieldHintSub}>{t('register.localityPlaceholder')}</Text>
-            <LocationSelector value={location} onChange={setLocation} />
-
-            <Button
-              mode="contained"
-              onPress={() => {
-                if (!location?.trim()) {
-                  Alert.alert(t('common.error'), t('register.errorLocation'));
-                  return;
-                }
-                setStep(3);
-              }}
-              style={styles.mainBtn}
-            >
-              Continue
-            </Button>
-          </>
-        );
-
-      case 3:
-        return (
-          <>
-            <Text style={styles.title}>Skills & Languages</Text>
-            <Text style={styles.fieldHintSub}>{t('register.languages')}</Text>
-            <View style={styles.chipRow}>
-              {LANG_OPTIONS.map((l) => (
-                <Chip
-                  key={l}
-                  selected={selectedLanguages.includes(l)}
-                  onPress={() =>
-                    setSelectedLanguages((prev) =>
-                      prev.includes(l)
-                        ? prev.filter((i) => i !== l)
-                        : [...prev, l]
-                    )
-                  }
-                  style={styles.chip}
-                >
-                  {l}
-                </Chip>
-              ))}
-            </View>
-
-            {role === 'seeker' && (
+          <View style={[elevation.card, { backgroundColor: "#FFFFFF", borderRadius: 28, padding: 24, marginBottom: 24 }]}>
+            {step === "phone" && (
               <>
-                <Text style={[styles.fieldHint, { marginTop: 8 }]}>{t('register.skills')}</Text>
-                <View style={styles.chipRow}>
-                  {COMMON_SKILLS.map((s) => (
-                    <Chip
-                      key={s}
-                      selected={selectedSkills.includes(s)}
-                      onPress={() =>
-                        setSelectedSkills((prev) =>
-                          prev.includes(s)
-                            ? prev.filter((i) => i !== s)
-                            : [...prev, s]
-                        )
-                      }
-                      style={styles.chip}
-                    >
-                      {s}
-                    </Chip>
-                  ))}
+                <Text style={{ fontSize: 13, fontFamily: "Poppins_500Medium", color: "#5C4A3D", marginBottom: 6 }}>
+                  {t("auth.phone")}
+                </Text>
+                <View style={inputContainerStyle}>
+                  <Input variant="underlined" size="lg" style={{ borderBottomWidth: 0 }}>
+                    <InputField
+                      placeholder="10-digit mobile number"
+                      value={phone}
+                      onChangeText={setPhone}
+                      keyboardType="phone-pad"
+                      maxLength={10}
+                      style={{ fontFamily: "Poppins_500Medium", fontSize: 16, color: "#2D1B0E" }}
+                    />
+                  </Input>
                 </View>
+                <WarmButton label={loading ? "..." : t("auth.sendOtp")} onPress={handleSendOtp} disabled={loading} size="lg" fullWidth />
+                <Pressable onPress={() => router.replace("/(auth)/login")} style={{ marginTop: 16, alignItems: "center" }}>
+                  <Text style={{ color: "#2A9D8F", fontFamily: "Poppins_500Medium", fontSize: 14 }}>
+                    Already have an account? Login
+                  </Text>
+                </Pressable>
               </>
             )}
 
-            <Button
-              mode="contained"
-              loading={loading}
-              onPress={handleRegister}
-              style={styles.mainBtn}
-            >
-              Create Profile
-            </Button>
-          </>
-        );
+            {step === "otp" && (
+              <>
+                <Text style={{ fontSize: 13, fontFamily: "Poppins_400Regular", color: "#8C7A6D", marginBottom: 12 }}>
+                  Code sent to +91 {phone}
+                </Text>
+                <View style={inputContainerStyle}>
+                  <Input variant="underlined" size="lg" style={{ borderBottomWidth: 0 }}>
+                    <InputField
+                      placeholder="000000"
+                      value={otp}
+                      onChangeText={setOtp}
+                      keyboardType="number-pad"
+                      maxLength={6}
+                      style={{ fontFamily: "Poppins_600SemiBold", fontSize: 24, letterSpacing: 8, textAlign: "center", color: "#2D1B0E" }}
+                    />
+                  </Input>
+                </View>
+                <WarmButton label={loading ? "..." : t("auth.verifyOtp")} onPress={handleVerifyOtp} disabled={loading} size="lg" fullWidth />
+                <Pressable onPress={() => setStep("phone")} style={{ marginTop: 16, alignItems: "center" }}>
+                  <Text style={{ color: "#2A9D8F", fontFamily: "Poppins_500Medium", fontSize: 14 }}>
+                    Change number
+                  </Text>
+                </Pressable>
+              </>
+            )}
 
-      case 4:
-        return (
-          <>
-            <Text style={styles.title}>Secure your account</Text>
-            <Text style={styles.fieldHintSub}>{t('register.mpinHint')}</Text>
+            {step === "profile" && (
+              <>
+                <Text style={{ fontSize: 13, fontFamily: "Poppins_500Medium", color: "#5C4A3D", marginBottom: 6 }}>
+                  Name
+                </Text>
+                <View style={inputContainerStyle}>
+                  <Input variant="underlined" size="lg" style={{ borderBottomWidth: 0 }}>
+                    <InputField
+                      placeholder="Your name"
+                      value={name}
+                      onChangeText={setName}
+                      autoCapitalize="words"
+                      style={{ fontFamily: "Poppins_500Medium", fontSize: 16, color: "#2D1B0E" }}
+                    />
+                  </Input>
+                </View>
 
-            <TextInput
-              label={t('login.enterMpin')}
-              placeholder={t('register.mpinHint')}
-              value={mpin}
-              onChangeText={setMpin}
-              secureTextEntry
-              keyboardType="number-pad"
-              style={styles.input}
-              mode="outlined"
-              outlineColor={colors.border}
-              activeOutlineColor={colors.terracotta}
-            />
-            <TextInput
-              label={t('login.setMpinConfirm')}
-              placeholder={t('register.mpinHint')}
-              value={mpinConfirm}
-              onChangeText={setMpinConfirm}
-              secureTextEntry
-              keyboardType="number-pad"
-              style={styles.input}
-              mode="outlined"
-              outlineColor={colors.border}
-              activeOutlineColor={colors.terracotta}
-            />
+                <Text style={{ fontSize: 13, fontFamily: "Poppins_500Medium", color: "#5C4A3D", marginBottom: 8 }}>
+                  I am a
+                </Text>
+                <View style={{ flexDirection: "row", gap: 12, marginBottom: 16 }}>
+                  <AnimatedPressable
+                    onPress={() => setRole("seeker")}
+                    style={{ flex: 1, height: 56, borderRadius: 20, ...(role === "seeker" ? elevation.warm : elevation.soft) }}
+                  >
+                    <View
+                      style={{
+                        flex: 1,
+                        borderRadius: 20,
+                        justifyContent: "center",
+                        alignItems: "center",
+                        backgroundColor: role === "seeker" ? "#E76F51" : "#FFF5E6",
+                        borderWidth: role === "seeker" ? 0 : 1.5,
+                        borderColor: "#E8DDD0",
+                      }}
+                    >
+                      <Text style={{ fontSize: 20, marginBottom: 2 }}>🔍</Text>
+                      <Text style={{ fontFamily: "Poppins_600SemiBold", fontSize: 13, color: role === "seeker" ? "#FFFFFF" : "#5C4A3D" }}>
+                        Job Seeker
+                      </Text>
+                    </View>
+                  </AnimatedPressable>
+                  <AnimatedPressable
+                    onPress={() => setRole("employer")}
+                    style={{ flex: 1, height: 56, borderRadius: 20, ...(role === "employer" ? elevation.warm : elevation.soft) }}
+                  >
+                    <View
+                      style={{
+                        flex: 1,
+                        borderRadius: 20,
+                        justifyContent: "center",
+                        alignItems: "center",
+                        backgroundColor: role === "employer" ? "#2A9D8F" : "#FFF5E6",
+                        borderWidth: role === "employer" ? 0 : 1.5,
+                        borderColor: "#E8DDD0",
+                      }}
+                    >
+                      <Text style={{ fontSize: 20, marginBottom: 2 }}>🏢</Text>
+                      <Text style={{ fontFamily: "Poppins_600SemiBold", fontSize: 13, color: role === "employer" ? "#FFFFFF" : "#5C4A3D" }}>
+                        Employer
+                      </Text>
+                    </View>
+                  </AnimatedPressable>
+                </View>
 
-            <Button
-              mode="contained"
-              onPress={handleSetMpin}
-              style={styles.mainBtn}
-            >
-              Finish
-            </Button>
-          </>
-        );
-    }
-  };
+                {role === "employer" && (
+                  <>
+                    <Text style={{ fontSize: 13, fontFamily: "Poppins_500Medium", color: "#5C4A3D", marginBottom: 6 }}>
+                      Business name
+                    </Text>
+                    <View style={inputContainerStyle}>
+                      <Input variant="underlined" size="lg" style={{ borderBottomWidth: 0 }}>
+                        <InputField
+                          placeholder="Business name"
+                          value={businessName}
+                          onChangeText={setBusinessName}
+                          style={{ fontFamily: "Poppins_500Medium", fontSize: 16, color: "#2D1B0E" }}
+                        />
+                      </Input>
+                    </View>
+                  </>
+                )}
 
-  /* ---------- UI ---------- */
+                <Text style={{ fontSize: 13, fontFamily: "Poppins_500Medium", color: "#5C4A3D", marginBottom: 6 }}>
+                  Location
+                </Text>
+                <View style={inputContainerStyle}>
+                  <Input variant="underlined" size="lg" style={{ borderBottomWidth: 0 }}>
+                    <InputField
+                      placeholder="e.g. Kolkata"
+                      value={location}
+                      onChangeText={setLocation}
+                      style={{ fontFamily: "Poppins_500Medium", fontSize: 16, color: "#2D1B0E" }}
+                    />
+                  </Input>
+                </View>
 
-  return (
-    <View style={styles.bg}>
-      <ImageBackground
-        source={require('../../assets/images/kolkata_street_nostalgia.png')}
-        style={styles.bg}
-        imageStyle={imageBackgroundStyle(colors)}
-      >
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          style={{ flex: 1 }}
-        >
-          <ScrollView contentContainerStyle={styles.scroll}>
-            <View style={styles.progress}>
-              <Animated.View style={[styles.progressFill, progressStyle]} />
-            </View>
+                <WarmButton label={t("common.next")} onPress={() => setStep("mpin")} size="lg" fullWidth />
+                <Pressable onPress={() => setStep("otp")} style={{ marginTop: 16, alignItems: "center" }}>
+                  <Text style={{ color: "#2A9D8F", fontFamily: "Poppins_500Medium", fontSize: 14 }}>
+                    {t("common.back")}
+                  </Text>
+                </Pressable>
+              </>
+            )}
 
-            <GlassCard>
-              <Animated.View
-                key={step}
-                entering={FadeInDown.springify()}
-                exiting={FadeOutUp}
-                layout={LinearTransition.springify()}
-              >
-                {renderStep()}
-              </Animated.View>
-            </GlassCard>
-          </ScrollView>
-        </KeyboardAvoidingView>
-      </ImageBackground>
-      {loading && <LoadingScreen fullScreen overlay />}
+            {step === "mpin" && (
+              <>
+                <Text style={{ fontSize: 13, fontFamily: "Poppins_400Regular", color: "#8C7A6D", marginBottom: 16, lineHeight: 20 }}>
+                  Set a 4–6 digit MPIN to sign in quickly next time.
+                </Text>
+                <Text style={{ fontSize: 13, fontFamily: "Poppins_500Medium", color: "#5C4A3D", marginBottom: 6 }}>
+                  {t("auth.setMpin")}
+                </Text>
+                <View style={inputContainerStyle}>
+                  <Input variant="underlined" size="lg" style={{ borderBottomWidth: 0 }}>
+                    <InputField
+                      placeholder="••••"
+                      value={mpin}
+                      onChangeText={setMpin}
+                      keyboardType="number-pad"
+                      secureTextEntry
+                      maxLength={6}
+                      style={{ fontFamily: "Poppins_600SemiBold", fontSize: 24, letterSpacing: 8, textAlign: "center", color: "#2D1B0E" }}
+                    />
+                  </Input>
+                </View>
+
+                <WarmButton label={loading ? "..." : t("common.done")} onPress={handleRegister} disabled={loading} size="lg" fullWidth />
+                <Pressable onPress={() => setStep("profile")} style={{ marginTop: 16, alignItems: "center" }}>
+                  <Text style={{ color: "#2A9D8F", fontFamily: "Poppins_500Medium", fontSize: 14 }}>
+                    {t("common.back")}
+                  </Text>
+                </Pressable>
+              </>
+            )}
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </View>
   );
 }
-
-/* ---------- STYLES ---------- */
-
-const createStyles = (colors: any) =>
-  StyleSheet.create({
-    bg: { flex: 1 },
-    scroll: { flexGrow: 1, justifyContent: 'center', padding: scale(20) },
-
-    progress: {
-      height: 4,
-      backgroundColor: colors.cream,
-      borderRadius: 3,
-      overflow: 'hidden',
-      marginBottom: 20,
-    },
-    progressFill: {
-      height: 4,
-      backgroundColor: colors.ink,
-    },
-
-    title: { fontSize: 20, fontWeight: 'bold', marginBottom: 20 },
-    fieldHint: { fontSize: 14, fontWeight: '600', marginBottom: 6, color: colors.text },
-    fieldHintSub: { fontSize: 12, marginBottom: 8, color: colors.textSecondary },
-
-    input: { marginBottom: 10, backgroundColor: colors.surface },
-
-    mainBtn: { marginTop: 20 },
-
-    chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 10 },
-    chip: { backgroundColor: colors.cream, borderColor: colors.border },
-
-    roleBox: {
-      flexDirection: 'row',
-      backgroundColor: colors.cream,
-      borderRadius: 12,
-      marginBottom: 20,
-      overflow: 'hidden',
-    },
-    roleSlider: {
-      position: 'absolute',
-      height: '100%',
-      backgroundColor: colors.surface,
-      borderRadius: 12,
-      shadowColor: '#000',
-      shadowOpacity: 0.1,
-      shadowRadius: 10,
-      elevation: 4,
-    },
-    roleBtn: { flex: 1, padding: 12, alignItems: 'center' },
-  });

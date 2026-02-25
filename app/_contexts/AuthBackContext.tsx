@@ -1,56 +1,24 @@
-import React, {
-  createContext,
-  useState,
-  useContext,
-  useCallback,
-  useMemo,
-} from 'react';
+"use client";
 
-type AuthBackOptions = {
-  show: boolean;
-  onBack: () => void;
-  disabled?: boolean;
-};
+import React, { createContext, useContext, useState } from "react";
 
-type AuthBackContextType = {
-  backOptions: AuthBackOptions;
-  setBackOptions: (options: AuthBackOptions) => void;
-};
+interface AuthBackContextValue {
+  canGoBack: boolean;
+  setCanGoBack: (v: boolean) => void;
+}
 
-const defaultOptions: AuthBackOptions = {
-  show: false,
-  onBack: () => {},
-};
-
-const AuthBackContext = createContext<AuthBackContextType | undefined>(
-  undefined
-);
+const AuthBackContext = createContext<AuthBackContextValue | null>(null);
 
 export function AuthBackProvider({ children }: { children: React.ReactNode }) {
-  const [backOptions, setBackOptionsState] = useState<AuthBackOptions>(
-    defaultOptions
-  );
-
-  const setBackOptions = useCallback((options: AuthBackOptions) => {
-    setBackOptionsState(options);
-  }, []);
-
-  const value = useMemo(
-    () => ({ backOptions, setBackOptions }),
-    [backOptions, setBackOptions]
-  );
-
+  const [canGoBack, setCanGoBack] = useState(false);
+  const value: AuthBackContextValue = { canGoBack, setCanGoBack };
   return (
-    <AuthBackContext.Provider value={value}>
-      {children}
-    </AuthBackContext.Provider>
+    <AuthBackContext.Provider value={value}>{children}</AuthBackContext.Provider>
   );
 }
 
 export function useAuthBack() {
   const ctx = useContext(AuthBackContext);
-  if (ctx === undefined) {
-    throw new Error('useAuthBack must be used within AuthBackProvider');
-  }
+  if (!ctx) throw new Error("useAuthBack must be used within AuthBackProvider");
   return ctx;
 }

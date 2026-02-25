@@ -1,159 +1,99 @@
-import { View, StyleSheet } from 'react-native';
-import { Tabs } from 'expo-router';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useAuth } from '../_contexts/AuthContext';
-import { useLanguage } from '../_contexts/LanguageContext';
-import { useTheme } from '../_contexts/ThemeContext';
-import { FloatingAssistant } from '../_components/FloatingAssistant';
-import { OfflineBanner } from '../_components/OfflineBanner';
-import { Platform } from 'react-native';
+import { useEffect, useState } from "react";
+import { View } from "react-native";
+import { Tabs, usePathname } from "expo-router";
+import Ionicons from "@expo/vector-icons/Ionicons";
+import { useTheme } from "../_contexts/ThemeContext";
+import { useAuth } from "../_contexts/AuthContext";
+import { useLanguage } from "../_contexts/LanguageContext";
+import { FloatingAssistant } from "../_components/FloatingAssistant";
 
-const TAB_BAR_BASE_HEIGHT = 60;
+type IoniconsName = React.ComponentProps<typeof Ionicons>["name"];
 
-export default function TabsLayout() {
-  const insets = useSafeAreaInsets();
-  const { user } = useAuth();
+const TAB_ICONS: Record<string, { focused: IoniconsName; default: IoniconsName }> = {
+  index: { focused: "home", default: "home-outline" },
+  search: { focused: "search", default: "search-outline" },
+  "post-job": { focused: "add-circle", default: "add-circle-outline" },
+  applications: { focused: "document-text", default: "document-text-outline" },
+  messages: { focused: "chatbubbles", default: "chatbubbles-outline" },
+  profile: { focused: "person", default: "person-outline" },
+  protibha: { focused: "sparkles", default: "sparkles-outline" },
+};
+
+function tabIcon(name: string) {
+  return ({ color, size, focused }: { color: string; size: number; focused: boolean }) => {
+    const icons = TAB_ICONS[name] ?? TAB_ICONS.index;
+    return <Ionicons name={focused ? icons.focused : icons.default} size={size} color={color} />;
+  };
+}
+
+export default function TabLayout() {
+  const { colors } = useTheme();
   const { t } = useLanguage();
-  const { colors, isDark } = useTheme();
-  const isEmployer = user?.role === 'employer';
+  const { user } = useAuth();
+  const pathname = usePathname();
+  const isSeeker = user?.role === "seeker";
+  const isEmployer = user?.role === "employer";
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setMounted(true));
+    return () => cancelAnimationFrame(id);
+  }, []);
+
+  const hideFloating = pathname === "/protibha" || pathname === "/(tabs)/protibha";
+
+  if (!mounted) {
+    return <View style={{ flex: 1, backgroundColor: colors.background }} />;
+  }
 
   return (
-    <View style={styles.container}>
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
       <Tabs
         screenOptions={{
-          tabBarActiveTintColor: colors.primary,
-          tabBarInactiveTintColor: isDark ? 'rgba(180,160,140,0.5)' : 'rgba(120,100,80,0.45)',
           headerShown: false,
-          tabBarStyle: {
-            backgroundColor: isDark ? colors.surface : '#FFFFFF',
-            elevation: 0,
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: -3 },
-            shadowOpacity: isDark ? 0.15 : 0.06,
-            shadowRadius: 10,
-            height: TAB_BAR_BASE_HEIGHT + insets.bottom,
-            paddingBottom: insets.bottom,
-            paddingTop: 6,
-            borderTopWidth: 0,
-          },
+          tabBarActiveTintColor: colors.primary,
+          tabBarInactiveTintColor: colors.textMuted ?? "#8C7A6D",
           tabBarLabelStyle: {
-            fontSize: 10,
-            fontWeight: '700',
-            letterSpacing: 0.3,
-            marginBottom: Platform.OS === 'ios' ? 0 : 4,
+            fontFamily: "Poppins_500Medium",
+            fontSize: 11,
+            marginTop: -2,
           },
-          tabBarIconStyle: {
-            marginTop: 2,
+          tabBarStyle: {
+            backgroundColor: colors.surface,
+            borderTopWidth: 0,
+            height: 68,
+            paddingBottom: 10,
+            paddingTop: 8,
+            shadowColor: "#2D1B0E",
+            shadowOffset: { width: 0, height: -4 },
+            shadowOpacity: 0.06,
+            shadowRadius: 16,
+            elevation: 8,
           },
           tabBarItemStyle: {
-            borderRadius: 14,
+            borderRadius: 16,
             marginHorizontal: 2,
           },
         }}
       >
-        <Tabs.Screen
-          name="index"
-          options={{
-            title: t('tabs.home'),
-            tabBarIcon: ({ color, size, focused }) => (
-              <MaterialCommunityIcons
-                name={focused ? 'home' : 'home-outline'}
-                size={size}
-                color={color}
-              />
-            ),
-          }}
-        />
-        <Tabs.Screen
-          name="protibha"
-          options={{
-            title: t('tabs.protibha'),
-            tabBarIcon: ({ color, size, focused }) => (
-              <MaterialCommunityIcons
-                name={focused ? 'robot-happy' : 'robot-happy-outline'}
-                size={size}
-                color={color}
-              />
-            ),
-            href: null,
-          }}
-        />
+        <Tabs.Screen name="index" options={{ title: t("tabs.home"), tabBarLabel: t("tabs.home"), tabBarIcon: tabIcon("index") }} />
         <Tabs.Screen
           name="search"
-          options={{
-            title: t('tabs.search'),
-            tabBarIcon: ({ color, size, focused }) => (
-              <MaterialCommunityIcons
-                name={focused ? 'magnify' : 'magnify'}
-                size={size}
-                color={color}
-              />
-            ),
-            href: isEmployer ? null : '/search',
-          }}
+          options={{ title: t("tabs.search"), tabBarLabel: t("tabs.search"), tabBarIcon: tabIcon("search"), href: isSeeker ? undefined : null }}
         />
         <Tabs.Screen
           name="post-job"
-          options={{
-            title: t('tabs.postJob'),
-            tabBarIcon: ({ color, size, focused }) => (
-              <MaterialCommunityIcons
-                name={focused ? 'plus-circle' : 'plus-circle-outline'}
-                size={size}
-                color={color}
-              />
-            ),
-            href: isEmployer ? '/post-job' : null,
-          }}
+          options={{ title: t("tabs.postJob"), tabBarLabel: t("tabs.postJob"), tabBarIcon: tabIcon("post-job"), href: isEmployer ? undefined : null }}
         />
         <Tabs.Screen
           name="applications"
-          options={{
-            title: t('tabs.applications'),
-            tabBarIcon: ({ color, size, focused }) => (
-              <MaterialCommunityIcons
-                name={focused ? 'file-document' : 'file-document-outline'}
-                size={size}
-                color={color}
-              />
-            ),
-            href: !isEmployer ? '/applications' : null,
-          }}
+          options={{ title: t("tabs.applications"), tabBarLabel: t("tabs.applications"), tabBarIcon: tabIcon("applications"), href: isSeeker ? undefined : null }}
         />
-        <Tabs.Screen
-          name="messages"
-          options={{
-            title: t('tabs.messages'),
-            tabBarIcon: ({ color, size, focused }) => (
-              <MaterialCommunityIcons
-                name={focused ? 'message' : 'message-outline'}
-                size={size}
-                color={color}
-              />
-            ),
-          }}
-        />
-        <Tabs.Screen
-          name="profile"
-          options={{
-            title: t('tabs.profile'),
-            tabBarIcon: ({ color, size, focused }) => (
-              <MaterialCommunityIcons
-                name={focused ? 'account-circle' : 'account-circle-outline'}
-                size={size}
-                color={color}
-              />
-            ),
-          }}
-        />
+        <Tabs.Screen name="messages" options={{ title: t("tabs.messages"), tabBarLabel: t("tabs.messages"), tabBarIcon: tabIcon("messages") }} />
+        <Tabs.Screen name="profile" options={{ title: t("tabs.profile"), tabBarLabel: t("tabs.profile"), tabBarIcon: tabIcon("profile") }} />
+        <Tabs.Screen name="protibha" options={{ title: t("protibha.title"), tabBarLabel: "AI", tabBarIcon: tabIcon("protibha"), href: null }} />
       </Tabs>
-      <FloatingAssistant />
-      <OfflineBanner />
+      {!hideFloating && <FloatingAssistant />}
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1 },
-});
